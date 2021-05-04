@@ -116,8 +116,27 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range hbtcMarkets {
-		if err := w.Write([]string{"hbtc", record.Name}); err != nil {
+		if err = w.Write([]string{"hbtc", record.Name}); err != nil {
 			log.Error().Err(err).Str("exchange", "hbtc").Msg("writing markets to csv")
+			return
+		}
+	}
+
+	// Huobi exchange.
+	resp, err = http.Get(config.HuobiRESTBaseURL + "v1/common/symbols")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "huobi").Msg("exchange request for markets")
+		return
+	}
+	huobiMarkets := huobiResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&huobiMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "huobi").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range huobiMarkets.Data {
+		if err = w.Write([]string{"huobi", record.Symbol}); err != nil {
+			log.Error().Err(err).Str("exchange", "huobi").Msg("writing markets to csv")
 			return
 		}
 	}
@@ -148,4 +167,11 @@ type bitfinexResp [][]string
 
 type hbtcRespRes struct {
 	Name string `json:"symbol"`
+}
+
+type huobiResp struct {
+	Data []huobiRespData `json:"data"`
+}
+type huobiRespData struct {
+	Symbol string `json:"symbol"`
 }

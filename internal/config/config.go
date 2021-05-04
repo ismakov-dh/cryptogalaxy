@@ -25,6 +25,11 @@ const (
 	HbtcWebsocketURL = "wss://wsapi.hbtc.com/openapi/quote/ws/v2"
 	// HbtcRESTBaseURL is the hbtc exchange base REST url.
 	HbtcRESTBaseURL = "https://api.hbtc.com/"
+
+	// HuobiWebsocketURL is the huobi exchange websocket url.
+	HuobiWebsocketURL = "wss://api.huobi.pro/ws"
+	// HuobiRESTBaseURL is the huobi exchange base REST url.
+	HuobiRESTBaseURL = "https://api.huobi.pro/"
 )
 
 // Config contains config values for the app.

@@ -1,7 +1,10 @@
 package connector
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"io"
 	"net"
 	"time"
 
@@ -44,6 +47,7 @@ func (w *Websocket) Write(data []byte) error {
 }
 
 // Read reads data frame from websocket connection.
+// It also handles gzip compressed binary data frame.
 func (w *Websocket) Read() ([]byte, error) {
 	if w.Cfg.ReadTimeoutSec > 0 {
 		err := w.Conn.SetReadDeadline(time.Now().Add(time.Duration(w.Cfg.ReadTimeoutSec) * time.Second))
@@ -51,9 +55,24 @@ func (w *Websocket) Read() ([]byte, error) {
 			return nil, err
 		}
 	}
-	data, err := wsutil.ReadServerText(w.Conn)
+	data, dataType, err := wsutil.ReadServerData(w.Conn)
 	if err != nil {
 		return nil, err
 	}
-	return data, nil
+	if dataType != ws.OpBinary {
+		return data, nil
+	}
+
+	// If the server sends compressed binary data, then we need to decompress it.
+	buf := bytes.NewBuffer(data)
+	reader, err := gzip.NewReader(buf)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	result, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
