@@ -142,6 +142,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartHbtc(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "huobi":
+			appErrGroup.Go(func() error {
+				return exchange.StartHuobi(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 
