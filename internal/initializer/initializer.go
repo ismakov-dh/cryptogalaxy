@@ -146,6 +146,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartHuobi(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "gateio":
+			appErrGroup.Go(func() error {
+				return exchange.StartGateio(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

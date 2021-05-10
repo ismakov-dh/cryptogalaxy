@@ -45,6 +45,7 @@ func main() {
 			return
 		}
 	}
+	fmt.Println("got market info from FTX")
 
 	// Coinbase-Pro exchange.
 	resp, err = http.Get(config.CoinbaseProRESTBaseURL + "products")
@@ -64,6 +65,7 @@ func main() {
 			return
 		}
 	}
+	fmt.Println("got market info from Coinbase Pro")
 
 	// Binance exchange.
 	resp, err = http.Get(config.BinanceRESTBaseURL + "exchangeInfo")
@@ -83,6 +85,7 @@ func main() {
 			return
 		}
 	}
+	fmt.Println("got market info from Binance")
 
 	// Bitfinex exchange.
 	resp, err = http.Get(config.BitfinexRESTBaseURL + "conf/pub:list:pair:exchange")
@@ -102,6 +105,7 @@ func main() {
 			return
 		}
 	}
+	fmt.Println("got market info from Bitfinex")
 
 	// Hbtc exchange.
 	resp, err = http.Get(config.HbtcRESTBaseURL + "openapi/v1/pairs")
@@ -121,6 +125,7 @@ func main() {
 			return
 		}
 	}
+	fmt.Println("got market info from Hbtc")
 
 	// Huobi exchange.
 	resp, err = http.Get(config.HuobiRESTBaseURL + "v1/common/symbols")
@@ -140,6 +145,27 @@ func main() {
 			return
 		}
 	}
+	fmt.Println("got market info from Huobi")
+
+	// Gateio exchange.
+	resp, err = http.Get(config.GateioRESTBaseURL + "spot/currency_pairs")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "gateio").Msg("exchange request for markets")
+		return
+	}
+	gateioMarkets := []gateioResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&gateioMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "gateio").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range gateioMarkets {
+		if err = w.Write([]string{"gateio", record.Name}); err != nil {
+			log.Error().Err(err).Str("exchange", "gateio").Msg("writing markets to csv")
+			return
+		}
+	}
+	fmt.Println("got market info from Gateio")
 
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
@@ -152,15 +178,15 @@ type ftxRespRes struct {
 	Type string `json:"type"`
 }
 
+type coinbaseProResp struct {
+	Name string `json:"id"`
+}
+
 type binanceResp struct {
 	Result []binanceRespRes `json:"symbols"`
 }
 type binanceRespRes struct {
 	Name string `json:"symbol"`
-}
-
-type coinbaseProResp struct {
-	Name string `json:"id"`
 }
 
 type bitfinexResp [][]string
@@ -174,4 +200,8 @@ type huobiResp struct {
 }
 type huobiRespData struct {
 	Symbol string `json:"symbol"`
+}
+
+type gateioResp struct {
+	Name string `json:"id"`
 }

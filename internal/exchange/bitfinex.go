@@ -512,7 +512,7 @@ func (b *bitfinex) processWs(ctx context.Context, wr *wsRespInfoBitfinex, cd *co
 			trade.TradeID = uint64(tradeID)
 		} else {
 			log.Error().Str("exchange", "bitfinex").Str("func", "processWs").Interface("trade id", wr.respBitfinex[0]).Msg("")
-			return errors.New("cannot convert trade data field channel id to float")
+			return errors.New("cannot convert trade data field trade id to float")
 		}
 
 		if size, ok := wr.respBitfinex[2].(float64); ok {

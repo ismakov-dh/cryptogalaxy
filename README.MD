@@ -2,7 +2,7 @@
  
 Cryptogalaxy is an app which will get any cryptocurrencies ticker and trade data in real time from multiple exchanges and then saves it in multiple storage systems.
  
-Currently supported exchanges : FTX, Coinbase Pro, Binance, Bitfinex, HBTC, Huobi.
+Currently supported exchanges : FTX, Coinbase Pro, Binance, Bitfinex, HBTC, Huobi, Gateio.
 
 Currently supported storages : Terminal Output, MySQL, Elasticsearch.
  
@@ -57,7 +57,7 @@ Currently supported storages : Terminal Output, MySQL, Elasticsearch.
  
 * App creates a single websocket connection per exchange. So, you may hit the threshold of no. of markets you want to get the data from it. In that case you need to run a new instance of the app for more markets.
  
-*Note :* Out of 6 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
+*Note :* Out of 7 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
  
 ## Why the app
  
@@ -232,7 +232,7 @@ Example configuration file can be found at [./examples/config.json](./examples/c
  
 * **exchanges : name** : Name of the exchange from which you need data.
  
-Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi.
+Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi, gateio.
  
 * **exchanges : markets : id** : Market symbol for which data is needed. This has to be the exact one defined by exchange.
  

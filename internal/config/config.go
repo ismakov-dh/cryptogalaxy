@@ -30,6 +30,11 @@ const (
 	HuobiWebsocketURL = "wss://api.huobi.pro/ws"
 	// HuobiRESTBaseURL is the huobi exchange base REST url.
 	HuobiRESTBaseURL = "https://api.huobi.pro/"
+
+	// GateioWebsocketURL is the gateio exchange websocket url.
+	GateioWebsocketURL = "wss://api.gateio.ws/ws/v4/"
+	// GateioRESTBaseURL is the gateio exchange base REST url.
+	GateioRESTBaseURL = "https://api.gateio.ws/api/v4/"
 )
 
 // Config contains config values for the app.
