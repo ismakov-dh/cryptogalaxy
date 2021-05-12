@@ -697,7 +697,7 @@ func (h *hbtc) processREST(ctx context.Context, mktID string, mktCommitName stri
 
 	switch channel {
 	case "ticker":
-		req, err = h.rest.Request(ctx, config.HbtcRESTBaseURL+"openapi/quote/v1/ticker/price")
+		req, err = h.rest.Request(ctx, "GET", config.HbtcRESTBaseURL+"openapi/quote/v1/ticker/price")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -707,7 +707,7 @@ func (h *hbtc) processREST(ctx context.Context, mktID string, mktCommitName stri
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = h.rest.Request(ctx, config.HbtcRESTBaseURL+"openapi/quote/v1/trades")
+		req, err = h.rest.Request(ctx, "GET", config.HbtcRESTBaseURL+"openapi/quote/v1/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

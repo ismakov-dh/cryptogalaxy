@@ -105,11 +105,11 @@ type wsRespBinance struct {
 }
 
 type restRespBinance struct {
-	ID    uint64 `json:"id"`
-	Maker bool   `json:"isBuyerMaker"`
-	Qty   string `json:"qty"`
-	Price string `json:"price"`
-	Time  int64  `json:"time"`
+	TradeID uint64 `json:"id"`
+	Maker   bool   `json:"isBuyerMaker"`
+	Qty     string `json:"qty"`
+	Price   string `json:"price"`
+	Time    int64  `json:"time"`
 }
 
 func newBinance(appCtx context.Context, markets []config.Market, connCfg *config.Connection) error {
@@ -486,7 +486,7 @@ func (b *binance) processWs(ctx context.Context, wr *wsRespBinance, cd *commitDa
 		trade.Exchange = "binance"
 		trade.MktID = wr.Symbol
 		trade.MktCommitName = wr.mktCommitName
-		trade.TradeID = wr.TradeID
+		trade.TradeID = strconv.FormatUint(wr.TradeID, 10)
 
 		if wr.Maker {
 			trade.Side = "buy"
@@ -679,7 +679,7 @@ func (b *binance) processREST(ctx context.Context, mktID string, mktCommitName s
 
 	switch channel {
 	case "ticker":
-		req, err = b.rest.Request(ctx, config.BinanceRESTBaseURL+"ticker/price")
+		req, err = b.rest.Request(ctx, "GET", config.BinanceRESTBaseURL+"ticker/price")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -689,7 +689,7 @@ func (b *binance) processREST(ctx context.Context, mktID string, mktCommitName s
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = b.rest.Request(ctx, config.BinanceRESTBaseURL+"trades")
+		req, err = b.rest.Request(ctx, "GET", config.BinanceRESTBaseURL+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -832,7 +832,7 @@ func (b *binance) processREST(ctx context.Context, mktID string, mktCommitName s
 						Exchange:      "binance",
 						MktID:         mktID,
 						MktCommitName: mktCommitName,
-						TradeID:       r.ID,
+						TradeID:       strconv.FormatUint(r.TradeID, 10),
 						Side:          side,
 						Size:          size,
 						Price:         price,

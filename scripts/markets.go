@@ -167,6 +167,26 @@ func main() {
 	}
 	fmt.Println("got market info from Gateio")
 
+	// Kucoin exchange.
+	resp, err = http.Get(config.KucoinRESTBaseURL + "symbols")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "kucoin").Msg("exchange request for markets")
+		return
+	}
+	kucoinMarkets := kucoinResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&kucoinMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "kucoin").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range kucoinMarkets.Data {
+		if err = w.Write([]string{"kucoin", record.Symbol}); err != nil {
+			log.Error().Err(err).Str("exchange", "kucoin").Msg("writing markets to csv")
+			return
+		}
+	}
+	fmt.Println("got market info from Kucoin")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -204,4 +224,11 @@ type huobiRespData struct {
 
 type gateioResp struct {
 	Name string `json:"id"`
+}
+
+type kucoinResp struct {
+	Data []kucoinRespData `json:"data"`
+}
+type kucoinRespData struct {
+	Symbol string `json:"symbol"`
 }

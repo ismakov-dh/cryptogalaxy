@@ -42,8 +42,8 @@ func GetREST() (*REST, error) {
 }
 
 // Request creates a new request object for http operation.
-func (r *REST) Request(appCtx context.Context, url string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(appCtx, "GET", url, nil)
+func (r *REST) Request(appCtx context.Context, method, url string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(appCtx, method, url, nil)
 	if err != nil {
 		return nil, err
 	}

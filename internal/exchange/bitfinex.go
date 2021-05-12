@@ -509,7 +509,7 @@ func (b *bitfinex) processWs(ctx context.Context, wr *wsRespInfoBitfinex, cd *co
 		// (Sent array has different data type values so the interface is used.)
 
 		if tradeID, ok := wr.respBitfinex[0].(float64); ok {
-			trade.TradeID = uint64(tradeID)
+			trade.TradeID = strconv.FormatFloat(tradeID, 'f', 0, 64)
 		} else {
 			log.Error().Str("exchange", "bitfinex").Str("func", "processWs").Interface("trade id", wr.respBitfinex[0]).Msg("")
 			return errors.New("cannot convert trade data field trade id to float")
@@ -710,7 +710,7 @@ func (b *bitfinex) processREST(ctx context.Context, mktID string, mktCommitName 
 
 	switch channel {
 	case "ticker":
-		req, err = b.rest.Request(ctx, config.BitfinexRESTBaseURL+"ticker/t"+mktID)
+		req, err = b.rest.Request(ctx, "GET", config.BitfinexRESTBaseURL+"ticker/t"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -718,7 +718,7 @@ func (b *bitfinex) processREST(ctx context.Context, mktID string, mktCommitName 
 			return err
 		}
 	case "trade":
-		req, err = b.rest.Request(ctx, config.BitfinexRESTBaseURL+"trades/t"+mktID+"/hist")
+		req, err = b.rest.Request(ctx, "GET", config.BitfinexRESTBaseURL+"trades/t"+mktID+"/hist")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -871,7 +871,7 @@ func (b *bitfinex) processREST(ctx context.Context, mktID string, mktCommitName 
 						Exchange:      "bitfinex",
 						MktID:         mktID,
 						MktCommitName: mktCommitName,
-						TradeID:       uint64(tradeID),
+						TradeID:       strconv.FormatFloat(tradeID, 'f', 0, 64),
 						Side:          side,
 						Size:          size,
 						Price:         price,

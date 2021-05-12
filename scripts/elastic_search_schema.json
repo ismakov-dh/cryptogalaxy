@@ -11,7 +11,7 @@
                 "type": "keyword"
             },
             "trade_id": {
-                "type": "unsigned_long"
+                "type": "keyword"
             },
             "side": {
                 "type": "keyword"

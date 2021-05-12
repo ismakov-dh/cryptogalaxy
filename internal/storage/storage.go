@@ -20,7 +20,7 @@ type Trade struct {
 	Exchange      string
 	MktID         string
 	MktCommitName string
-	TradeID       uint64
+	TradeID       string
 	Side          string
 	Size          float64
 	Price         float64

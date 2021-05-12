@@ -496,7 +496,53 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail {
+	// Kucoin exchange.
+	var kucoinFail bool
+
+	terTickers = make(map[string]storage.Ticker)
+	terTrades = make(map[string]storage.Trade)
+	mysqlTickers = make(map[string]storage.Ticker)
+	mysqlTrades = make(map[string]storage.Trade)
+	esTickers = make(map[string]storage.Ticker)
+	esTrades = make(map[string]storage.Trade)
+
+	err = readTerminal("kucoin", terTickers, terTrades)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.Error("FAILURE : kucoin exchange function")
+		kucoinFail = true
+	}
+
+	if !kucoinFail {
+		err = readMySQL("kucoin", mysqlTickers, mysqlTrades, mysql)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : kucoin exchange function")
+			kucoinFail = true
+		}
+	}
+
+	if !kucoinFail {
+		err = readElasticSearch("kucoin", esTickers, esTrades, es)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : kucoin exchange function")
+			kucoinFail = true
+		}
+	}
+
+	if !kucoinFail {
+		err = verifyData("kucoin", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : kucoin exchange function")
+			kucoinFail = true
+		} else {
+			t.Log("SUCCESS : kucoin exchange function")
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increse it before actual debugging.")
 	}
 }

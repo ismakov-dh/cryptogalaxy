@@ -473,7 +473,7 @@ func (c *coinbasePro) processWs(ctx context.Context, wr *respCoinPro, cd *commit
 		trade.Exchange = "coinbase-pro"
 		trade.MktID = wr.ProductID
 		trade.MktCommitName = wr.mktCommitName
-		trade.TradeID = wr.TradeID
+		trade.TradeID = strconv.FormatUint(wr.TradeID, 10)
 		trade.Side = wr.Side
 
 		size, err := strconv.ParseFloat(wr.Size, 64)
@@ -666,7 +666,7 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 
 	switch channel {
 	case "ticker":
-		req, err = c.rest.Request(ctx, config.CoinbaseProRESTBaseURL+"products/"+mktID+"/ticker")
+		req, err = c.rest.Request(ctx, "GET", config.CoinbaseProRESTBaseURL+"products/"+mktID+"/ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -674,7 +674,7 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 			return err
 		}
 	case "trade":
-		req, err = c.rest.Request(ctx, config.CoinbaseProRESTBaseURL+"products/"+mktID+"/trades")
+		req, err = c.rest.Request(ctx, "GET", config.CoinbaseProRESTBaseURL+"products/"+mktID+"/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -814,7 +814,7 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 						Exchange:      "coinbase-pro",
 						MktID:         mktID,
 						MktCommitName: mktCommitName,
-						TradeID:       r.TradeID,
+						TradeID:       strconv.FormatUint(r.TradeID, 10),
 						Side:          r.Side,
 						Size:          size,
 						Price:         price,

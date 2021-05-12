@@ -35,6 +35,9 @@ const (
 	GateioWebsocketURL = "wss://api.gateio.ws/ws/v4/"
 	// GateioRESTBaseURL is the gateio exchange base REST url.
 	GateioRESTBaseURL = "https://api.gateio.ws/api/v4/"
+
+	// KucoinRESTBaseURL is the kucoin exchange base REST url.
+	KucoinRESTBaseURL = "https://api.kucoin.com/api/v1/"
 )
 
 // Config contains config values for the app.

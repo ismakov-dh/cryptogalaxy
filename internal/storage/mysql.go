@@ -91,9 +91,9 @@ func (m *MySQL) CommitTrades(appCtx context.Context, data []Trade) error {
 	sb.WriteString("INSERT INTO trade(exchange, market, trade_id, side, size, price, timestamp, created_at) VALUES ")
 	for i, trade := range data {
 		if i == 0 {
-			sb.WriteString(fmt.Sprintf("(\"%v\", \"%v\", %v, \"%v\", %v, %v, \"%v\", \"%v\")", trade.Exchange, trade.MktCommitName, trade.TradeID, trade.Side, trade.Size, trade.Price, trade.Timestamp.Format(mysqlTimestamp), time.Now().UTC().Format(mysqlTimestamp)))
+			sb.WriteString(fmt.Sprintf("(\"%v\", \"%v\", \"%v\", \"%v\", %v, %v, \"%v\", \"%v\")", trade.Exchange, trade.MktCommitName, trade.TradeID, trade.Side, trade.Size, trade.Price, trade.Timestamp.Format(mysqlTimestamp), time.Now().UTC().Format(mysqlTimestamp)))
 		} else {
-			sb.WriteString(fmt.Sprintf(",(\"%v\", \"%v\", %v, \"%v\", %v, %v, \"%v\", \"%v\")", trade.Exchange, trade.MktCommitName, trade.TradeID, trade.Side, trade.Size, trade.Price, trade.Timestamp.Format(mysqlTimestamp), time.Now().UTC().Format(mysqlTimestamp)))
+			sb.WriteString(fmt.Sprintf(",(\"%v\", \"%v\", \"%v\", \"%v\", %v, %v, \"%v\", \"%v\")", trade.Exchange, trade.MktCommitName, trade.TradeID, trade.Side, trade.Size, trade.Price, trade.Timestamp.Format(mysqlTimestamp), time.Now().UTC().Format(mysqlTimestamp)))
 		}
 	}
 	var ctx context.Context

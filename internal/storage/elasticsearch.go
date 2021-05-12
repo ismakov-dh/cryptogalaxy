@@ -69,7 +69,7 @@ type esData struct {
 	Channel   string    `json:"channel"`
 	Exchange  string    `json:"exchange"`
 	Market    string    `json:"market"`
-	TradeID   uint64    `json:"trade_id"`
+	TradeID   string    `json:"trade_id"`
 	Side      string    `json:"side"`
 	Size      float64   `json:"size"`
 	Price     float64   `json:"price"`

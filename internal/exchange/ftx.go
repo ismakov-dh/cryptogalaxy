@@ -689,7 +689,7 @@ func (f *ftx) processREST(ctx context.Context, mktID string, mktCommitName strin
 
 	switch channel {
 	case "ticker":
-		req, err = f.rest.Request(ctx, config.FtxRESTBaseURL+"markets/"+mktID)
+		req, err = f.rest.Request(ctx, "GET", config.FtxRESTBaseURL+"markets/"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -697,7 +697,7 @@ func (f *ftx) processREST(ctx context.Context, mktID string, mktCommitName strin
 			return err
 		}
 	case "trade":
-		req, err = f.rest.Request(ctx, config.FtxRESTBaseURL+"markets/"+mktID+"/trades")
+		req, err = f.rest.Request(ctx, "GET", config.FtxRESTBaseURL+"markets/"+mktID+"/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

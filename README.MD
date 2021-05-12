@@ -2,11 +2,24 @@
  
 Cryptogalaxy is an app which will get any cryptocurrencies ticker and trade data in real time from multiple exchanges and then saves it in multiple storage systems.
  
-Currently supported exchanges : FTX, Coinbase Pro, Binance, Bitfinex, HBTC, Huobi, Gateio.
+Currently supported exchanges : 
 
-Currently supported storages : Terminal Output, MySQL, Elasticsearch.
+1. FTX
+2. Coinbase Pro
+3. Binance
+4. Bitfinex
+5. HBTC
+6. Huobi
+7. Gateio
+8. Kucoin
+
+Currently supported storages : 
+
+1. Terminal Output
+2. MySQL
+3. Elasticsearch
  
----------------------------------------
+---------------------------------------  
  * [Features](#features)
  * [Limitations](#limitations)
  * [Why the app](#why-the-app)
@@ -57,7 +70,7 @@ Currently supported storages : Terminal Output, MySQL, Elasticsearch.
  
 * App creates a single websocket connection per exchange. So, you may hit the threshold of no. of markets you want to get the data from it. In that case you need to run a new instance of the app for more markets.
  
-*Note :* Out of 7 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
+*Note :* Out of 8 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
  
 ## Why the app
  
@@ -67,7 +80,7 @@ Once the app was in its final stage, I thought it may help other developers who 
  
 ## Should you use it
  
-If you already have a script / library / service to get cryptocurrencies data and it is working fine then probably you should continue with that. Else if you have an idea for displaying cryptocurrencies data in a beautiful way and have not yet decided on the way of getting it then you should try it.
+If you already have a script / library / service to get cryptocurrencies data and it is working fine then probably you should continue with that. Else if you have an idea for displaying / utilizing cryptocurrencies data in a beautiful way and have not yet decided on the way of getting it then you should try it.
  
 ## Install and run 
  
@@ -232,7 +245,7 @@ Example configuration file can be found at [./examples/config.json](./examples/c
  
 * **exchanges : name** : Name of the exchange from which you need data.
  
-Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi, gateio.
+Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi, gateio, kucoin.
  
 * **exchanges : markets : id** : Market symbol for which data is needed. This has to be the exact one defined by exchange.
  
@@ -459,8 +472,8 @@ CREATE TABLE `trade` (
  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
  `exchange` varchar(32) NOT NULL,
  `market` varchar(32) NOT NULL,
- `trade_id` bigint unsigned NULL,
- `side` varchar(8) NULL,
+ `trade_id` varchar(64) NULL,
+ `side` varchar(8) NOT NULL,
  `size` decimal(64,8) NOT NULL,
  `price` decimal(64,8) NOT NULL,
  `timestamp` timestamp(3) NOT NULL,
@@ -487,7 +500,7 @@ Script can be found at [./scripts/elastic_search_schema.json](./scripts/elastic_
                "type": "keyword"
            },
            "trade_id": {
-               "type": "unsigned_long"
+               "type": "keyword"
            },
            "side": {
                "type": "keyword"

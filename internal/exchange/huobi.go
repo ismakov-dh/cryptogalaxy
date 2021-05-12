@@ -485,7 +485,7 @@ func (h *huobi) processWs(ctx context.Context, wr *respHuobi, cd *commitData) er
 			trade.Exchange = "huobi"
 			trade.MktID = wr.market
 			trade.MktCommitName = wr.mktCommitName
-			trade.TradeID = data.WsTradeID
+			trade.TradeID = strconv.FormatUint(data.WsTradeID, 10)
 			trade.Side = data.Direction
 			trade.Size = data.Amount
 			trade.Price = data.Price
@@ -662,7 +662,7 @@ func (h *huobi) processREST(ctx context.Context, mktID string, mktCommitName str
 
 	switch channel {
 	case "ticker":
-		req, err = h.rest.Request(ctx, config.HuobiRESTBaseURL+"market/detail/merged")
+		req, err = h.rest.Request(ctx, "GET", config.HuobiRESTBaseURL+"market/detail/merged")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -672,7 +672,7 @@ func (h *huobi) processREST(ctx context.Context, mktID string, mktCommitName str
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = h.rest.Request(ctx, config.HuobiRESTBaseURL+"market/history/trade")
+		req, err = h.rest.Request(ctx, "GET", config.HuobiRESTBaseURL+"market/history/trade")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -793,7 +793,7 @@ func (h *huobi) processREST(ctx context.Context, mktID string, mktCommitName str
 							Exchange:      "huobi",
 							MktID:         mktID,
 							MktCommitName: mktCommitName,
-							TradeID:       r.RESTTradeID,
+							TradeID:       strconv.FormatUint(r.RESTTradeID, 10),
 							Side:          r.Direction,
 							Size:          r.Amount,
 							Price:         r.Price,

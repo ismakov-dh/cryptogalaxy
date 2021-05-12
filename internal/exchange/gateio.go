@@ -489,7 +489,7 @@ func (g *gateio) processWs(ctx context.Context, wr *wsRespGateio, cd *commitData
 
 		// Trade ID sent is in int format for websocket, string format for REST.
 		if tradeIDFloat, ok := wr.Result.TradeID.(float64); ok {
-			trade.TradeID = uint64(tradeIDFloat)
+			trade.TradeID = strconv.FormatFloat(tradeIDFloat, 'f', 0, 64)
 		} else {
 			log.Error().Str("exchange", "gateio").Str("func", "processWs").Interface("trade id", wr.Result.TradeID).Msg("")
 			return errors.New("cannot convert trade data field trade id to float")
@@ -688,7 +688,7 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 
 	switch channel {
 	case "ticker":
-		req, err = g.rest.Request(ctx, config.GateioRESTBaseURL+"spot/tickers")
+		req, err = g.rest.Request(ctx, "GET", config.GateioRESTBaseURL+"spot/tickers")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -698,7 +698,7 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 		q = req.URL.Query()
 		q.Add("currency_pair", mktID)
 	case "trade":
-		req, err = g.rest.Request(ctx, config.GateioRESTBaseURL+"spot/trades")
+		req, err = g.rest.Request(ctx, "GET", config.GateioRESTBaseURL+"spot/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -819,14 +819,8 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 					r := rr[i]
 
 					// Trade ID sent is in int format for websocket, string format for REST.
-					var tradeID uint64
-					if tradeIDStr, ok := r.TradeID.(string); ok {
-						tradeID, err = strconv.ParseUint(tradeIDStr, 10, 64)
-						if err != nil {
-							logErrStack(err)
-							return err
-						}
-					} else {
+					tradeID, ok := r.TradeID.(string)
+					if !ok {
 						log.Error().Str("exchange", "gateio").Str("func", "processREST").Interface("trade id", r.TradeID).Msg("")
 						return errors.New("cannot convert trade data field trade id to string")
 					}
