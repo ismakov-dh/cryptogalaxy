@@ -38,6 +38,11 @@ const (
 
 	// KucoinRESTBaseURL is the kucoin exchange base REST url.
 	KucoinRESTBaseURL = "https://api.kucoin.com/api/v1/"
+
+	// BitstampWebsocketURL is the bitstamp exchange websocket url.
+	BitstampWebsocketURL = "wss://ws.bitstamp.net/"
+	// BitstampRESTBaseURL is the bitstamp exchange base REST url.
+	BitstampRESTBaseURL = "https://www.bitstamp.net/api/v2/"
 )
 
 // Config contains config values for the app.

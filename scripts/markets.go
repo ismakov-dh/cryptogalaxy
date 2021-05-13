@@ -21,7 +21,6 @@ func main() {
 		return
 	}
 	w := csv.NewWriter(f)
-	defer w.Flush()
 	defer f.Close()
 
 	// FTX exchange.
@@ -45,6 +44,7 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from FTX")
 
 	// Coinbase-Pro exchange.
@@ -65,6 +65,7 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from Coinbase Pro")
 
 	// Binance exchange.
@@ -85,6 +86,7 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from Binance")
 
 	// Bitfinex exchange.
@@ -105,6 +107,7 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from Bitfinex")
 
 	// Hbtc exchange.
@@ -125,6 +128,7 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from Hbtc")
 
 	// Huobi exchange.
@@ -145,6 +149,7 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from Huobi")
 
 	// Gateio exchange.
@@ -165,6 +170,7 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from Gateio")
 
 	// Kucoin exchange.
@@ -185,7 +191,29 @@ func main() {
 			return
 		}
 	}
+	w.Flush()
 	fmt.Println("got market info from Kucoin")
+
+	// Bitstamp exchange.
+	resp, err = http.Get(config.BitstampRESTBaseURL + "trading-pairs-info")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "bitstamp").Msg("exchange request for markets")
+		return
+	}
+	bitstampMarkets := []bitstampResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&bitstampMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "bitstamp").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range bitstampMarkets {
+		if err = w.Write([]string{"bitstamp", record.Symbol}); err != nil {
+			log.Error().Err(err).Str("exchange", "bitstamp").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Bitstamp")
 
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
@@ -231,4 +259,8 @@ type kucoinResp struct {
 }
 type kucoinRespData struct {
 	Symbol string `json:"symbol"`
+}
+
+type bitstampResp struct {
+	Symbol string `json:"url_symbol"`
 }

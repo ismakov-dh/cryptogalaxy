@@ -154,6 +154,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartKucoin(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "bitstamp":
+			appErrGroup.Go(func() error {
+				return exchange.StartBitstamp(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

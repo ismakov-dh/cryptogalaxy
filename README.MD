@@ -12,6 +12,7 @@ Currently supported exchanges :
 6. Huobi
 7. Gateio
 8. Kucoin
+9. Bitstamp
 
 Currently supported storages : 
 
@@ -70,7 +71,7 @@ Currently supported storages :
  
 * App creates a single websocket connection per exchange. So, you may hit the threshold of no. of markets you want to get the data from it. In that case you need to run a new instance of the app for more markets.
  
-*Note :* Out of 8 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
+*Note :* Out of 9 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
  
 ## Why the app
  
@@ -245,7 +246,7 @@ Example configuration file can be found at [./examples/config.json](./examples/c
  
 * **exchanges : name** : Name of the exchange from which you need data.
  
-Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi, gateio, kucoin.
+Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi, gateio, kucoin, bitstamp.
  
 * **exchanges : markets : id** : Market symbol for which data is needed. This has to be the exact one defined by exchange.
  
@@ -267,7 +268,7 @@ Possible values : ticker, trade.
  
 Possible values : websocket, rest
  
-*Note :* As the app fetches only the last 100 trades from REST API due to the max limit set by most exchanges, data may contain duplicate entries if the configured exchanges : markets : info : rest_ping_interval_sec is too small or misses data if the configured value is too high. So, for trade data it is always better to use websocket as a connector.
+*Note :* As the app fetches only the last 100 trades (or default one incase limit is not supported) from REST API due to the max limit set by most exchanges, data may contain duplicate entries if the configured exchanges : markets : info : rest_ping_interval_sec is too small or misses data if the configured value is too high. So, for trade data it is always better to use websocket as a connector.
  
 * **exchanges : markets : info : websocket_consider_interval_sec** : If you connect to a websocket channel, then you will get a stream of data continuously. Sometimes it makes sense to ignore some of this to have a good set of data. So this flag enables that. It considers stream data only on specified intervals, and ignores all the other time.
  
