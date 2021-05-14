@@ -158,6 +158,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartBitstamp(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "bybit":
+			appErrGroup.Go(func() error {
+				return exchange.StartBybit(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

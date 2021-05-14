@@ -43,6 +43,11 @@ const (
 	BitstampWebsocketURL = "wss://ws.bitstamp.net/"
 	// BitstampRESTBaseURL is the bitstamp exchange base REST url.
 	BitstampRESTBaseURL = "https://www.bitstamp.net/api/v2/"
+
+	// BybitWebsocketURL is the bybit exchange websocket url.
+	BybitWebsocketURL = "wss://stream.bybit.com/realtime_public"
+	// BybitRESTBaseURL is the bybit exchange base REST url.
+	BybitRESTBaseURL = "https://api.bybit.com/"
 )
 
 // Config contains config values for the app.

@@ -215,6 +215,30 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Bitstamp")
 
+	// Bybit exchange.
+	resp, err = http.Get(config.BybitRESTBaseURL + "public/symbols")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "bybit").Msg("exchange request for markets")
+		return
+	}
+	bybitMarkets := bybitResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&bybitMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "bybit").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range bybitMarkets.Result {
+		if record.QuoteCurrency != "USDT" {
+			continue
+		}
+		if err = w.Write([]string{"bybit", record.Name}); err != nil {
+			log.Error().Err(err).Str("exchange", "bybit").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Bybit")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -263,4 +287,12 @@ type kucoinRespData struct {
 
 type bitstampResp struct {
 	Symbol string `json:"url_symbol"`
+}
+
+type bybitResp struct {
+	Result []bybitRespRes `json:"result"`
+}
+type bybitRespRes struct {
+	Name          string `json:"name"`
+	QuoteCurrency string `json:"quote_currency"`
 }
