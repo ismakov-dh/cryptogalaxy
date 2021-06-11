@@ -239,6 +239,27 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Bybit")
 
+	// Probit exchange.
+	resp, err = http.Get(config.ProbitRESTBaseURL + "market")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "probit").Msg("exchange request for markets")
+		return
+	}
+	probitMarkets := probitResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&probitMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "probit").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range probitMarkets.Data {
+		if err = w.Write([]string{"probit", record.ID}); err != nil {
+			log.Error().Err(err).Str("exchange", "probit").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Probit")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -295,4 +316,11 @@ type bybitResp struct {
 type bybitRespRes struct {
 	Name          string `json:"name"`
 	QuoteCurrency string `json:"quote_currency"`
+}
+
+type probitResp struct {
+	Data []probitRespData `json:"data"`
+}
+type probitRespData struct {
+	ID string `json:"id"`
 }

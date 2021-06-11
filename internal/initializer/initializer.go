@@ -162,6 +162,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartBybit(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "probit":
+			appErrGroup.Go(func() error {
+				return exchange.StartProbit(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

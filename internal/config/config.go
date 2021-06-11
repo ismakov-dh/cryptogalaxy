@@ -48,6 +48,11 @@ const (
 	BybitWebsocketURL = "wss://stream.bybit.com/realtime_public"
 	// BybitRESTBaseURL is the bybit exchange base REST url.
 	BybitRESTBaseURL = "https://api.bybit.com/"
+
+	// ProbitWebsocketURL is the probit exchange websocket url.
+	ProbitWebsocketURL = "wss://api.probit.com/api/exchange/v1/ws"
+	// ProbitRESTBaseURL is the probit exchange base REST url.
+	ProbitRESTBaseURL = "https://api.probit.com/api/exchange/v1/"
 )
 
 // Config contains config values for the app.
