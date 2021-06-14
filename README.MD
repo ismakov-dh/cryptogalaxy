@@ -570,7 +570,7 @@ Following steps are executed when you run the test :
  
 3. Sets file at ${APP_PATH}/test/data_test/ter_storage_test.txt as terminal output inorder to test terminal display functionality.
  
-4. Executes the app for 5 minute to get the data from exchanges.
+4. Executes the app for 2 minute to get the data from exchanges.
  
 5. Cancels app execution and starts testing data.
  

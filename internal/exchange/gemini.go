@@ -88,14 +88,13 @@ type wsSubSubGemini struct {
 }
 
 type wsRespGemini struct {
-	Type          string          `json:"type"`
-	Symbol        string          `json:"symbol"`
-	EventID       uint64          `json:"event_id"`
-	Side          string          `json:"side"`
-	Quantity      string          `json:"quantity"`
-	Price         string          `json:"price"`
-	Timestamp     int64           `json:"timestamp"`
-	Changes       [][]interface{} `json:"changes"`
+	Type          string `json:"type"`
+	Symbol        string `json:"symbol"`
+	EventID       uint64 `json:"event_id"`
+	Side          string `json:"side"`
+	Quantity      string `json:"quantity"`
+	Price         string `json:"price"`
+	Timestamp     int64  `json:"timestamp"`
 	mktCommitName string
 }
 
@@ -125,6 +124,7 @@ func newGemini(appCtx context.Context, markets []config.Market, connCfg *config.
 		wsCount   int
 		restCount int
 	)
+	subChannels := make(map[string]bool)
 
 	for _, market := range markets {
 		for _, info := range market.Info {
@@ -173,10 +173,17 @@ func newGemini(appCtx context.Context, markets []config.Market, connCfg *config.
 					}
 				}
 
-				err = g.subWsChannel(market.ID, info.Channel)
-				if err != nil {
-					return err
+				// There is only one channel provided for both ticker and trade data,
+				// so need to subscribe only once.
+				_, pres := subChannels[market.ID]
+				if !pres {
+					err = g.subWsChannel(market.ID)
+					if err != nil {
+						return err
+					}
+					subChannels[market.ID] = true
 				}
+
 				wsCount++
 			case "rest":
 				if restCount == 0 {
@@ -223,7 +230,7 @@ func (g *gemini) cfgLookup(markets []config.Market) error {
 			marketCommitName = market.ID
 		}
 
-		// Capitalizing market ID as there is no proper nomenclature mentioned in the exchange API doc.
+		// Capitalizing market ID as there is no proper nomenclature mentioned in the exchange API doc for symbols.
 		marketID := strings.ToUpper(market.ID)
 
 		for _, info := range market.Info {
@@ -287,15 +294,9 @@ func (g *gemini) closeWsConnOnError(ctx context.Context) error {
 }
 
 // subWsChannel sends channel subscription requests to the websocket server.
-func (g *gemini) subWsChannel(market string, channel string) error {
-	switch channel {
-	case "ticker":
-		channel = "candles_1m"
-	case "trade":
-		channel = "l2"
-	}
+func (g *gemini) subWsChannel(market string) error {
 	channels := make([]wsSubSubGemini, 1)
-	channels[0].Name = channel
+	channels[0].Name = "l2"
 	channels[0].Symbols = [1]string{market}
 	sub := wsSubGemini{
 		Type:          "subscribe",
@@ -364,32 +365,43 @@ func (g *gemini) readWs(ctx context.Context) error {
 				return err
 			}
 
-			if wr.Type == "candles_1m_updates" {
-				wr.Type = "ticker"
+			if wr.Type == "trade" {
 
-				// Ignoring initial snapshot of ticker update.
-				if len(wr.Changes) > 1 {
-					continue
-				}
-			}
+				// There is only one channel provided for both ticker and trade data,
+				// so need to duplicate it manually if there is a subscription to both the channels by user.
 
-			switch wr.Type {
+				// Ticker.
+				key := cfgLookupKey{market: strings.ToUpper(wr.Symbol), channel: "ticker"}
+				val, pres := cfgLookup[key]
+				if pres && (val.wsConsiderIntSec == 0 || time.Since(val.wsLastUpdated).Seconds() >= float64(val.wsConsiderIntSec)) {
 
-			// Consider frame only in configured interval, otherwise ignore it.
-			case "ticker", "trade":
-				key := cfgLookupKey{market: wr.Symbol, channel: wr.Type}
-				val := cfgLookup[key]
-				if val.wsConsiderIntSec == 0 || time.Since(val.wsLastUpdated).Seconds() >= float64(val.wsConsiderIntSec) {
+					// Consider frame only in configured interval, otherwise ignore it.
 					val.wsLastUpdated = time.Now()
 					wr.mktCommitName = val.mktCommitName
+					wr.Type = "ticker"
 					cfgLookup[key] = val
-				} else {
-					continue
+
+					err := g.processWs(ctx, &wr, &cd)
+					if err != nil {
+						return err
+					}
 				}
 
-				err := g.processWs(ctx, &wr, &cd)
-				if err != nil {
-					return err
+				// Trade.
+				key = cfgLookupKey{market: strings.ToUpper(wr.Symbol), channel: "trade"}
+				val, pres = cfgLookup[key]
+				if pres && (val.wsConsiderIntSec == 0 || time.Since(val.wsLastUpdated).Seconds() >= float64(val.wsConsiderIntSec)) {
+
+					// Consider frame only in configured interval, otherwise ignore it.
+					val.wsLastUpdated = time.Now()
+					wr.mktCommitName = val.mktCommitName
+					wr.Type = "trade"
+					cfgLookup[key] = val
+
+					err := g.processWs(ctx, &wr, &cd)
+					if err != nil {
+						return err
+					}
 				}
 			}
 
@@ -412,14 +424,12 @@ func (g *gemini) processWs(ctx context.Context, wr *wsRespGemini, cd *commitData
 		ticker.MktID = wr.Symbol
 		ticker.MktCommitName = wr.mktCommitName
 
-		// Price sent is an array value, needed to access it by it's position.
-		// (Sent array has different data type values so the interface is used.)
-		if price, ok := wr.Changes[0][4].(float64); ok {
-			ticker.Price = price
-		} else {
-			log.Error().Str("exchange", "gemini").Str("func", "processWs").Interface("price", wr.Changes[0][4]).Msg("")
-			return errors.New("cannot convert ticker data field price to float")
+		price, err := strconv.ParseFloat(wr.Price, 64)
+		if err != nil {
+			logErrStack(err)
+			return err
 		}
+		ticker.Price = price
 
 		ticker.Timestamp = time.Now().UTC()
 
