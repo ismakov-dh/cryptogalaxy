@@ -260,6 +260,27 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Probit")
 
+	// Gemini exchange.
+	resp, err = http.Get(config.GeminiRESTBaseURL + "symbols")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "gemini").Msg("exchange request for markets")
+		return
+	}
+	geminiMarkets := []string{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&geminiMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "gemini").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range geminiMarkets {
+		if err = w.Write([]string{"gemini", record}); err != nil {
+			log.Error().Err(err).Str("exchange", "gemini").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Gemini")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 

@@ -53,6 +53,11 @@ const (
 	ProbitWebsocketURL = "wss://api.probit.com/api/exchange/v1/ws"
 	// ProbitRESTBaseURL is the probit exchange base REST url.
 	ProbitRESTBaseURL = "https://api.probit.com/api/exchange/v1/"
+
+	// GeminiWebsocketURL is the gemini exchange websocket url.
+	GeminiWebsocketURL = "wss://api.gemini.com/v2/marketdata"
+	// GeminiRESTBaseURL is the gemini exchange base REST url.
+	GeminiRESTBaseURL = "https://api.gemini.com/v1/"
 )
 
 // Config contains config values for the app.

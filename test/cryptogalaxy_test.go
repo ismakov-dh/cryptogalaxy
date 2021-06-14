@@ -133,7 +133,7 @@ func TestCryptogalaxy(t *testing.T) {
 		t.FailNow()
 	}
 
-	// Execute the app for 2 minute, which is good enough time to get the data from exchanges.
+	// Execute the app for 5 minute, which is good enough time to get the data from exchanges.
 	// After that cancel app execution through context error.
 	// If there is any actual error from app execution, then stop testing.
 	testErrGroup, testCtx := errgroup.WithContext(context.Background())
@@ -142,9 +142,9 @@ func TestCryptogalaxy(t *testing.T) {
 		return initializer.Start(testCtx, &cfg)
 	})
 
-	t.Log("INFO : Executing app for 2 minute to get the data from exchanges.")
+	t.Log("INFO : Executing app for 5 minute to get the data from exchanges.")
 	testErrGroup.Go(func() error {
-		tick := time.NewTicker(2 * time.Minute)
+		tick := time.NewTicker(5 * time.Minute)
 		defer tick.Stop()
 		select {
 		case <-tick.C:
@@ -680,8 +680,54 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail {
-		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increse it before actual debugging.")
+	// Gemini exchange.
+	var geminiFail bool
+
+	terTickers = make(map[string]storage.Ticker)
+	terTrades = make(map[string]storage.Trade)
+	mysqlTickers = make(map[string]storage.Ticker)
+	mysqlTrades = make(map[string]storage.Trade)
+	esTickers = make(map[string]storage.Ticker)
+	esTrades = make(map[string]storage.Trade)
+
+	err = readTerminal("gemini", terTickers, terTrades)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.Error("FAILURE : gemini exchange function")
+		geminiFail = true
+	}
+
+	if !geminiFail {
+		err = readMySQL("gemini", mysqlTickers, mysqlTrades, mysql)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : gemini exchange function")
+			geminiFail = true
+		}
+	}
+
+	if !geminiFail {
+		err = readElasticSearch("gemini", esTickers, esTrades, es)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : gemini exchange function")
+			geminiFail = true
+		}
+	}
+
+	if !geminiFail {
+		err = verifyData("gemini", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : gemini exchange function")
+			geminiFail = true
+		} else {
+			t.Log("SUCCESS : gemini exchange function")
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail {
+		t.Log("INFO : May be 5 minute app execution time is not good enough to get the data. Try to increse it before actual debugging.")
 	}
 }
 
