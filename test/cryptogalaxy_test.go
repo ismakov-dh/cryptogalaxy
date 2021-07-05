@@ -726,7 +726,53 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail {
+	// Bitmart exchange.
+	var bitmartFail bool
+
+	terTickers = make(map[string]storage.Ticker)
+	terTrades = make(map[string]storage.Trade)
+	mysqlTickers = make(map[string]storage.Ticker)
+	mysqlTrades = make(map[string]storage.Trade)
+	esTickers = make(map[string]storage.Ticker)
+	esTrades = make(map[string]storage.Trade)
+
+	err = readTerminal("bitmart", terTickers, terTrades)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.Error("FAILURE : bitmart exchange function")
+		bitmartFail = true
+	}
+
+	if !bitmartFail {
+		err = readMySQL("bitmart", mysqlTickers, mysqlTrades, mysql)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitmart exchange function")
+			bitmartFail = true
+		}
+	}
+
+	if !bitmartFail {
+		err = readElasticSearch("bitmart", esTickers, esTrades, es)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitmart exchange function")
+			bitmartFail = true
+		}
+	}
+
+	if !bitmartFail {
+		err = verifyData("bitmart", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitmart exchange function")
+			bitmartFail = true
+		} else {
+			t.Log("SUCCESS : bitmart exchange function")
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increse it before actual debugging.")
 	}
 }

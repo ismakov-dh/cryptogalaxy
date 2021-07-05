@@ -58,6 +58,11 @@ const (
 	GeminiWebsocketURL = "wss://api.gemini.com/v2/marketdata"
 	// GeminiRESTBaseURL is the gemini exchange base REST url.
 	GeminiRESTBaseURL = "https://api.gemini.com/v1/"
+
+	// BitmartWebsocketURL is the bitmart exchange websocket url.
+	BitmartWebsocketURL = "wss://ws-manager-compress.bitmart.com?protocol=1.1"
+	// BitmartRESTBaseURL is the bitmart exchange base REST url.
+	BitmartRESTBaseURL = "https://api-cloud.bitmart.com/spot/v1/"
 )
 
 // Config contains config values for the app.

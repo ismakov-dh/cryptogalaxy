@@ -170,6 +170,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartGemini(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "bitmart":
+			appErrGroup.Go(func() error {
+				return exchange.StartBitmart(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

@@ -345,7 +345,7 @@ func (h *huobi) readWs(ctx context.Context) error {
 	for {
 		select {
 		default:
-			frame, err := h.ws.Read()
+			frame, err := h.ws.ReadTextOrGzipBinary()
 			if err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					err = errors.New("context canceled")

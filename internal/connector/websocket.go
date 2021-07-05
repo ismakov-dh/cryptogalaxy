@@ -2,6 +2,7 @@ package connector
 
 import (
 	"bytes"
+	"compress/flate"
 	"compress/gzip"
 	"context"
 	"io"
@@ -47,8 +48,23 @@ func (w *Websocket) Write(data []byte) error {
 }
 
 // Read reads data frame from websocket connection.
-// It also handles gzip compressed binary data frame.
 func (w *Websocket) Read() ([]byte, error) {
+	if w.Cfg.ReadTimeoutSec > 0 {
+		err := w.Conn.SetReadDeadline(time.Now().Add(time.Duration(w.Cfg.ReadTimeoutSec) * time.Second))
+		if err != nil {
+			return nil, err
+		}
+	}
+	data, _, err := wsutil.ReadServerData(w.Conn)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// ReadTextOrGzipBinary reads data frame from websocket connection.
+// It also handles gzip compressed binary data frame.
+func (w *Websocket) ReadTextOrGzipBinary() ([]byte, error) {
 	if w.Cfg.ReadTimeoutSec > 0 {
 		err := w.Conn.SetReadDeadline(time.Now().Add(time.Duration(w.Cfg.ReadTimeoutSec) * time.Second))
 		if err != nil {
@@ -66,6 +82,37 @@ func (w *Websocket) Read() ([]byte, error) {
 	// If the server sends compressed binary data, then we need to decompress it.
 	buf := bytes.NewBuffer(data)
 	reader, err := gzip.NewReader(buf)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	result, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// ReadTextOrZlibBinary reads data frame from websocket connection.
+// It also handles zlib compressed binary data frame.
+func (w *Websocket) ReadTextOrZlibBinary() ([]byte, error) {
+	if w.Cfg.ReadTimeoutSec > 0 {
+		err := w.Conn.SetReadDeadline(time.Now().Add(time.Duration(w.Cfg.ReadTimeoutSec) * time.Second))
+		if err != nil {
+			return nil, err
+		}
+	}
+	data, dataType, err := wsutil.ReadServerData(w.Conn)
+	if err != nil {
+		return nil, err
+	}
+	if dataType != ws.OpBinary {
+		return data, nil
+	}
+
+	// If the server sends compressed binary data, then we need to decompress it.
+	buf := bytes.NewBuffer(data)
+	reader := flate.NewReader(buf)
 	if err != nil {
 		return nil, err
 	}

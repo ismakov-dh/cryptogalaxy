@@ -281,6 +281,27 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Gemini")
 
+	// Bitmart exchange.
+	resp, err = http.Get(config.BitmartRESTBaseURL + "symbols")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "bitmart").Msg("exchange request for markets")
+		return
+	}
+	bitmartMarkets := bitmartResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&bitmartMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "bitmart").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range bitmartMarkets.Data.Symbols {
+		if err = w.Write([]string{"bitmart", record}); err != nil {
+			log.Error().Err(err).Str("exchange", "bitmart").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Bitmart")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -344,4 +365,11 @@ type probitResp struct {
 }
 type probitRespData struct {
 	ID string `json:"id"`
+}
+
+type bitmartResp struct {
+	Data bitmartRespData `json:"data"`
+}
+type bitmartRespData struct {
+	Symbols []string `json:"symbols"`
 }
