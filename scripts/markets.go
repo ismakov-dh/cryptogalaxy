@@ -302,6 +302,27 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Bitmart")
 
+	// Digifinex exchange.
+	resp, err = http.Get(config.DigifinexRESTBaseURL + "spot/symbols")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "digifinex").Msg("exchange request for markets")
+		return
+	}
+	digifinexMarkets := digifinexResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&digifinexMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "digifinex").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range digifinexMarkets.SymbolList {
+		if err = w.Write([]string{"digifinex", record.Symbol}); err != nil {
+			log.Error().Err(err).Str("exchange", "digifinex").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Digifinex")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -372,4 +393,11 @@ type bitmartResp struct {
 }
 type bitmartRespData struct {
 	Symbols []string `json:"symbols"`
+}
+
+type digifinexResp struct {
+	SymbolList []digifinexRespRes `json:"symbol_list"`
+}
+type digifinexRespRes struct {
+	Symbol string `json:"symbol"`
 }

@@ -63,6 +63,11 @@ const (
 	BitmartWebsocketURL = "wss://ws-manager-compress.bitmart.com?protocol=1.1"
 	// BitmartRESTBaseURL is the bitmart exchange base REST url.
 	BitmartRESTBaseURL = "https://api-cloud.bitmart.com/spot/v1/"
+
+	// DigifinexWebsocketURL is the digifinex exchange websocket url.
+	DigifinexWebsocketURL = "wss://openapi.digifinex.com/ws/v1/"
+	// DigifinexRESTBaseURL is the digifinex exchange base REST url.
+	DigifinexRESTBaseURL = "https://openapi.digifinex.com/v3/"
 )
 
 // Config contains config values for the app.

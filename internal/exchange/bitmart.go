@@ -132,6 +132,7 @@ func newBitmart(appCtx context.Context, markets []config.Market, connCfg *config
 	var (
 		wsCount   int
 		restCount int
+		threshold int
 	)
 
 	for _, market := range markets {
@@ -190,6 +191,17 @@ func newBitmart(appCtx context.Context, markets []config.Market, connCfg *config
 					return err
 				}
 				wsCount++
+
+				// Maximum messages sent to a websocket connection per 10 minutes is 60.
+				// So on a safer side, this will wait for 12 minute before proceeding once it reaches ~90% of the limit.
+				// (including 1 ping frame, so 60-1)
+				threshold++
+				if threshold == 59 {
+					log.Debug().Str("exchange", "digifinex").Int("count", threshold).Msg("subscribe threshold reached, waiting 12 minute")
+					time.Sleep(12 * time.Minute)
+					threshold = 0
+				}
+
 			case "rest":
 				if restCount == 0 {
 					err = b.connectRest()
@@ -368,7 +380,7 @@ func (b *bitmart) readWs(ctx context.Context) error {
 	for {
 		select {
 		default:
-			frame, err := b.ws.ReadTextOrZlibBinary()
+			frame, err := b.ws.ReadTextOrFlateBinary()
 			if err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					err = errors.New("context canceled")

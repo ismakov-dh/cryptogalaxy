@@ -174,6 +174,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartBitmart(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "digifinex":
+			appErrGroup.Go(func() error {
+				return exchange.StartDigifinex(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

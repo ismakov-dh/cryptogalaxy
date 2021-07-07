@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"io"
 	"net"
@@ -93,6 +94,34 @@ func (w *Websocket) ReadTextOrGzipBinary() ([]byte, error) {
 	return result, nil
 }
 
+// ReadTextOrFlateBinary reads data frame from websocket connection.
+// It also handles flate compressed binary data frame.
+func (w *Websocket) ReadTextOrFlateBinary() ([]byte, error) {
+	if w.Cfg.ReadTimeoutSec > 0 {
+		err := w.Conn.SetReadDeadline(time.Now().Add(time.Duration(w.Cfg.ReadTimeoutSec) * time.Second))
+		if err != nil {
+			return nil, err
+		}
+	}
+	data, dataType, err := wsutil.ReadServerData(w.Conn)
+	if err != nil {
+		return nil, err
+	}
+	if dataType != ws.OpBinary {
+		return data, nil
+	}
+
+	// If the server sends compressed binary data, then we need to decompress it.
+	buf := bytes.NewBuffer(data)
+	reader := flate.NewReader(buf)
+	defer reader.Close()
+	result, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // ReadTextOrZlibBinary reads data frame from websocket connection.
 // It also handles zlib compressed binary data frame.
 func (w *Websocket) ReadTextOrZlibBinary() ([]byte, error) {
@@ -112,7 +141,7 @@ func (w *Websocket) ReadTextOrZlibBinary() ([]byte, error) {
 
 	// If the server sends compressed binary data, then we need to decompress it.
 	buf := bytes.NewBuffer(data)
-	reader := flate.NewReader(buf)
+	reader, err := zlib.NewReader(buf)
 	if err != nil {
 		return nil, err
 	}
