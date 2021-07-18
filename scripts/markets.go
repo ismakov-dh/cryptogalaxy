@@ -323,6 +323,27 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Digifinex")
 
+	// Ascendex exchange.
+	resp, err = http.Get(config.AscendexRESTBaseURL + "products")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "ascendex").Msg("exchange request for markets")
+		return
+	}
+	ascendexMarkets := ascendexResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&ascendexMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "ascendex").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range ascendexMarkets.Data {
+		if err = w.Write([]string{"ascendex", record.Symbol}); err != nil {
+			log.Error().Err(err).Str("exchange", "ascendex").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Ascendex")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -399,5 +420,12 @@ type digifinexResp struct {
 	SymbolList []digifinexRespRes `json:"symbol_list"`
 }
 type digifinexRespRes struct {
+	Symbol string `json:"symbol"`
+}
+
+type ascendexResp struct {
+	Data []ascendexRespData `json:"data"`
+}
+type ascendexRespData struct {
 	Symbol string `json:"symbol"`
 }

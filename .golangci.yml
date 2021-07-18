@@ -17,8 +17,6 @@ linters-settings:
       - paramTypeCombine
   goimports:
     local-prefixes: github.com/golangci/golangci-lint
-  golint:
-    min-confidence: 0
   govet:
     check-shadowing: true
     settings:
@@ -52,7 +50,6 @@ linters:
     - gocritic
     - gofmt
     - goimports
-    - golint
     - goprintffuncname
     - gosec
     - gosimple
@@ -61,6 +58,7 @@ linters:
     - misspell
     - nakedret
     - nolintlint
+    - revive
     - rowserrcheck
     - staticcheck
     - structcheck

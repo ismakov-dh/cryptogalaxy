@@ -68,6 +68,11 @@ const (
 	DigifinexWebsocketURL = "wss://openapi.digifinex.com/ws/v1/"
 	// DigifinexRESTBaseURL is the digifinex exchange base REST url.
 	DigifinexRESTBaseURL = "https://openapi.digifinex.com/v3/"
+
+	// AscendexWebsocketURL is the ascendex exchange websocket url.
+	AscendexWebsocketURL = "wss://ascendex.com/0/api/pro/v1/stream"
+	// AscendexRESTBaseURL is the ascendex exchange base REST url.
+	AscendexRESTBaseURL = "https://ascendex.com/api/pro/v1/"
 )
 
 // Config contains config values for the app.

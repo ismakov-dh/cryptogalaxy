@@ -818,7 +818,53 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail {
+	// Ascendex exchange.
+	var ascendexFail bool
+
+	terTickers = make(map[string]storage.Ticker)
+	terTrades = make(map[string]storage.Trade)
+	mysqlTickers = make(map[string]storage.Ticker)
+	mysqlTrades = make(map[string]storage.Trade)
+	esTickers = make(map[string]storage.Ticker)
+	esTrades = make(map[string]storage.Trade)
+
+	err = readTerminal("ascendex", terTickers, terTrades)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.Error("FAILURE : ascendex exchange function")
+		ascendexFail = true
+	}
+
+	if !ascendexFail {
+		err = readMySQL("ascendex", mysqlTickers, mysqlTrades, mysql)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : ascendex exchange function")
+			ascendexFail = true
+		}
+	}
+
+	if !ascendexFail {
+		err = readElasticSearch("ascendex", esTickers, esTrades, es)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : ascendex exchange function")
+			ascendexFail = true
+		}
+	}
+
+	if !ascendexFail {
+		err = verifyData("ascendex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : ascendex exchange function")
+			ascendexFail = true
+		} else {
+			t.Log("SUCCESS : ascendex exchange function")
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increse it before actual debugging.")
 	}
 }
