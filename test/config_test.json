@@ -12,7 +12,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -21,7 +22,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -37,7 +39,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -52,7 +55,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -62,7 +66,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -87,7 +92,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -96,7 +102,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -112,7 +119,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -127,7 +135,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -137,7 +146,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -162,7 +172,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -171,7 +182,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -187,7 +199,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -202,7 +215,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -212,7 +226,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -237,7 +252,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -246,7 +262,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -262,7 +279,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -277,7 +295,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -287,7 +306,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -312,7 +332,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -321,7 +342,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -337,7 +359,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -352,7 +375,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -362,7 +386,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -387,7 +412,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -396,7 +422,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -412,7 +439,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -427,7 +455,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -437,7 +466,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -462,7 +492,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -471,7 +502,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -487,7 +519,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -502,7 +535,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -512,7 +546,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -537,7 +572,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -546,7 +582,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -562,7 +599,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -577,7 +615,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -587,7 +626,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -612,7 +652,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -621,7 +662,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -637,7 +679,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -652,7 +695,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -662,7 +706,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -687,7 +732,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -696,7 +742,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -712,7 +759,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -727,7 +775,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -737,7 +786,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -762,7 +812,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -771,7 +822,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -787,7 +839,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -802,7 +855,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -812,7 +866,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -837,7 +892,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -846,7 +902,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -862,7 +919,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -877,7 +935,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -887,7 +946,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -912,7 +972,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -921,7 +982,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -937,7 +999,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -952,7 +1015,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -962,7 +1026,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -987,7 +1052,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -996,7 +1062,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -1012,7 +1079,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -1027,7 +1095,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -1037,7 +1106,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -1062,7 +1132,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -1071,7 +1142,8 @@
                             "websocket_consider_interval_sec": 0,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -1087,7 +1159,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -1102,7 +1175,8 @@
                             "rest_ping_interval_sec": 10,
                             "storages": [
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         },
                         {
@@ -1112,7 +1186,8 @@
                             "storages": [
                                 "terminal",
                                 "mysql",
-                                "elastic_search"
+                                "elastic_search",
+                                "influxdb"
                             ]
                         }
                     ],
@@ -1163,6 +1238,16 @@
             "max_idle_conns": 10,
             "max_idle_conns_per_host": 10,
             "ticker_commit_buffer": 3,
+            "trade_commit_buffer": 3
+        },
+        "influxdb": {
+            "organization": "crypto",
+            "bucket": "test_cryptogalaxy",
+            "token": "Zu7DsGSd4gb6wSg14Ecto_3toXElQ5CXkDeUnPWgAXckk0Ax22U00ahVvEB03AY8-hFMaMbiUQaa3w3gM0UeFg==",
+            "URL": "http://localhost:8086/",
+            "request_timeout_sec": 0,
+            "max_idle_conns": 10,
+            "ticker_commit_buffer": 2,
             "trade_commit_buffer": 3
         }
     },

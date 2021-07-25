@@ -53,6 +53,13 @@ func TestCryptogalaxy(t *testing.T) {
 		t.FailNow()
 	}
 
+	// For testing, influxdb bucket name should start with the name test to avoid mistakenly messing up with
+	// production one.
+	if !strings.HasPrefix(cfg.Connection.InfluxDB.Bucket, "test") {
+		t.Log("ERROR : influxdb bucket name should start with test for testing")
+		t.FailNow()
+	}
+
 	// Terminal output we can't actually test, so make file as terminal output.
 	outFile, err := os.Create("./data_test/ter_storage_test.txt")
 	if err != nil {
@@ -133,6 +140,29 @@ func TestCryptogalaxy(t *testing.T) {
 		t.FailNow()
 	}
 
+	// Delete all data from influxdb to have fresh one.
+	influx, err := storage.InitInfluxDB(&cfg.Connection.InfluxDB)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.FailNow()
+	}
+
+	var influxCtx context.Context
+	if cfg.Connection.InfluxDB.ReqTimeoutSec > 0 {
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.InfluxDB.ReqTimeoutSec)*time.Second)
+		influxCtx = timeoutCtx
+		defer cancel()
+	} else {
+		influxCtx = context.Background()
+	}
+	start := time.Date(2021, time.Month(7), 25, 1, 1, 1, 1, time.UTC)
+	end := time.Now().UTC()
+	err = influx.DeleteAPI.DeleteWithName(influxCtx, cfg.Connection.InfluxDB.Organization, cfg.Connection.InfluxDB.Bucket, start, end, "")
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.FailNow()
+	}
+
 	// Execute the app for 2 minute, which is good enough time to get the data from exchanges.
 	// After that cancel app execution through context error.
 	// If there is any actual error from app execution, then stop testing.
@@ -183,6 +213,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades := make(map[string]storage.Trade)
 	esTickers := make(map[string]storage.Ticker)
 	esTrades := make(map[string]storage.Trade)
+	influxTickers := make(map[string]storage.Ticker)
+	influxTrades := make(map[string]storage.Trade)
 
 	err = readTerminal("ftx", terTickers, terTrades)
 	if err != nil {
@@ -210,7 +242,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !ftxFail {
-		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("ftx", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : ftx exchange function")
+			ftxFail = true
+		}
+	}
+
+	if !ftxFail {
+		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : ftx exchange function")
@@ -229,6 +270,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("coinbase-pro", terTickers, terTrades)
 	if err != nil {
@@ -256,7 +299,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !coinbaseProFail {
-		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("coinbase-pro", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : coinbase-pro exchange function")
+			coinbaseProFail = true
+		}
+	}
+
+	if !coinbaseProFail {
+		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : coinbase-pro exchange function")
@@ -275,6 +327,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("binance", terTickers, terTrades)
 	if err != nil {
@@ -302,7 +356,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !binanceFail {
-		err = verifyData("binance", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("binance", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance exchange function")
+			binanceFail = true
+		}
+	}
+
+	if !binanceFail {
+		err = verifyData("binance", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : binance exchange function")
@@ -321,6 +384,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bitfinex", terTickers, terTrades)
 	if err != nil {
@@ -348,7 +413,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bitfinexFail {
-		err = verifyData("bitfinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("bitfinex", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitfinex exchange function")
+			bitfinexFail = true
+		}
+	}
+
+	if !bitfinexFail {
+		err = verifyData("bitfinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bitfinex exchange function")
@@ -367,6 +441,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("hbtc", terTickers, terTrades)
 	if err != nil {
@@ -394,7 +470,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !hbtcFail {
-		err = verifyData("hbtc", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("hbtc", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : hbtc exchange function")
+			hbtcFail = true
+		}
+	}
+
+	if !hbtcFail {
+		err = verifyData("hbtc", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : hbtc exchange function")
@@ -413,6 +498,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("huobi", terTickers, terTrades)
 	if err != nil {
@@ -440,7 +527,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !huobiFail {
-		err = verifyData("huobi", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("huobi", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : huobi exchange function")
+			huobiFail = true
+		}
+	}
+
+	if !huobiFail {
+		err = verifyData("huobi", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : huobi exchange function")
@@ -459,6 +555,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("gateio", terTickers, terTrades)
 	if err != nil {
@@ -486,7 +584,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !gateioFail {
-		err = verifyData("gateio", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("gateio", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : gateio exchange function")
+			gateioFail = true
+		}
+	}
+
+	if !gateioFail {
+		err = verifyData("gateio", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : gateio exchange function")
@@ -505,6 +612,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("kucoin", terTickers, terTrades)
 	if err != nil {
@@ -532,7 +641,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !kucoinFail {
-		err = verifyData("kucoin", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("kucoin", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : kucoin exchange function")
+			kucoinFail = true
+		}
+	}
+
+	if !kucoinFail {
+		err = verifyData("kucoin", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : kucoin exchange function")
@@ -551,6 +669,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bitstamp", terTickers, terTrades)
 	if err != nil {
@@ -578,7 +698,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bitstampFail {
-		err = verifyData("bitstamp", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("bitstamp", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitstamp exchange function")
+			bitstampFail = true
+		}
+	}
+
+	if !bitstampFail {
+		err = verifyData("bitstamp", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bitstamp exchange function")
@@ -597,6 +726,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bybit", terTickers, terTrades)
 	if err != nil {
@@ -624,7 +755,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bybitFail {
-		err = verifyData("bybit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("bybit", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bybit exchange function")
+			bybitFail = true
+		}
+	}
+
+	if !bybitFail {
+		err = verifyData("bybit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bybit exchange function")
@@ -643,6 +783,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("probit", terTickers, terTrades)
 	if err != nil {
@@ -670,7 +812,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !probitFail {
-		err = verifyData("probit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("probit", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : probit exchange function")
+			probitFail = true
+		}
+	}
+
+	if !probitFail {
+		err = verifyData("probit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : probit exchange function")
@@ -689,6 +840,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("gemini", terTickers, terTrades)
 	if err != nil {
@@ -716,7 +869,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !geminiFail {
-		err = verifyData("gemini", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("gemini", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : gemini exchange function")
+			geminiFail = true
+		}
+	}
+
+	if !geminiFail {
+		err = verifyData("gemini", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : gemini exchange function")
@@ -735,6 +897,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bitmart", terTickers, terTrades)
 	if err != nil {
@@ -762,7 +926,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bitmartFail {
-		err = verifyData("bitmart", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("bitmart", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitmart exchange function")
+			bitmartFail = true
+		}
+	}
+
+	if !bitmartFail {
+		err = verifyData("bitmart", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bitmart exchange function")
@@ -781,6 +954,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("digifinex", terTickers, terTrades)
 	if err != nil {
@@ -808,7 +983,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !digifinexFail {
-		err = verifyData("digifinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("digifinex", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : digifinex exchange function")
+			digifinexFail = true
+		}
+	}
+
+	if !digifinexFail {
+		err = verifyData("digifinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : digifinex exchange function")
@@ -827,6 +1011,8 @@ func TestCryptogalaxy(t *testing.T) {
 	mysqlTrades = make(map[string]storage.Trade)
 	esTickers = make(map[string]storage.Ticker)
 	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("ascendex", terTickers, terTrades)
 	if err != nil {
@@ -854,7 +1040,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !ascendexFail {
-		err = verifyData("ascendex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, &cfg)
+		err = readInfluxDB("ascendex", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : ascendex exchange function")
+			ascendexFail = true
+		}
+	}
+
+	if !ascendexFail {
+		err = verifyData("ascendex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : ascendex exchange function")
@@ -1079,10 +1274,118 @@ func readElasticSearch(exchName string, esTickers map[string]storage.Ticker, esT
 	return nil
 }
 
+// readInfluxDB reads ticker and trade data for an exchange from influxdb into passed in maps.
+func readInfluxDB(exchName string, influxTickers map[string]storage.Ticker, influxTrades map[string]storage.Trade, influx *storage.InfluxDB) error {
+	var ctx context.Context
+	if influx.Cfg.ReqTimeoutSec > 0 {
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(influx.Cfg.ReqTimeoutSec)*time.Second)
+		ctx = timeoutCtx
+		defer cancel()
+	} else {
+		ctx = context.Background()
+	}
+	result, err := influx.QuerryAPI.Query(ctx, `
+	                         from(bucket: "`+influx.Cfg.Bucket+`")
+                             |> range(start: -1h)
+                             |> filter(fn: (r) =>
+                                  r._measurement == "ticker" and
+                                  r._field == "price" and
+                                  r.exchange == "`+exchName+`" 
+                                )
+                             |> group(columns: ["market"])
+                             |> mean()
+                        `)
+	if err != nil {
+		return err
+	}
+	for result.Next() {
+		market, ok := result.Record().ValueByKey("market").(string)
+		if !ok {
+			return errors.New("cannot convert influxdb trade market to string")
+		}
+		price, ok := result.Record().Value().(float64)
+		if !ok {
+			return errors.New("cannot convert influxdb trade price to float")
+		}
+		val := storage.Ticker{
+			Price: price,
+		}
+		influxTickers[market] = val
+	}
+	err = result.Err()
+	if err != nil {
+		return err
+	}
+
+	if influx.Cfg.ReqTimeoutSec > 0 {
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(influx.Cfg.ReqTimeoutSec)*time.Second)
+		ctx = timeoutCtx
+		defer cancel()
+	} else {
+		ctx = context.Background()
+	}
+	result, err = influx.QuerryAPI.Query(ctx, `
+	                         from(bucket: "`+influx.Cfg.Bucket+`")
+                             |> range(start: -1h)
+                             |> filter(fn: (r) =>
+                                  r._measurement == "trade" and
+                                  (r._field == "size" or r._field == "price") and
+                                  r.exchange == "`+exchName+`" 
+                                )
+                             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                             |> group(columns: ["market"])
+                             |> reduce(
+                                  identity: {
+                                      count:  1.0,
+                                      size_sum: 0.0,
+                                      size_avg: 0.0,
+                                      price_sum: 0.0,
+                                      price_avg: 0.0
+                                  },
+                                  fn: (r, accumulator) => ({
+                                      count:  accumulator.count + 1.0,
+                                      size_sum: accumulator.size_sum + r.size,
+                                      size_avg: accumulator.size_sum / accumulator.count,
+                                      price_sum: accumulator.price_sum + r.price,
+                                      price_avg: accumulator.price_sum / accumulator.count
+                                  })
+                                )
+                             |> drop(columns: ["count", "size_sum", "price_sum"])
+	                    `)
+	if err != nil {
+		return err
+	}
+	for result.Next() {
+		market, ok := result.Record().ValueByKey("market").(string)
+		if !ok {
+			return errors.New("cannot convert influxdb trade market to string")
+		}
+		size, ok := result.Record().ValueByKey("size_avg").(float64)
+		if !ok {
+			return errors.New("cannot convert influxdb trade size to float")
+		}
+		price, ok := result.Record().ValueByKey("price_avg").(float64)
+		if !ok {
+			return errors.New("cannot convert influxdb trade price to float")
+		}
+		val := storage.Trade{
+			Size:  size,
+			Price: price,
+		}
+		influxTrades[market] = val
+	}
+	err = result.Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // verifyData checks whether all the configured storage system for an exchange got the required data or not.
 func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades map[string]storage.Trade,
 	mysqlTickers map[string]storage.Ticker, mysqlTrades map[string]storage.Trade,
 	esTickers map[string]storage.Ticker, esTrades map[string]storage.Trade,
+	influxTickers map[string]storage.Ticker, influxTrades map[string]storage.Trade,
 	cfg *config.Config) error {
 
 	for _, exch := range cfg.Exchanges {
@@ -1114,6 +1417,11 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 								if esTicker.Price <= 0 {
 									return fmt.Errorf("%s ticker data stored in elastic search is not complete", market.ID)
 								}
+							case "influxdb":
+								influxTicker := influxTickers[marketCommitName]
+								if influxTicker.Price <= 0 {
+									return fmt.Errorf("%s ticker data stored in influxdb is not complete", market.ID)
+								}
 							}
 						}
 					case "trade":
@@ -1133,6 +1441,11 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 								esTrade := esTrades[marketCommitName]
 								if esTrade.Size <= 0 || esTrade.Price <= 0 {
 									return fmt.Errorf("%s trade data stored in elastic search is not complete", market.ID)
+								}
+							case "influxdb":
+								influxTrade := influxTrades[marketCommitName]
+								if influxTrade.Size <= 0 || influxTrade.Price <= 0 {
+									return fmt.Errorf("%s trade data stored in influxdb is not complete", market.ID)
 								}
 							}
 						}

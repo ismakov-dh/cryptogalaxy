@@ -33,14 +33,16 @@ func GetTerminal() *Terminal {
 
 // CommitTickers batch outputs input ticker data to terminal.
 func (t *Terminal) CommitTickers(data []Ticker) {
-	for _, ticker := range data {
+	for i := range data {
+		ticker := data[i]
 		fmt.Fprintf(t.out, "%-15s%-15s%-15s%20f%20s\n\n", "Ticker", ticker.Exchange, ticker.MktCommitName, ticker.Price, ticker.Timestamp.Local().Format(TerminalTimestamp))
 	}
 }
 
 // CommitTrades batch outputs input trade data to terminal.
 func (t *Terminal) CommitTrades(data []Trade) {
-	for _, trade := range data {
+	for i := range data {
+		trade := data[i]
 		fmt.Fprintf(t.out, "%-15s%-15s%-5s%20f%20f%20s\n\n", "Trade", trade.Exchange, trade.MktCommitName, trade.Size, trade.Price, trade.Timestamp.Local().Format(TerminalTimestamp))
 	}
 }

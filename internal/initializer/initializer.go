@@ -59,10 +59,11 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 	// Establish connections to different storage systems, connectors and
 	// also validate few user defined config values.
 	var (
-		restConn bool
-		terStr   bool
-		sqlStr   bool
-		esStr    bool
+		restConn  bool
+		terStr    bool
+		sqlStr    bool
+		esStr     bool
+		influxStr bool
 	)
 	for _, exch := range cfg.Exchanges {
 		for _, market := range exch.Markets {
@@ -96,6 +97,17 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 							}
 							esStr = true
 							log.Info().Msg("elastic search connected")
+						}
+					case "influxdb":
+						if !influxStr {
+							_, err = storage.InitInfluxDB(&cfg.Connection.InfluxDB)
+							if err != nil {
+								err = errors.Wrap(err, "influxdb connection")
+								log.Error().Stack().Err(errors.WithStack(err)).Msg("")
+								return err
+							}
+							influxStr = true
+							log.Info().Msg("influxdb connected")
 						}
 					}
 				}

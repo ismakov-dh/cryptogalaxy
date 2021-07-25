@@ -62,19 +62,22 @@ func StartFtx(appCtx context.Context, markets []config.Market, retry *config.Ret
 }
 
 type ftx struct {
-	ws             connector.Websocket
-	rest           *connector.REST
-	connCfg        *config.Connection
-	cfgMap         map[cfgLookupKey]cfgLookupVal
-	ter            *storage.Terminal
-	es             *storage.ElasticSearch
-	mysql          *storage.MySQL
-	wsTerTickers   chan []storage.Ticker
-	wsTerTrades    chan []storage.Trade
-	wsMysqlTickers chan []storage.Ticker
-	wsMysqlTrades  chan []storage.Trade
-	wsEsTickers    chan []storage.Ticker
-	wsEsTrades     chan []storage.Trade
+	ws              connector.Websocket
+	rest            *connector.REST
+	connCfg         *config.Connection
+	cfgMap          map[cfgLookupKey]cfgLookupVal
+	ter             *storage.Terminal
+	es              *storage.ElasticSearch
+	mysql           *storage.MySQL
+	influx          *storage.InfluxDB
+	wsTerTickers    chan []storage.Ticker
+	wsTerTrades     chan []storage.Trade
+	wsMysqlTickers  chan []storage.Ticker
+	wsMysqlTrades   chan []storage.Trade
+	wsEsTickers     chan []storage.Ticker
+	wsEsTrades      chan []storage.Trade
+	wsInfluxTickers chan []storage.Ticker
+	wsInfluxTrades  chan []storage.Trade
 }
 
 type wsRespFtx struct {
@@ -183,6 +186,15 @@ func newFtx(appCtx context.Context, markets []config.Market, connCfg *config.Con
 							return f.wsTradesToES(ctx)
 						})
 					}
+
+					if f.influx != nil {
+						ftxErrGroup.Go(func() error {
+							return f.wsTickersToInflux(ctx)
+						})
+						ftxErrGroup.Go(func() error {
+							return f.wsTradesToInflux(ctx)
+						})
+					}
 				}
 
 				err = f.subWsChannel(market.ID, info.Channel)
@@ -238,6 +250,7 @@ func (f *ftx) cfgLookup(markets []config.Market) error {
 		for _, info := range market.Info {
 			key := cfgLookupKey{market: market.ID, channel: info.Channel}
 			val := cfgLookupVal{}
+			val.connector = info.Connector
 			val.wsConsiderIntSec = info.WsConsiderIntSec
 			for _, str := range info.Storages {
 				switch str {
@@ -261,6 +274,13 @@ func (f *ftx) cfgLookup(markets []config.Market) error {
 						f.es = storage.GetElasticSearch()
 						f.wsEsTickers = make(chan []storage.Ticker, 1)
 						f.wsEsTrades = make(chan []storage.Trade, 1)
+					}
+				case "influxdb":
+					val.influxStr = true
+					if f.influx == nil {
+						f.influx = storage.GetInfluxDB()
+						f.wsInfluxTickers = make(chan []storage.Ticker, 1)
+						f.wsInfluxTrades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -352,13 +372,22 @@ func (f *ftx) readWs(ctx context.Context) error {
 		cfgLookup[k] = v
 	}
 
+	// See influxTimeVal struct doc for details.
+	itv := influxTimeVal{}
+	if f.influx != nil {
+		itv.TickerMap = make(map[string]int64)
+		itv.TradeMap = make(map[string]int64)
+	}
+
 	cd := commitData{
-		terTickers:   make([]storage.Ticker, 0, f.connCfg.Terminal.TickerCommitBuf),
-		terTrades:    make([]storage.Trade, 0, f.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers: make([]storage.Ticker, 0, f.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:  make([]storage.Trade, 0, f.connCfg.MySQL.TradeCommitBuf),
-		esTickers:    make([]storage.Ticker, 0, f.connCfg.ES.TickerCommitBuf),
-		esTrades:     make([]storage.Trade, 0, f.connCfg.ES.TradeCommitBuf),
+		terTickers:    make([]storage.Ticker, 0, f.connCfg.Terminal.TickerCommitBuf),
+		terTrades:     make([]storage.Trade, 0, f.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:  make([]storage.Ticker, 0, f.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:   make([]storage.Trade, 0, f.connCfg.MySQL.TradeCommitBuf),
+		esTickers:     make([]storage.Ticker, 0, f.connCfg.ES.TickerCommitBuf),
+		esTrades:      make([]storage.Trade, 0, f.connCfg.ES.TradeCommitBuf),
+		influxTickers: make([]storage.Ticker, 0, f.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:  make([]storage.Trade, 0, f.connCfg.InfluxDB.TradeCommitBuf),
 	}
 
 	for {
@@ -415,7 +444,7 @@ func (f *ftx) readWs(ctx context.Context) error {
 						continue
 					}
 
-					err := f.processWs(ctx, &wr, &cd)
+					err := f.processWs(ctx, &wr, &cd, &itv)
 					if err != nil {
 						return err
 					}
@@ -433,7 +462,7 @@ func (f *ftx) readWs(ctx context.Context) error {
 // transforms it to a common ticker / trade store format,
 // buffers the same in memory and
 // then sends it to different storage systems for commit through go channels.
-func (f *ftx) processWs(ctx context.Context, wr *wsRespFtx, cd *commitData) error {
+func (f *ftx) processWs(ctx context.Context, wr *wsRespFtx, cd *commitData, itv *influxTimeVal) error {
 	switch wr.Channel {
 	case "ticker":
 		ticker := storage.Ticker{}
@@ -493,6 +522,28 @@ func (f *ftx) processWs(ctx context.Context, wr *wsRespFtx, cd *commitData) erro
 				}
 				cd.esTickersCount = 0
 				cd.esTickers = nil
+			}
+		}
+		if val.influxStr {
+			val := itv.TickerMap[ticker.MktCommitName]
+			if val == 0 || val == 999999 {
+				val = 1
+			} else {
+				val++
+			}
+			itv.TickerMap[ticker.MktCommitName] = val
+			ticker.InfluxVal = val
+
+			cd.influxTickersCount++
+			cd.influxTickers = append(cd.influxTickers, ticker)
+			if cd.influxTickersCount == f.connCfg.InfluxDB.TickerCommitBuf {
+				select {
+				case f.wsInfluxTickers <- cd.influxTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.influxTickersCount = 0
+				cd.influxTickers = nil
 			}
 		}
 	case "trade":
@@ -559,6 +610,28 @@ func (f *ftx) processWs(ctx context.Context, wr *wsRespFtx, cd *commitData) erro
 					}
 					cd.esTradesCount = 0
 					cd.esTrades = nil
+				}
+			}
+			if val.influxStr {
+				val := itv.TradeMap[trade.MktCommitName]
+				if val == 0 || val == 999999 {
+					val = 1
+				} else {
+					val++
+				}
+				itv.TradeMap[trade.MktCommitName] = val
+				trade.InfluxVal = val
+
+				cd.influxTradesCount++
+				cd.influxTrades = append(cd.influxTrades, trade)
+				if cd.influxTradesCount == f.connCfg.InfluxDB.TradeCommitBuf {
+					select {
+					case f.wsInfluxTrades <- cd.influxTrades:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+					cd.influxTradesCount = 0
+					cd.influxTrades = nil
 				}
 			}
 		}
@@ -656,6 +729,40 @@ func (f *ftx) wsTradesToES(ctx context.Context) error {
 	}
 }
 
+func (f *ftx) wsTickersToInflux(ctx context.Context) error {
+	for {
+		select {
+		case data := <-f.wsInfluxTickers:
+			err := f.influx.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (f *ftx) wsTradesToInflux(ctx context.Context) error {
+	for {
+		select {
+		case data := <-f.wsInfluxTrades:
+			err := f.influx.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (f *ftx) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -676,15 +783,21 @@ func (f *ftx) processREST(ctx context.Context, mktID string, mktCommitName strin
 		req *http.Request
 		q   url.Values
 		err error
+
+		// See influxTimeVal (exchange.go) struct doc for details.
+		influxTickerTime int64
+		influxTradeTime  int64
 	)
 
 	cd := commitData{
-		terTickers:   make([]storage.Ticker, 0, f.connCfg.Terminal.TickerCommitBuf),
-		terTrades:    make([]storage.Trade, 0, f.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers: make([]storage.Ticker, 0, f.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:  make([]storage.Trade, 0, f.connCfg.MySQL.TradeCommitBuf),
-		esTickers:    make([]storage.Ticker, 0, f.connCfg.ES.TickerCommitBuf),
-		esTrades:     make([]storage.Trade, 0, f.connCfg.ES.TradeCommitBuf),
+		terTickers:    make([]storage.Ticker, 0, f.connCfg.Terminal.TickerCommitBuf),
+		terTrades:     make([]storage.Trade, 0, f.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:  make([]storage.Ticker, 0, f.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:   make([]storage.Trade, 0, f.connCfg.MySQL.TradeCommitBuf),
+		esTickers:     make([]storage.Ticker, 0, f.connCfg.ES.TickerCommitBuf),
+		esTrades:      make([]storage.Trade, 0, f.connCfg.ES.TradeCommitBuf),
+		influxTickers: make([]storage.Ticker, 0, f.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:  make([]storage.Trade, 0, f.connCfg.InfluxDB.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -786,6 +899,28 @@ func (f *ftx) processREST(ctx context.Context, mktID string, mktCommitName strin
 						cd.esTickers = nil
 					}
 				}
+				if val.influxStr {
+					if influxTickerTime == 0 || influxTickerTime == 999999 {
+						influxTickerTime = 1
+					} else {
+						influxTickerTime++
+					}
+					ticker.InfluxVal = influxTickerTime
+
+					cd.influxTickersCount++
+					cd.influxTickers = append(cd.influxTickers, ticker)
+					if cd.influxTickersCount == f.connCfg.InfluxDB.TickerCommitBuf {
+						err := f.influx.CommitTickers(ctx, cd.influxTickers)
+						if err != nil {
+							if !errors.Is(err, ctx.Err()) {
+								logErrStack(err)
+							}
+							return err
+						}
+						cd.influxTickersCount = 0
+						cd.influxTickers = nil
+					}
+				}
 			case "trade":
 				q.Del("start")
 				req.URL.RawQuery = q.Encode()
@@ -864,6 +999,28 @@ func (f *ftx) processREST(ctx context.Context, mktID string, mktCommitName strin
 							}
 							cd.esTradesCount = 0
 							cd.esTrades = nil
+						}
+					}
+					if val.influxStr {
+						if influxTradeTime == 0 || influxTradeTime == 999999 {
+							influxTradeTime = 1
+						} else {
+							influxTradeTime++
+						}
+						trade.InfluxVal = influxTradeTime
+
+						cd.influxTradesCount++
+						cd.influxTrades = append(cd.influxTrades, trade)
+						if cd.influxTradesCount == f.connCfg.InfluxDB.TradeCommitBuf {
+							err := f.influx.CommitTrades(ctx, cd.influxTrades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.influxTradesCount = 0
+							cd.influxTrades = nil
 						}
 					}
 				}

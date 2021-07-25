@@ -62,19 +62,22 @@ func StartAscendex(appCtx context.Context, markets []config.Market, retry *confi
 }
 
 type ascendex struct {
-	ws             connector.Websocket
-	rest           *connector.REST
-	connCfg        *config.Connection
-	cfgMap         map[cfgLookupKey]cfgLookupVal
-	ter            *storage.Terminal
-	es             *storage.ElasticSearch
-	mysql          *storage.MySQL
-	wsTerTickers   chan []storage.Ticker
-	wsTerTrades    chan []storage.Trade
-	wsMysqlTickers chan []storage.Ticker
-	wsMysqlTrades  chan []storage.Trade
-	wsEsTickers    chan []storage.Ticker
-	wsEsTrades     chan []storage.Trade
+	ws              connector.Websocket
+	rest            *connector.REST
+	connCfg         *config.Connection
+	cfgMap          map[cfgLookupKey]cfgLookupVal
+	ter             *storage.Terminal
+	es              *storage.ElasticSearch
+	mysql           *storage.MySQL
+	influx          *storage.InfluxDB
+	wsTerTickers    chan []storage.Ticker
+	wsTerTrades     chan []storage.Trade
+	wsMysqlTickers  chan []storage.Ticker
+	wsMysqlTrades   chan []storage.Trade
+	wsEsTickers     chan []storage.Ticker
+	wsEsTrades      chan []storage.Trade
+	wsInfluxTickers chan []storage.Ticker
+	wsInfluxTrades  chan []storage.Trade
 }
 
 type wsRespAscendex struct {
@@ -176,6 +179,15 @@ func newAscendex(appCtx context.Context, markets []config.Market, connCfg *confi
 							return a.wsTradesToES(ctx)
 						})
 					}
+
+					if a.influx != nil {
+						ascendexErrGroup.Go(func() error {
+							return a.wsTickersToInflux(ctx)
+						})
+						ascendexErrGroup.Go(func() error {
+							return a.wsTradesToInflux(ctx)
+						})
+					}
 				}
 
 				err = a.subWsChannel(market.ID, info.Channel)
@@ -231,6 +243,7 @@ func (a *ascendex) cfgLookup(markets []config.Market) error {
 		for _, info := range market.Info {
 			key := cfgLookupKey{market: market.ID, channel: info.Channel}
 			val := cfgLookupVal{}
+			val.connector = info.Connector
 			val.wsConsiderIntSec = info.WsConsiderIntSec
 			for _, str := range info.Storages {
 				switch str {
@@ -254,6 +267,13 @@ func (a *ascendex) cfgLookup(markets []config.Market) error {
 						a.es = storage.GetElasticSearch()
 						a.wsEsTickers = make(chan []storage.Ticker, 1)
 						a.wsEsTrades = make(chan []storage.Trade, 1)
+					}
+				case "influxdb":
+					val.influxStr = true
+					if a.influx == nil {
+						a.influx = storage.GetInfluxDB()
+						a.wsInfluxTickers = make(chan []storage.Ticker, 1)
+						a.wsInfluxTrades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -346,13 +366,22 @@ func (a *ascendex) readWs(ctx context.Context) error {
 		cfgLookup[k] = v
 	}
 
+	// See influxTimeVal struct doc for details.
+	itv := influxTimeVal{}
+	if a.influx != nil {
+		itv.TickerMap = make(map[string]int64)
+		itv.TradeMap = make(map[string]int64)
+	}
+
 	cd := commitData{
-		terTickers:   make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
-		terTrades:    make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers: make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:  make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
-		esTickers:    make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
-		esTrades:     make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
+		terTickers:    make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
+		terTrades:     make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:  make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:   make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
+		esTickers:     make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
+		esTrades:      make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
+		influxTickers: make([]storage.Ticker, 0, a.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:  make([]storage.Trade, 0, a.connCfg.InfluxDB.TradeCommitBuf),
 	}
 
 	for {
@@ -408,7 +437,7 @@ func (a *ascendex) readWs(ctx context.Context) error {
 				} else {
 					continue
 				}
-				err := a.processWs(ctx, &wr, &cd)
+				err := a.processWs(ctx, &wr, &cd, &itv)
 				if err != nil {
 					return err
 				}
@@ -423,7 +452,7 @@ func (a *ascendex) readWs(ctx context.Context) error {
 				} else {
 					continue
 				}
-				err := a.processWs(ctx, &wr, &cd)
+				err := a.processWs(ctx, &wr, &cd, &itv)
 				if err != nil {
 					return err
 				}
@@ -440,7 +469,7 @@ func (a *ascendex) readWs(ctx context.Context) error {
 // transforms it to a common ticker / trade store format,
 // buffers the same in memory and
 // then sends it to different storage systems for commit through go channels.
-func (a *ascendex) processWs(ctx context.Context, wr *wsRespAscendex, cd *commitData) error {
+func (a *ascendex) processWs(ctx context.Context, wr *wsRespAscendex, cd *commitData, itv *influxTimeVal) error {
 	switch wr.Type {
 	case "ticker":
 		ticker := storage.Ticker{}
@@ -504,6 +533,28 @@ func (a *ascendex) processWs(ctx context.Context, wr *wsRespAscendex, cd *commit
 				}
 				cd.esTickersCount = 0
 				cd.esTickers = nil
+			}
+		}
+		if val.influxStr {
+			val := itv.TickerMap[ticker.MktCommitName]
+			if val == 0 || val == 999999 {
+				val = 1
+			} else {
+				val++
+			}
+			itv.TickerMap[ticker.MktCommitName] = val
+			ticker.InfluxVal = val
+
+			cd.influxTickersCount++
+			cd.influxTickers = append(cd.influxTickers, ticker)
+			if cd.influxTickersCount == a.connCfg.InfluxDB.TickerCommitBuf {
+				select {
+				case a.wsInfluxTickers <- cd.influxTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.influxTickersCount = 0
+				cd.influxTickers = nil
 			}
 		}
 	case "trade":
@@ -583,6 +634,28 @@ func (a *ascendex) processWs(ctx context.Context, wr *wsRespAscendex, cd *commit
 					}
 					cd.esTradesCount = 0
 					cd.esTrades = nil
+				}
+			}
+			if val.influxStr {
+				val := itv.TradeMap[trade.MktCommitName]
+				if val == 0 || val == 999999 {
+					val = 1
+				} else {
+					val++
+				}
+				itv.TradeMap[trade.MktCommitName] = val
+				trade.InfluxVal = val
+
+				cd.influxTradesCount++
+				cd.influxTrades = append(cd.influxTrades, trade)
+				if cd.influxTradesCount == a.connCfg.InfluxDB.TradeCommitBuf {
+					select {
+					case a.wsInfluxTrades <- cd.influxTrades:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+					cd.influxTradesCount = 0
+					cd.influxTrades = nil
 				}
 			}
 		}
@@ -680,6 +753,40 @@ func (a *ascendex) wsTradesToES(ctx context.Context) error {
 	}
 }
 
+func (a *ascendex) wsTickersToInflux(ctx context.Context) error {
+	for {
+		select {
+		case data := <-a.wsInfluxTickers:
+			err := a.influx.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (a *ascendex) wsTradesToInflux(ctx context.Context) error {
+	for {
+		select {
+		case data := <-a.wsInfluxTrades:
+			err := a.influx.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (a *ascendex) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -700,15 +807,21 @@ func (a *ascendex) processREST(ctx context.Context, mktID string, mktCommitName 
 		req *http.Request
 		q   url.Values
 		err error
+
+		// See influxTimeVal (exchange.go) struct doc for details.
+		influxTickerTime int64
+		influxTradeTime  int64
 	)
 
 	cd := commitData{
-		terTickers:   make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
-		terTrades:    make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers: make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:  make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
-		esTickers:    make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
-		esTrades:     make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
+		terTickers:    make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
+		terTrades:     make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:  make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:   make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
+		esTickers:     make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
+		esTrades:      make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
+		influxTickers: make([]storage.Ticker, 0, a.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:  make([]storage.Trade, 0, a.connCfg.InfluxDB.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -819,6 +932,28 @@ func (a *ascendex) processREST(ctx context.Context, mktID string, mktCommitName 
 						cd.esTickers = nil
 					}
 				}
+				if val.influxStr {
+					if influxTickerTime == 0 || influxTickerTime == 999999 {
+						influxTickerTime = 1
+					} else {
+						influxTickerTime++
+					}
+					ticker.InfluxVal = influxTickerTime
+
+					cd.influxTickersCount++
+					cd.influxTickers = append(cd.influxTickers, ticker)
+					if cd.influxTickersCount == a.connCfg.InfluxDB.TickerCommitBuf {
+						err := a.influx.CommitTickers(ctx, cd.influxTickers)
+						if err != nil {
+							if !errors.Is(err, ctx.Err()) {
+								logErrStack(err)
+							}
+							return err
+						}
+						cd.influxTickersCount = 0
+						cd.influxTickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := a.rest.Do(req)
@@ -911,6 +1046,28 @@ func (a *ascendex) processREST(ctx context.Context, mktID string, mktCommitName 
 							}
 							cd.esTradesCount = 0
 							cd.esTrades = nil
+						}
+					}
+					if val.influxStr {
+						if influxTradeTime == 0 || influxTradeTime == 999999 {
+							influxTradeTime = 1
+						} else {
+							influxTradeTime++
+						}
+						trade.InfluxVal = influxTradeTime
+
+						cd.influxTradesCount++
+						cd.influxTrades = append(cd.influxTrades, trade)
+						if cd.influxTradesCount == a.connCfg.InfluxDB.TradeCommitBuf {
+							err := a.influx.CommitTrades(ctx, cd.influxTrades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.influxTradesCount = 0
+							cd.influxTrades = nil
 						}
 					}
 				}

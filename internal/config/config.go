@@ -120,6 +120,7 @@ type Connection struct {
 	Terminal Terminal `json:"terminal"`
 	MySQL    MySQL    `json:"mysql"`
 	ES       ES       `json:"elastic_search"`
+	InfluxDB InfluxDB `json:"influxdb"`
 }
 
 // WS contains config values for websocket connection.
@@ -166,6 +167,18 @@ type ES struct {
 	MaxIdleConnsPerHost int      `json:"max_idle_conns_per_host"`
 	TickerCommitBuf     int      `json:"ticker_commit_buffer"`
 	TradeCommitBuf      int      `json:"trade_commit_buffer"`
+}
+
+// InfluxDB contains config values for influxdb.
+type InfluxDB struct {
+	Organization    string `josn:"organization"`
+	Bucket          string `json:"bucket"`
+	Token           string `json:"token"`
+	URL             string `json:"URL"`
+	ReqTimeoutSec   int    `json:"request_timeout_sec"`
+	MaxIdleConns    int    `json:"max_idle_conns"`
+	TickerCommitBuf int    `json:"ticker_commit_buffer"`
+	TradeCommitBuf  int    `json:"trade_commit_buffer"`
 }
 
 // Log contains config values for logging.

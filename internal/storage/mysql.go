@@ -63,7 +63,8 @@ func GetMySQL() *MySQL {
 func (m *MySQL) CommitTickers(appCtx context.Context, data []Ticker) error {
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO ticker(exchange, market, price, timestamp, created_at) VALUES ")
-	for i, ticker := range data {
+	for i := range data {
+		ticker := data[i]
 		if i == 0 {
 			sb.WriteString(fmt.Sprintf("(\"%v\", \"%v\", %v, \"%v\", \"%v\")", ticker.Exchange, ticker.MktCommitName, ticker.Price, ticker.Timestamp.Format(mysqlTimestamp), time.Now().UTC().Format(mysqlTimestamp)))
 		} else {
@@ -89,7 +90,8 @@ func (m *MySQL) CommitTickers(appCtx context.Context, data []Ticker) error {
 func (m *MySQL) CommitTrades(appCtx context.Context, data []Trade) error {
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO trade(exchange, market, trade_id, side, size, price, timestamp, created_at) VALUES ")
-	for i, trade := range data {
+	for i := range data {
+		trade := data[i]
 		if i == 0 {
 			sb.WriteString(fmt.Sprintf("(\"%v\", \"%v\", \"%v\", \"%v\", %v, %v, \"%v\", \"%v\")", trade.Exchange, trade.MktCommitName, trade.TradeID, trade.Side, trade.Size, trade.Price, trade.Timestamp.Format(mysqlTimestamp), time.Now().UTC().Format(mysqlTimestamp)))
 		} else {

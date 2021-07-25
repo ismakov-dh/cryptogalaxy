@@ -25,6 +25,7 @@ Currently supported storages :
 1. Terminal Output
 2. MySQL
 3. Elasticsearch
+4. InfluxDB
  
 ---------------------------------------  
  * [Features](#features)
@@ -49,7 +50,7 @@ Currently supported storages :
  
 * Supports both REST and websocket as a way to fetch data.
  
-* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL and Elasticsearch.
+* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL, Elasticsearch and InfluxDB.
  
 * Some exchanges impose a rate limit on the number of channel subscriptions sent to websocket connections per second and if it crosses then disconnects the connection. To avoid this, the app makes staggered requests based on the rate limit of specific exchange.
  
@@ -65,7 +66,7 @@ Currently supported storages :
  
 * Request timeout can be set to every websocket read, write connections and REST API.
  
-* Connection pooling for MySQL and Elasticsearch commits.
+* Connection pooling for MySQL, Elasticsearch and InfluxDB commits.
  
 * Detailed logging of app execution steps, errors to a file for easy debugging.
  
@@ -142,11 +143,11 @@ go get -u github.com/milkywaybrain/cryptogalaxy
  
 * Example configuration file can be found at [./examples/config.json](./examples/config.json) and it's details at [Configuration options](#configuration-options). 
  
-* If you want to store data in MySQL or Elasticsearch along with a terminal display, then please install those systems separately.
+* If you want to store data in MySQL or Elasticsearch or in InfluxDB along with a terminal display, then please install those systems separately.
  
 ## Architecture
  
-Following diagram summarizes the architecture of the app which is written in Go programming language. 
+Following diagram summarizes the architecture of the app which is written in Go programming language. Diagrams raw `.drawio` file can be found at [./docs/architecture.drawio](./docs/architecture.drawio)
  
 <p align="center">
 <img align="center" src="./docs/architecture.png" />
@@ -174,7 +175,8 @@ Example configuration file can be found at [./examples/config.json](./examples/c
                            "storages": [
                                "terminal",
                                "mysql",
-                               "elastic_search"
+                               "elastic_search",
+                               "influxdb"
                            ]
                        },
                        {
@@ -183,7 +185,8 @@ Example configuration file can be found at [./examples/config.json](./examples/c
                            "websocket_consider_interval_sec": 0,
                            "storages": [
                                "mysql",
-                               "elastic_search"
+                               "elastic_search",
+                               "influxdb"
                            ]
                        }
                    ],
@@ -235,7 +238,17 @@ Example configuration file can be found at [./examples/config.json](./examples/c
            "max_idle_conns_per_host": 10,
            "ticker_commit_buffer": 100,
            "trade_commit_buffer": 100
-       }
+       },
+       "influxdb": {
+            "organization": "crypto",
+            "bucket": "cryptogalaxy",
+            "token": "t3Z1bFhjcUo_p9j_6_vuqga7_NQp9UZPdA6YZNNpzY3NUZM4GmRkN80fjHJDMIYA9kfA4GRUoOtty7bpdFoXfQ==",
+            "URL": "http://localhost:8086",
+            "request_timeout_sec": 10,
+            "max_idle_conns": 10,
+            "ticker_commit_buffer": 100,
+            "trade_commit_buffer": 100
+        }
    },
    "log": {
        "level": "error",
@@ -290,7 +303,7 @@ Possible values : greater than 0 sec.
  
 * **exchanges : markets : info : storages** : Storage systems on which data need to be stored.
  
-Possible values : terminal, mysql, elastic_search.
+Possible values : terminal, mysql, elastic_search, influxdb.
  
 *Note :* Terminal option is only used to check the price on terminal display, it is not persistent.
  
@@ -386,7 +399,7 @@ Possible values : 0, no limit on the number of open connections. Greater than 0 
  
 Possible values : 0 for 2 (this may change in future), greater than 0 for any other number.
  
-* **connection : mysql : ticker_commit_buffer** : Size of market tickers to be buffered in memory before inserting data to mysql.
+* **connection : mysql : ticker_commit_buffer** : Size of market tickers to be buffered in memory before inserting data to MySQL.
  
 Possible values : > 0
  
@@ -445,7 +458,41 @@ Possible values : > 0
 So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
  
 Also, this has nothing to do with indexing buffer settings available in Elasticsearch, that is different.
+
+***InfluxDB settings*** : 
  
+These options are needed only if you want to store data in influxdb.
+ 
+* **connection : influxdb : organization** : Name for InfluxDB organization.
+ 
+* **connection : influxdb : bucket** : Name for InfluxDB bucket.
+
+* **connection : influxdb : token** : Server authentication token.
+ 
+* **connection : influxdb : URL** : InfluxDB server base URL.
+
+* **connection : influxdb : request_timeout_sec** : InfluxDB API request timeout.
+ 
+Possible values : 0 for no timeout, greater than 0 for any other time.
+ 
+* **connection : influxdb : max_idle_conns** : Maximum number of idle (keep-alive) connections across all hosts for InfluxDB API.
+ 
+Possible values : 0 for no limit, greater than 0 for any other number.
+ 
+* **connection : influxdb : ticker_commit_buffer** : Size of market tickers to be buffered in memory before inserting data to InfluxDB.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+ 
+* **connection : influxdb : trade_commit_buffer** : Size of market trades to be buffered in memory before inserting data to InfluxDB.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+
 ***Log settings*** :
  
 * **log : level** : App logging level.
@@ -528,6 +575,23 @@ Script can be found at [./scripts/elastic_search_schema.json](./scripts/elastic_
    }
 }
 ```
+
+**InfluxDB**
+
+Line protocol used for writing data to InfluxDB is as follows :
+
+```
+ticker,exchange,market price timestamp
+
+trade,exchange,market,side trade_id,size,price timestamp
+```
+Currently there is no configuration to change the data points. So, if you want to change the tagsets or fieldsets you need to change it in the following file and then build it using [Go tools](https://golang.org/). It is just reordering of names in a single line.
+
+```
+${APP_PATH}/internal/storage/influxdb.go
+```
+
+*Note :* Sometime, ticker and trade data that we receive from the exchanges will have multiple records for the same timestamp. This data is deleted automatically by the InfluxDB as the system identifies unique data points by their measurement, tag set, and timestamp. Also we cannot add a unique id or timestamp as a new tag to the data set as it may significantly affect the performance of the InfluxDB read / writes. So to solve this problem, here we are adding 1 nanosecond to each timestamp entry of exchange and market combo till it reaches 1 millisecond to have a unique timestamp entry for each data point. This will not change anything as we are maintaining only millisecond precision ticker and trade records. Of course this will break if we have more than a million trades per millisecond per market in an exchange. But we are excluding that scenario.
  
 ## Output screenshots
  
@@ -554,6 +618,14 @@ For enlarged image, please [click here](./docs/elastic_search-output.png).
 <p align="center">
 <img align="center" src="./docs/elastic_search-output.png" />
 </p>
+
+**InfluxDB :** 
+ 
+For enlarged image, please [click here](./docs/influxdb-output.png). 
+ 
+<p align="center">
+<img align="center" src="./docs/influxdb-output.png" />
+</p>
  
 ## Testing
  
@@ -569,7 +641,7 @@ Following steps are executed when you run the test :
  
 1. Loads test configuration for the app from ${APP_PATH}/test/config_test.json.
  
-2. Truncates data from storage systems. You should have a test database schema and a test Elasticsearch index configured in config_test.json with the name starting as test.
+2. Truncates data from storage systems. You should have a test database schema, Elasticsearch index and InfluxDB bucket (with delete access) configured in config_test.json with the name starting as test.
  
 3. Sets file at ${APP_PATH}/test/data_test/ter_storage_test.txt as terminal output inorder to test terminal display functionality.
  
@@ -577,7 +649,7 @@ Following steps are executed when you run the test :
  
 5. Cancels app execution and starts testing data.
  
-6. For each exchange, it reads data from file, MySQL and Elasticsearch to which app execution step ingested data in the previous step.
+6. For each exchange, it reads data from file, MySQL, Elasticsearch and InfluxDB to which app execution step ingested data in the previous step.
  
 7. For each exchange, it checks and verifies data stored in different storage is correct against configured one.
  
@@ -607,6 +679,12 @@ Tiny WebSocket library for Go.
 
 [https://github.com/gobwas/ws](https://github.com/gobwas/ws)
  
+* InfluxDB Client
+ 
+InfluxDB 2 Go Client.
+
+[https://github.com/influxdata/influxdb-client-go](https://github.com/influxdata/influxdb-client-go)
+
 * JSON Parser
  
 A high-performance 100% compatible drop-in replacement of "encoding/json". 
@@ -653,11 +731,11 @@ Couple of things to note before code contribution :
  
 2. Linter used is Golangci, configuration for the same can be found at [./.golangci.yml](./.golangci.yml). This also has been configured as one of github release workflows. So, it makes sense to run the same linter on local before committing changes to the main branch.
  
-3. Test written for the app is some combination of unit and integration test which involves MySQL and Elasticsearch system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
+3. Test written for the app is some combination of unit and integration test which involves MySQL, Elasticsearch and InfluxDB system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
  
 ## License 
  
-Cryptogalaxy is licensed under the [MIT License](./main/LICENSE).
+Cryptogalaxy is licensed under the [MIT License](./LICENSE).
  
 ## Donate
  

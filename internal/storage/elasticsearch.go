@@ -80,7 +80,8 @@ type esData struct {
 // CommitTickers batch inserts input ticker data to elastic search.
 func (e *ElasticSearch) CommitTickers(appCtx context.Context, data []Ticker) error {
 	var buf bytes.Buffer
-	for _, ticker := range data {
+	for i := range data {
+		ticker := data[i]
 		meta := []byte(fmt.Sprintf(`{"create":{}}%s`, "\n"))
 		ed := esData{
 			Channel:   "ticker",
@@ -125,7 +126,8 @@ func (e *ElasticSearch) CommitTickers(appCtx context.Context, data []Ticker) err
 // CommitTrades batch inserts input trade data to elastic search.
 func (e *ElasticSearch) CommitTrades(appCtx context.Context, data []Trade) error {
 	var buf bytes.Buffer
-	for _, trade := range data {
+	for i := range data {
+		trade := data[i]
 		meta := []byte(fmt.Sprintf(`{"create":{}}%s`, "\n"))
 		ed := esData{
 			Channel:   "trade",

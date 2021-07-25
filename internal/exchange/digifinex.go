@@ -62,20 +62,23 @@ func StartDigifinex(appCtx context.Context, markets []config.Market, retry *conf
 }
 
 type digifinex struct {
-	ws             connector.Websocket
-	rest           *connector.REST
-	connCfg        *config.Connection
-	cfgMap         map[cfgLookupKey]cfgLookupVal
-	channelIds     map[int][2]string
-	ter            *storage.Terminal
-	es             *storage.ElasticSearch
-	mysql          *storage.MySQL
-	wsTerTickers   chan []storage.Ticker
-	wsTerTrades    chan []storage.Trade
-	wsMysqlTickers chan []storage.Ticker
-	wsMysqlTrades  chan []storage.Trade
-	wsEsTickers    chan []storage.Ticker
-	wsEsTrades     chan []storage.Trade
+	ws              connector.Websocket
+	rest            *connector.REST
+	connCfg         *config.Connection
+	cfgMap          map[cfgLookupKey]cfgLookupVal
+	channelIds      map[int][2]string
+	ter             *storage.Terminal
+	es              *storage.ElasticSearch
+	mysql           *storage.MySQL
+	influx          *storage.InfluxDB
+	wsTerTickers    chan []storage.Ticker
+	wsTerTrades     chan []storage.Trade
+	wsMysqlTickers  chan []storage.Ticker
+	wsMysqlTrades   chan []storage.Trade
+	wsEsTickers     chan []storage.Ticker
+	wsEsTrades      chan []storage.Trade
+	wsInfluxTickers chan []storage.Ticker
+	wsInfluxTrades  chan []storage.Trade
 }
 
 type wsSubDigifinex struct {
@@ -191,6 +194,15 @@ func newDigifinex(appCtx context.Context, markets []config.Market, connCfg *conf
 							return d.wsTradesToES(ctx)
 						})
 					}
+
+					if d.influx != nil {
+						digifinexErrGroup.Go(func() error {
+							return d.wsTickersToInflux(ctx)
+						})
+						digifinexErrGroup.Go(func() error {
+							return d.wsTradesToInflux(ctx)
+						})
+					}
 				}
 
 				key := cfgLookupKey{market: market.ID, channel: info.Channel}
@@ -250,6 +262,7 @@ func (d *digifinex) cfgLookup(markets []config.Market) error {
 		for _, info := range market.Info {
 			key := cfgLookupKey{market: market.ID, channel: info.Channel}
 			val := cfgLookupVal{}
+			val.connector = info.Connector
 			val.wsConsiderIntSec = info.WsConsiderIntSec
 			for _, str := range info.Storages {
 				switch str {
@@ -273,6 +286,13 @@ func (d *digifinex) cfgLookup(markets []config.Market) error {
 						d.es = storage.GetElasticSearch()
 						d.wsEsTickers = make(chan []storage.Ticker, 1)
 						d.wsEsTrades = make(chan []storage.Trade, 1)
+					}
+				case "influxdb":
+					val.influxStr = true
+					if d.influx == nil {
+						d.influx = storage.GetInfluxDB()
+						d.wsInfluxTickers = make(chan []storage.Ticker, 1)
+						d.wsInfluxTrades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -380,13 +400,22 @@ func (d *digifinex) readWs(ctx context.Context) error {
 		cfgLookup[k] = v
 	}
 
+	// See influxTimeVal struct doc for details.
+	itv := influxTimeVal{}
+	if d.influx != nil {
+		itv.TickerMap = make(map[string]int64)
+		itv.TradeMap = make(map[string]int64)
+	}
+
 	cd := commitData{
-		terTickers:   make([]storage.Ticker, 0, d.connCfg.Terminal.TickerCommitBuf),
-		terTrades:    make([]storage.Trade, 0, d.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers: make([]storage.Ticker, 0, d.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:  make([]storage.Trade, 0, d.connCfg.MySQL.TradeCommitBuf),
-		esTickers:    make([]storage.Ticker, 0, d.connCfg.ES.TickerCommitBuf),
-		esTrades:     make([]storage.Trade, 0, d.connCfg.ES.TradeCommitBuf),
+		terTickers:    make([]storage.Ticker, 0, d.connCfg.Terminal.TickerCommitBuf),
+		terTrades:     make([]storage.Trade, 0, d.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:  make([]storage.Ticker, 0, d.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:   make([]storage.Trade, 0, d.connCfg.MySQL.TradeCommitBuf),
+		esTickers:     make([]storage.Ticker, 0, d.connCfg.ES.TickerCommitBuf),
+		esTrades:      make([]storage.Trade, 0, d.connCfg.ES.TradeCommitBuf),
+		influxTickers: make([]storage.Ticker, 0, d.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:  make([]storage.Trade, 0, d.connCfg.InfluxDB.TradeCommitBuf),
 	}
 
 	for {
@@ -458,7 +487,7 @@ func (d *digifinex) readWs(ctx context.Context) error {
 						continue
 					}
 
-					err := d.processWs(ctx, &data, &cd)
+					err := d.processWs(ctx, &data, &cd, &itv)
 					if err != nil {
 						return err
 					}
@@ -497,7 +526,7 @@ func (d *digifinex) readWs(ctx context.Context) error {
 							continue
 						}
 
-						err := d.processWs(ctx, &data, &cd)
+						err := d.processWs(ctx, &data, &cd, &itv)
 						if err != nil {
 							return err
 						}
@@ -522,7 +551,7 @@ func (d *digifinex) readWs(ctx context.Context) error {
 // transforms it to a common ticker / trade store format,
 // buffers the same in memory and
 // then sends it to different storage systems for commit through go channels.
-func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *commitData) error {
+func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *commitData, itv *influxTimeVal) error {
 	switch wr.method {
 	case "ticker":
 		ticker := storage.Ticker{}
@@ -579,6 +608,28 @@ func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *
 				}
 				cd.esTickersCount = 0
 				cd.esTickers = nil
+			}
+		}
+		if val.influxStr {
+			val := itv.TickerMap[ticker.MktCommitName]
+			if val == 0 || val == 999999 {
+				val = 1
+			} else {
+				val++
+			}
+			itv.TickerMap[ticker.MktCommitName] = val
+			ticker.InfluxVal = val
+
+			cd.influxTickersCount++
+			cd.influxTickers = append(cd.influxTickers, ticker)
+			if cd.influxTickersCount == d.connCfg.InfluxDB.TickerCommitBuf {
+				select {
+				case d.wsInfluxTickers <- cd.influxTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.influxTickersCount = 0
+				cd.influxTickers = nil
 			}
 		}
 	case "trade":
@@ -677,6 +728,28 @@ func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *
 							}
 							cd.esTradesCount = 0
 							cd.esTrades = nil
+						}
+					}
+					if val.influxStr {
+						val := itv.TradeMap[trade.MktCommitName]
+						if val == 0 || val == 999999 {
+							val = 1
+						} else {
+							val++
+						}
+						itv.TradeMap[trade.MktCommitName] = val
+						trade.InfluxVal = val
+
+						cd.influxTradesCount++
+						cd.influxTrades = append(cd.influxTrades, trade)
+						if cd.influxTradesCount == d.connCfg.InfluxDB.TradeCommitBuf {
+							select {
+							case d.wsInfluxTrades <- cd.influxTrades:
+							case <-ctx.Done():
+								return ctx.Err()
+							}
+							cd.influxTradesCount = 0
+							cd.influxTrades = nil
 						}
 					}
 				} else {
@@ -782,6 +855,40 @@ func (d *digifinex) wsTradesToES(ctx context.Context) error {
 	}
 }
 
+func (d *digifinex) wsTickersToInflux(ctx context.Context) error {
+	for {
+		select {
+		case data := <-d.wsInfluxTickers:
+			err := d.influx.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (d *digifinex) wsTradesToInflux(ctx context.Context) error {
+	for {
+		select {
+		case data := <-d.wsInfluxTrades:
+			err := d.influx.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (d *digifinex) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -802,15 +909,21 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 		req *http.Request
 		q   url.Values
 		err error
+
+		// See influxTimeVal (exchange.go) struct doc for details.
+		influxTickerTime int64
+		influxTradeTime  int64
 	)
 
 	cd := commitData{
-		terTickers:   make([]storage.Ticker, 0, d.connCfg.Terminal.TickerCommitBuf),
-		terTrades:    make([]storage.Trade, 0, d.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers: make([]storage.Ticker, 0, d.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:  make([]storage.Trade, 0, d.connCfg.MySQL.TradeCommitBuf),
-		esTickers:    make([]storage.Ticker, 0, d.connCfg.ES.TickerCommitBuf),
-		esTrades:     make([]storage.Trade, 0, d.connCfg.ES.TradeCommitBuf),
+		terTickers:    make([]storage.Ticker, 0, d.connCfg.Terminal.TickerCommitBuf),
+		terTrades:     make([]storage.Trade, 0, d.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:  make([]storage.Ticker, 0, d.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:   make([]storage.Trade, 0, d.connCfg.MySQL.TradeCommitBuf),
+		esTickers:     make([]storage.Ticker, 0, d.connCfg.ES.TickerCommitBuf),
+		esTrades:      make([]storage.Trade, 0, d.connCfg.ES.TradeCommitBuf),
+		influxTickers: make([]storage.Ticker, 0, d.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:  make([]storage.Trade, 0, d.connCfg.InfluxDB.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -916,6 +1029,28 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 						cd.esTickers = nil
 					}
 				}
+				if val.influxStr {
+					if influxTickerTime == 0 || influxTickerTime == 999999 {
+						influxTickerTime = 1
+					} else {
+						influxTickerTime++
+					}
+					ticker.InfluxVal = influxTickerTime
+
+					cd.influxTickersCount++
+					cd.influxTickers = append(cd.influxTickers, ticker)
+					if cd.influxTickersCount == d.connCfg.InfluxDB.TickerCommitBuf {
+						err := d.influx.CommitTickers(ctx, cd.influxTickers)
+						if err != nil {
+							if !errors.Is(err, ctx.Err()) {
+								logErrStack(err)
+							}
+							return err
+						}
+						cd.influxTickersCount = 0
+						cd.influxTickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := d.rest.Do(req)
@@ -990,6 +1125,28 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 							}
 							cd.esTradesCount = 0
 							cd.esTrades = nil
+						}
+					}
+					if val.influxStr {
+						if influxTradeTime == 0 || influxTradeTime == 999999 {
+							influxTradeTime = 1
+						} else {
+							influxTradeTime++
+						}
+						trade.InfluxVal = influxTradeTime
+
+						cd.influxTradesCount++
+						cd.influxTrades = append(cd.influxTrades, trade)
+						if cd.influxTradesCount == d.connCfg.InfluxDB.TradeCommitBuf {
+							err := d.influx.CommitTrades(ctx, cd.influxTrades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.influxTradesCount = 0
+							cd.influxTrades = nil
 						}
 					}
 				}
