@@ -89,6 +89,16 @@ Once the app was in its final stage, I thought it may help other developers who 
 ## Should you use it
  
 If you already have a script / library / service to get cryptocurrencies data and it is working fine then probably you should continue with that. Else if you have an idea for displaying / utilizing cryptocurrencies data in a beautiful way and have not yet decided on the way of getting it then you should try it.
+
+## Who uses Cryptogalaxy
+
+* Moon or Earth
+ 
+Twitter bot for getting various metrics of cryptocurrencies.
+
+[https://twitter.com/moon_or_earth](https://twitter.com/moon_or_earth)
+
+*Note :* If you have done something wonderful using the app and you are OK with sharing the details with the public, please give a pull request or send me an email. I will include the link for the same over here.
  
 ## Install and run 
  
@@ -243,7 +253,7 @@ Example configuration file can be found at [./examples/config.json](./examples/c
             "organization": "crypto",
             "bucket": "cryptogalaxy",
             "token": "t3Z1bFhjcUo_p9j_6_vuqga7_NQp9UZPdA6YZNNpzY3NUZM4GmRkN80fjHJDMIYA9kfA4GRUoOtty7bpdFoXfQ==",
-            "URL": "http://localhost:8086",
+            "URL": "http://localhost:8086/",
             "request_timeout_sec": 10,
             "max_idle_conns": 10,
             "ticker_commit_buffer": 100,
@@ -634,7 +644,8 @@ A single test, which is a kind of both unit and integration test is written for 
 If you have done app setup by source code, you can run the test by command :
  
 ```
-go test -v ${APP_PATH}/test
+cd ${APP_PATH}
+go test -v ./test/
 ```
  
 Following steps are executed when you run the test :

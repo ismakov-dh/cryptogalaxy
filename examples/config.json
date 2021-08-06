@@ -1244,7 +1244,7 @@
             "organization": "crypto",
             "bucket": "cryptogalaxy",
             "token": "t3Z1bFhjcUo_p9j_6_vuqga7_NQp9UZPdA6YZNNpzY3NUZM4GmRkN80fjHJDMIYA9kfA4GRUoOtty7bpdFoXfQ==",
-            "URL": "http://localhost:8086",
+            "URL": "http://localhost:8086/",
             "request_timeout_sec": 10,
             "max_idle_conns": 10,
             "ticker_commit_buffer": 100,
