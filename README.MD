@@ -32,6 +32,7 @@ Currently supported storages :
  * [Limitations](#limitations)
  * [Why the app](#why-the-app)
  * [Should you use it](#should-you-use-it)
+ * [Who uses Cryptogalaxy](#who-uses-cryptogalaxy)
  * [Install and run](#install-and-run)
  * [Architecture](#architecture)
  * [Configuration options](#configuration-options)
