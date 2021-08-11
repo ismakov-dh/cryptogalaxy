@@ -70,6 +70,7 @@ type probit struct {
 	es              *storage.ElasticSearch
 	mysql           *storage.MySQL
 	influx          *storage.InfluxDB
+	nats            *storage.NATS
 	wsTerTickers    chan []storage.Ticker
 	wsTerTrades     chan []storage.Trade
 	wsMysqlTickers  chan []storage.Ticker
@@ -78,6 +79,8 @@ type probit struct {
 	wsEsTrades      chan []storage.Trade
 	wsInfluxTickers chan []storage.Ticker
 	wsInfluxTrades  chan []storage.Trade
+	wsNatsTickers   chan []storage.Ticker
+	wsNatsTrades    chan []storage.Trade
 }
 
 type wsSubProbit struct {
@@ -180,6 +183,15 @@ func newProbit(appCtx context.Context, markets []config.Market, connCfg *config.
 							return p.wsTradesToInflux(ctx)
 						})
 					}
+
+					if p.nats != nil {
+						probitErrGroup.Go(func() error {
+							return p.wsTickersToNats(ctx)
+						})
+						probitErrGroup.Go(func() error {
+							return p.wsTradesToNats(ctx)
+						})
+					}
 				}
 
 				err = p.subWsChannel(market.ID, info.Channel)
@@ -266,6 +278,13 @@ func (p *probit) cfgLookup(markets []config.Market) error {
 						p.influx = storage.GetInfluxDB()
 						p.wsInfluxTickers = make(chan []storage.Ticker, 1)
 						p.wsInfluxTrades = make(chan []storage.Trade, 1)
+					}
+				case "nats":
+					val.natsStr = true
+					if p.nats == nil {
+						p.nats = storage.GetNATS()
+						p.wsNatsTickers = make(chan []storage.Ticker, 1)
+						p.wsNatsTrades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -354,6 +373,8 @@ func (p *probit) readWs(ctx context.Context) error {
 		esTrades:      make([]storage.Trade, 0, p.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, p.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, p.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, p.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, p.connCfg.NATS.TradeCommitBuf),
 	}
 
 	log.Debug().Str("exchange", "probit").Str("func", "readWs").Msg("unlike other exchanges probit does not send channel subscribed success message")
@@ -520,6 +541,19 @@ func (p *probit) processWs(ctx context.Context, wr *wsRespProbit, cd *commitData
 				cd.influxTickers = nil
 			}
 		}
+		if val.natsStr {
+			cd.natsTickersCount++
+			cd.natsTickers = append(cd.natsTickers, ticker)
+			if cd.natsTickersCount == p.connCfg.NATS.TickerCommitBuf {
+				select {
+				case p.wsNatsTickers <- cd.natsTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.natsTickersCount = 0
+				cd.natsTickers = nil
+			}
+		}
 	case "trade":
 		for _, data := range wr.TradeData {
 			trade := storage.Trade{}
@@ -605,6 +639,19 @@ func (p *probit) processWs(ctx context.Context, wr *wsRespProbit, cd *commitData
 					}
 					cd.influxTradesCount = 0
 					cd.influxTrades = nil
+				}
+			}
+			if val.natsStr {
+				cd.natsTradesCount++
+				cd.natsTrades = append(cd.natsTrades, trade)
+				if cd.natsTradesCount == p.connCfg.NATS.TradeCommitBuf {
+					select {
+					case p.wsNatsTrades <- cd.natsTrades:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+					cd.natsTradesCount = 0
+					cd.natsTrades = nil
 				}
 			}
 		}
@@ -736,6 +783,34 @@ func (p *probit) wsTradesToInflux(ctx context.Context) error {
 	}
 }
 
+func (p *probit) wsTickersToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-p.wsNatsTickers:
+			err := p.nats.CommitTickers(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (p *probit) wsTradesToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-p.wsNatsTrades:
+			err := p.nats.CommitTrades(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (p *probit) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -773,6 +848,8 @@ func (p *probit) processREST(ctx context.Context, mktID string, mktCommitName st
 		esTrades:      make([]storage.Trade, 0, p.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, p.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, p.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, p.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, p.connCfg.NATS.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -908,6 +985,18 @@ func (p *probit) processREST(ctx context.Context, mktID string, mktCommitName st
 						cd.influxTickers = nil
 					}
 				}
+				if val.natsStr {
+					cd.natsTickersCount++
+					cd.natsTickers = append(cd.natsTickers, ticker)
+					if cd.natsTickersCount == p.connCfg.NATS.TickerCommitBuf {
+						err := p.nats.CommitTickers(cd.natsTickers)
+						if err != nil {
+							return err
+						}
+						cd.natsTickersCount = 0
+						cd.natsTickers = nil
+					}
+				}
 			case "trade":
 
 				// Really, better to use websocket. Start and end time for getting trade data is constructed randomly!
@@ -1021,6 +1110,18 @@ func (p *probit) processREST(ctx context.Context, mktID string, mktCommitName st
 							}
 							cd.influxTradesCount = 0
 							cd.influxTrades = nil
+						}
+					}
+					if val.natsStr {
+						cd.natsTradesCount++
+						cd.natsTrades = append(cd.natsTrades, trade)
+						if cd.natsTradesCount == p.connCfg.NATS.TradeCommitBuf {
+							err := p.nats.CommitTrades(cd.natsTrades)
+							if err != nil {
+								return err
+							}
+							cd.natsTradesCount = 0
+							cd.natsTrades = nil
 						}
 					}
 				}

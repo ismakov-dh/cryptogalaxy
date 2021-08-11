@@ -71,6 +71,7 @@ type digifinex struct {
 	es              *storage.ElasticSearch
 	mysql           *storage.MySQL
 	influx          *storage.InfluxDB
+	nats            *storage.NATS
 	wsTerTickers    chan []storage.Ticker
 	wsTerTrades     chan []storage.Trade
 	wsMysqlTickers  chan []storage.Ticker
@@ -79,6 +80,8 @@ type digifinex struct {
 	wsEsTrades      chan []storage.Trade
 	wsInfluxTickers chan []storage.Ticker
 	wsInfluxTrades  chan []storage.Trade
+	wsNatsTickers   chan []storage.Ticker
+	wsNatsTrades    chan []storage.Trade
 }
 
 type wsSubDigifinex struct {
@@ -203,6 +206,15 @@ func newDigifinex(appCtx context.Context, markets []config.Market, connCfg *conf
 							return d.wsTradesToInflux(ctx)
 						})
 					}
+
+					if d.nats != nil {
+						digifinexErrGroup.Go(func() error {
+							return d.wsTickersToNats(ctx)
+						})
+						digifinexErrGroup.Go(func() error {
+							return d.wsTradesToNats(ctx)
+						})
+					}
 				}
 
 				key := cfgLookupKey{market: market.ID, channel: info.Channel}
@@ -293,6 +305,13 @@ func (d *digifinex) cfgLookup(markets []config.Market) error {
 						d.influx = storage.GetInfluxDB()
 						d.wsInfluxTickers = make(chan []storage.Ticker, 1)
 						d.wsInfluxTrades = make(chan []storage.Trade, 1)
+					}
+				case "nats":
+					val.natsStr = true
+					if d.nats == nil {
+						d.nats = storage.GetNATS()
+						d.wsNatsTickers = make(chan []storage.Ticker, 1)
+						d.wsNatsTrades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -416,6 +435,8 @@ func (d *digifinex) readWs(ctx context.Context) error {
 		esTrades:      make([]storage.Trade, 0, d.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, d.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, d.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, d.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, d.connCfg.NATS.TradeCommitBuf),
 	}
 
 	for {
@@ -632,6 +653,19 @@ func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *
 				cd.influxTickers = nil
 			}
 		}
+		if val.natsStr {
+			cd.natsTickersCount++
+			cd.natsTickers = append(cd.natsTickers, ticker)
+			if cd.natsTickersCount == d.connCfg.NATS.TickerCommitBuf {
+				select {
+				case d.wsNatsTickers <- cd.natsTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.natsTickersCount = 0
+				cd.natsTickers = nil
+			}
+		}
 	case "trade":
 		switch trades := wr.trades.(type) {
 		case []interface{}:
@@ -750,6 +784,19 @@ func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *
 							}
 							cd.influxTradesCount = 0
 							cd.influxTrades = nil
+						}
+					}
+					if val.natsStr {
+						cd.natsTradesCount++
+						cd.natsTrades = append(cd.natsTrades, trade)
+						if cd.natsTradesCount == d.connCfg.NATS.TradeCommitBuf {
+							select {
+							case d.wsNatsTrades <- cd.natsTrades:
+							case <-ctx.Done():
+								return ctx.Err()
+							}
+							cd.natsTradesCount = 0
+							cd.natsTrades = nil
 						}
 					}
 				} else {
@@ -889,6 +936,34 @@ func (d *digifinex) wsTradesToInflux(ctx context.Context) error {
 	}
 }
 
+func (d *digifinex) wsTickersToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-d.wsNatsTickers:
+			err := d.nats.CommitTickers(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (d *digifinex) wsTradesToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-d.wsNatsTrades:
+			err := d.nats.CommitTrades(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (d *digifinex) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -924,6 +999,8 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 		esTrades:      make([]storage.Trade, 0, d.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, d.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, d.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, d.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, d.connCfg.NATS.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1051,6 +1128,18 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 						cd.influxTickers = nil
 					}
 				}
+				if val.natsStr {
+					cd.natsTickersCount++
+					cd.natsTickers = append(cd.natsTickers, ticker)
+					if cd.natsTickersCount == d.connCfg.NATS.TickerCommitBuf {
+						err := d.nats.CommitTickers(cd.natsTickers)
+						if err != nil {
+							return err
+						}
+						cd.natsTickersCount = 0
+						cd.natsTickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := d.rest.Do(req)
@@ -1147,6 +1236,18 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 							}
 							cd.influxTradesCount = 0
 							cd.influxTrades = nil
+						}
+					}
+					if val.natsStr {
+						cd.natsTradesCount++
+						cd.natsTrades = append(cd.natsTrades, trade)
+						if cd.natsTradesCount == d.connCfg.NATS.TradeCommitBuf {
+							err := d.nats.CommitTrades(cd.natsTrades)
+							if err != nil {
+								return err
+							}
+							cd.natsTradesCount = 0
+							cd.natsTrades = nil
 						}
 					}
 				}

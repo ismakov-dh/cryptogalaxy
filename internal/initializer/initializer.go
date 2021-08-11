@@ -64,6 +64,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 		sqlStr    bool
 		esStr     bool
 		influxStr bool
+		natsStr   bool
 	)
 	for _, exch := range cfg.Exchanges {
 		for _, market := range exch.Markets {
@@ -108,6 +109,17 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 							}
 							influxStr = true
 							log.Info().Msg("influxdb connected")
+						}
+					case "nats":
+						if !natsStr {
+							_, err = storage.InitNATS(&cfg.Connection.NATS)
+							if err != nil {
+								err = errors.Wrap(err, "nats connection")
+								log.Error().Stack().Err(errors.WithStack(err)).Msg("")
+								return err
+							}
+							natsStr = true
+							log.Info().Msg("nats connected")
 						}
 					}
 				}

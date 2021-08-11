@@ -69,6 +69,7 @@ type coinbasePro struct {
 	es              *storage.ElasticSearch
 	mysql           *storage.MySQL
 	influx          *storage.InfluxDB
+	nats            *storage.NATS
 	wsTerTickers    chan []storage.Ticker
 	wsTerTrades     chan []storage.Trade
 	wsMysqlTickers  chan []storage.Ticker
@@ -77,6 +78,8 @@ type coinbasePro struct {
 	wsEsTrades      chan []storage.Trade
 	wsInfluxTickers chan []storage.Ticker
 	wsInfluxTrades  chan []storage.Trade
+	wsNatsTickers   chan []storage.Ticker
+	wsNatsTrades    chan []storage.Trade
 }
 
 type wsSubCoinPro struct {
@@ -172,6 +175,15 @@ func newCoinbasePro(appCtx context.Context, markets []config.Market, connCfg *co
 						})
 						coinbaseProErrGroup.Go(func() error {
 							return c.wsTradesToInflux(ctx)
+						})
+					}
+
+					if c.nats != nil {
+						coinbaseProErrGroup.Go(func() error {
+							return c.wsTickersToNats(ctx)
+						})
+						coinbaseProErrGroup.Go(func() error {
+							return c.wsTradesToNats(ctx)
 						})
 					}
 				}
@@ -270,6 +282,13 @@ func (c *coinbasePro) cfgLookup(markets []config.Market) error {
 						c.wsInfluxTickers = make(chan []storage.Ticker, 1)
 						c.wsInfluxTrades = make(chan []storage.Trade, 1)
 					}
+				case "nats":
+					val.natsStr = true
+					if c.nats == nil {
+						c.nats = storage.GetNATS()
+						c.wsNatsTickers = make(chan []storage.Ticker, 1)
+						c.wsNatsTrades = make(chan []storage.Trade, 1)
+					}
 				}
 			}
 			val.mktCommitName = marketCommitName
@@ -357,6 +376,8 @@ func (c *coinbasePro) readWs(ctx context.Context) error {
 		esTrades:      make([]storage.Trade, 0, c.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, c.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, c.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, c.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, c.connCfg.NATS.TradeCommitBuf),
 	}
 
 	for {
@@ -519,6 +540,19 @@ func (c *coinbasePro) processWs(ctx context.Context, wr *respCoinPro, cd *commit
 				cd.influxTickers = nil
 			}
 		}
+		if val.natsStr {
+			cd.natsTickersCount++
+			cd.natsTickers = append(cd.natsTickers, ticker)
+			if cd.natsTickersCount == c.connCfg.NATS.TickerCommitBuf {
+				select {
+				case c.wsNatsTickers <- cd.natsTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.natsTickersCount = 0
+				cd.natsTickers = nil
+			}
+		}
 	case "trade":
 		trade := storage.Trade{}
 		trade.Exchange = "coinbase-pro"
@@ -610,6 +644,19 @@ func (c *coinbasePro) processWs(ctx context.Context, wr *respCoinPro, cd *commit
 				}
 				cd.influxTradesCount = 0
 				cd.influxTrades = nil
+			}
+		}
+		if val.natsStr {
+			cd.natsTradesCount++
+			cd.natsTrades = append(cd.natsTrades, trade)
+			if cd.natsTradesCount == c.connCfg.NATS.TradeCommitBuf {
+				select {
+				case c.wsNatsTrades <- cd.natsTrades:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.natsTradesCount = 0
+				cd.natsTrades = nil
 			}
 		}
 	}
@@ -740,6 +787,34 @@ func (c *coinbasePro) wsTradesToInflux(ctx context.Context) error {
 	}
 }
 
+func (c *coinbasePro) wsTickersToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-c.wsNatsTickers:
+			err := c.nats.CommitTickers(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (c *coinbasePro) wsTradesToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-c.wsNatsTrades:
+			err := c.nats.CommitTrades(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (c *coinbasePro) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -775,6 +850,8 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 		esTrades:      make([]storage.Trade, 0, c.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, c.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, c.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, c.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, c.connCfg.NATS.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -905,6 +982,18 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 						cd.influxTickers = nil
 					}
 				}
+				if val.natsStr {
+					cd.natsTickersCount++
+					cd.natsTickers = append(cd.natsTickers, ticker)
+					if cd.natsTickersCount == c.connCfg.NATS.TickerCommitBuf {
+						err := c.nats.CommitTickers(cd.natsTickers)
+						if err != nil {
+							return err
+						}
+						cd.natsTickersCount = 0
+						cd.natsTickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := c.rest.Do(req)
@@ -1017,6 +1106,18 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 							}
 							cd.influxTradesCount = 0
 							cd.influxTrades = nil
+						}
+					}
+					if val.natsStr {
+						cd.natsTradesCount++
+						cd.natsTrades = append(cd.natsTrades, trade)
+						if cd.natsTradesCount == c.connCfg.NATS.TradeCommitBuf {
+							err := c.nats.CommitTrades(cd.natsTrades)
+							if err != nil {
+								return err
+							}
+							cd.natsTradesCount = 0
+							cd.natsTrades = nil
 						}
 					}
 				}

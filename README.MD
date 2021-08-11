@@ -26,6 +26,7 @@ Currently supported storages :
 2. MySQL
 3. Elasticsearch
 4. InfluxDB
+5. NATS
  
 ---------------------------------------  
  * [Features](#features)
@@ -51,7 +52,7 @@ Currently supported storages :
  
 * Supports both REST and websocket as a way to fetch data.
  
-* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL, Elasticsearch and InfluxDB.
+* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL, Elasticsearch, InfluxDB and NATS.
  
 * Some exchanges impose a rate limit on the number of channel subscriptions sent to websocket connections per second and if it crosses then disconnects the connection. To avoid this, the app makes staggered requests based on the rate limit of specific exchange.
  
@@ -67,7 +68,7 @@ Currently supported storages :
  
 * Request timeout can be set to every websocket read, write connections and REST API.
  
-* Connection pooling for MySQL, Elasticsearch and InfluxDB commits.
+* Connection pooling for MySQL, Elasticsearch, InfluxDB and NATS commits.
  
 * Detailed logging of app execution steps, errors to a file for easy debugging.
  
@@ -154,7 +155,7 @@ go get -u github.com/milkywaybrain/cryptogalaxy
  
 * Example configuration file can be found at [./examples/config.json](./examples/config.json) and it's details at [Configuration options](#configuration-options). 
  
-* If you want to store data in MySQL or Elasticsearch or in InfluxDB along with a terminal display, then please install those systems separately.
+* If you want to store data in MySQL or Elasticsearch or InfluxDB or in NATS along with a terminal display, then please install those systems separately.
  
 ## Architecture
  
@@ -172,85 +173,87 @@ Example configuration file can be found at [./examples/config.json](./examples/c
  
 ```json
 {
-   "exchanges": [
-       {
-           "name": "ftx",
-           "markets": [
-               {
-                   "id": "BTC/USD",
-                   "info": [
-                       {
-                           "channel": "ticker",
-                           "connector": "rest",
-                           "rest_ping_interval_sec": 10,
-                           "storages": [
-                               "terminal",
-                               "mysql",
-                               "elastic_search",
-                               "influxdb"
-                           ]
-                       },
-                       {
-                           "channel": "trade",
-                           "connector": "websocket",
-                           "websocket_consider_interval_sec": 0,
-                           "storages": [
-                               "mysql",
-                               "elastic_search",
-                               "influxdb"
-                           ]
-                       }
-                   ],
-                   "commit_name": ""
-               }
-           ],
-           "retry": {
-               "number": 10,
-               "gap_sec": 60,
-               "reset_sec": 600
-           }
-       }
-   ],
-   "connection": {
-       "websocket": {
-           "conn_timeout_sec": 10,
-           "read_timeout_sec": 0
-       },
-       "rest": {
-           "request_timeout_sec": 10,
-           "max_idle_conns": 100,
-           "max_idle_conns_per_host": 10
-       },
-       "terminal": {
-           "ticker_commit_buffer": 1,
-           "trade_commit_buffer": 1
-       },
-       "mysql": {
-           "user": "root",
-           "password": "admin",
-           "URL": "@tcp(127.0.0.1:3306)",
-           "schema": "cryptogalaxy",
-           "request_timeout_sec": 10,
-           "conn_max_lifetime_sec": 180,
-           "max_open_conns": 10,
-           "max_idle_conns": 10,
-           "ticker_commit_buffer": 100,
-           "trade_commit_buffer": 100
-       },
-       "elastic_search": {
-           "addresses": [
-               "http://localhost:9200/"
-           ],
-           "username": "",
-           "password": "",
-           "index_name": "cryptogalaxy",
-           "request_timeout_sec": 10,
-           "max_idle_conns": 10,
-           "max_idle_conns_per_host": 10,
-           "ticker_commit_buffer": 100,
-           "trade_commit_buffer": 100
-       },
-       "influxdb": {
+    "exchanges": [
+        {
+            "name": "ftx",
+            "markets": [
+                {
+                    "id": "BTC/USD",
+                    "info": [
+                        {
+                            "channel": "ticker",
+                            "connector": "rest",
+                            "rest_ping_interval_sec": 10,
+                            "storages": [
+                                "terminal",
+                                "mysql",
+                                "elastic_search",
+                                "influxdb",
+                                "nats"
+                            ]
+                        },
+                        {
+                            "channel": "trade",
+                            "connector": "websocket",
+                            "websocket_consider_interval_sec": 0,
+                            "storages": [
+                                "mysql",
+                                "elastic_search",
+                                "influxdb",
+                                "nats"
+                            ]
+                        }
+                    ],
+                    "commit_name": ""
+                }
+            ],
+            "retry": {
+                "number": 10,
+                "gap_sec": 60,
+                "reset_sec": 600
+            }
+        }
+    ],
+    "connection": {
+        "websocket": {
+            "conn_timeout_sec": 10,
+            "read_timeout_sec": 0
+        },
+        "rest": {
+            "request_timeout_sec": 10,
+            "max_idle_conns": 100,
+            "max_idle_conns_per_host": 10
+        },
+        "terminal": {
+            "ticker_commit_buffer": 1,
+            "trade_commit_buffer": 1
+        },
+        "mysql": {
+            "user": "root",
+            "password": "admin",
+            "URL": "@tcp(127.0.0.1:3306)",
+            "schema": "cryptogalaxy",
+            "request_timeout_sec": 10,
+            "conn_max_lifetime_sec": 180,
+            "max_open_conns": 10,
+            "max_idle_conns": 10,
+            "ticker_commit_buffer": 100,
+            "trade_commit_buffer": 100
+        },
+        "elastic_search": {
+            "addresses": [
+                "http://localhost:9200/"
+            ],
+            "username": "",
+            "password": "",
+            "index_name": "cryptogalaxy",
+            "request_timeout_sec": 10,
+            "max_idle_conns": 10,
+            "max_idle_conns_per_host": 10,
+            "ticker_commit_buffer": 100,
+            "trade_commit_buffer": 100
+        },
+        "influxdb": {
             "organization": "crypto",
             "bucket": "cryptogalaxy",
             "token": "t3Z1bFhjcUo_p9j_6_vuqga7_NQp9UZPdA6YZNNpzY3NUZM4GmRkN80fjHJDMIYA9kfA4GRUoOtty7bpdFoXfQ==",
@@ -259,12 +262,23 @@ Example configuration file can be found at [./examples/config.json](./examples/c
             "max_idle_conns": 10,
             "ticker_commit_buffer": 100,
             "trade_commit_buffer": 100
+        },
+        "nats": {
+            "addresses": [
+                "http://localhost:4222/"
+            ],
+            "username": "",
+            "password": "",
+            "subject_base_name": "cryptogalaxy",
+            "request_timeout_sec": 10,
+            "ticker_commit_buffer": 100,
+            "trade_commit_buffer": 100
         }
-   },
-   "log": {
-       "level": "error",
-       "file_path": "/var/log/cryptogalaxy/cryptogalaxy"
-   }
+    },
+    "log": {
+        "level": "error",
+        "file_path": "/var/log/cryptogalaxy/cryptogalaxy"
+    }
 }
 ```
  
@@ -314,7 +328,7 @@ Possible values : greater than 0 sec.
  
 * **exchanges : markets : info : storages** : Storage systems on which data need to be stored.
  
-Possible values : terminal, mysql, elastic_search, influxdb.
+Possible values : terminal, mysql, elastic_search, influxdb, nats.
  
 *Note :* Terminal option is only used to check the price on terminal display, it is not persistent.
  
@@ -504,6 +518,46 @@ Possible values : > 0
 *Note :* All REST API and websocket methods buffers data locally and then commits.
 So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
 
+***NATS settings*** : 
+ 
+These options are needed only if you want to store data in NATS.
+ 
+* **connection : nats : addresses** : A list of NATS servers to use.
+ 
+* **connection : nats : username** : Username for NATS basic authentication.
+ 
+Possible values : value or empty string if there is no authentication.
+ 
+* **connection : nats : password** : Password for NATS basic authentication.
+ 
+Possible values : value or empty string if there is no authentication.
+ 
+* **connection : nats : subject_base_name** : Subject base name of the NATS.
+
+*Note :* For ticker the final subject name will be subject_base_name.ticker and for trade it is subject_base_name.trade.
+ 
+* **connection : nats : request_timeout_sec** : Timeout for NATS connection.
+ 
+Possible values : 0 for no timeout, greater than 0 sec for any other time.
+
+* **connection : nats : ticker_commit_buffer** : Size of market tickers to be buffered in memory before publishing data to NATS.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+ 
+NATS client library automatically buffers messages before sending them to the server which we cannot configure. So if the ticker_commit_buffer number is very big, then sometimes the data may already be pushed to the server by the client library before the app flush. This is not at all the concern, but mentioned here to just as an information to know.
+ 
+* **connection : nats : trade_commit_buffer** : Size of market trades to be buffered in memory before publishing data to NATS.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+ 
+NATS client library automatically buffers messages before sending them to the server which we cannot configure. So if the trade_commit_buffer number is very big, then sometimes the data may already be pushed to the server by the client library before the app flush. This is not at all the concern, but mentioned here to just as an information to know.
+
 ***Log settings*** :
  
 * **log : level** : App logging level.
@@ -603,6 +657,31 @@ ${APP_PATH}/internal/storage/influxdb.go
 ```
 
 *Note :* Sometime, ticker and trade data that we receive from the exchanges will have multiple records for the same timestamp. This data is deleted automatically by the InfluxDB as the system identifies unique data points by their measurement, tag set, and timestamp. Also we cannot add a unique id or timestamp as a new tag to the data set as it may significantly affect the performance of the InfluxDB read / writes. So to solve this problem, here we are adding 1 nanosecond to each timestamp entry of exchange and market combo till it reaches 1 millisecond to have a unique timestamp entry for each data point. This will not change anything as we are maintaining only millisecond precision ticker and trade records. Of course this will break if we have more than a million trades per millisecond per market in an exchange. But we are excluding that scenario.
+
+**NATS**
+
+Two subjects to be published in the NATS server in JSON format. One is for ticker data and another one is for trade data. Structures for the same is as follows :
+
+```
+configured_subject_base_name.ticker
+
+Exchange
+MktID
+MktCommitName
+Price
+Timestamp
+
+configured_subject_base_name.trade
+
+Exchange
+MktID
+MktCommitName
+TradeID
+Side
+Size
+Price
+Timestamp
+```
  
 ## Output screenshots
  
@@ -637,6 +716,14 @@ For enlarged image, please [click here](./docs/influxdb-output.png).
 <p align="center">
 <img align="center" src="./docs/influxdb-output.png" />
 </p>
+
+**NATS :** 
+ 
+For enlarged image, please [click here](./docs/nats-output.png). 
+ 
+<p align="center">
+<img align="center" src="./docs/nats-output.png" />
+</p>
  
 ## Testing
  
@@ -653,19 +740,21 @@ Following steps are executed when you run the test :
  
 1. Loads test configuration for the app from ${APP_PATH}/test/config_test.json.
  
-2. Truncates data from storage systems. You should have a test database schema, Elasticsearch index and InfluxDB bucket (with delete access) configured in config_test.json with the name starting as test.
+2. Truncates data from storage systems. You should have a test database schema, Elasticsearch index, InfluxDB bucket (with delete access) and NATS subject configured in config_test.json with the name starting as test.
  
 3. Sets file at ${APP_PATH}/test/data_test/ter_storage_test.txt as terminal output inorder to test terminal display functionality.
+
+4. Sets file at ${APP_PATH}/test/data_test/nats_storage_test.txt as nats output inorder to test nats storage functionality.
  
-4. Executes the app for 2 minute to get the data from exchanges.
+5. Executes the app for 2 minute to get the data from exchanges.
  
-5. Cancels app execution and starts testing data.
+6. Cancels app execution and starts testing data.
  
-6. For each exchange, it reads data from file, MySQL, Elasticsearch and InfluxDB to which app execution step ingested data in the previous step.
+7. For each exchange, it reads data from Terminal file, MySQL, Elasticsearch , InfluxDB and NATS file to which app execution step ingested data in the previous step.
  
-7. For each exchange, it checks and verifies data stored in different storage is correct against configured one.
+8. For each exchange, it checks and verifies data stored in different storage is correct against configured one.
  
-8. If all the exchange passes the verification then it marks the test as success.
+9. If all the exchange passes the verification then it marks the test as success.
  
 *Note :* It only checks if the data is present in the different storage system, not the actual value of it.
  
@@ -702,7 +791,13 @@ InfluxDB 2 Go Client.
 A high-performance 100% compatible drop-in replacement of "encoding/json". 
 
 [https://github.com/json-iterator/go](https://github.com/json-iterator/go)
+
+* NATS Client
  
+Golang client for NATS, the cloud native messaging system. 
+
+[https://github.com/nats-io/nats.go](https://github.com/nats-io/nats.go)
+
 * Pkg Errors
  
 Simple error handling primitives.
@@ -743,7 +838,7 @@ Couple of things to note before code contribution :
  
 2. Linter used is Golangci, configuration for the same can be found at [./.golangci.yml](./.golangci.yml). This also has been configured as one of github release workflows. So, it makes sense to run the same linter on local before committing changes to the main branch.
  
-3. Test written for the app is some combination of unit and integration test which involves MySQL, Elasticsearch and InfluxDB system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
+3. Test written for the app is some combination of unit and integration test which involves MySQL, Elasticsearch, InfluxDB and NATS system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
  
 ## License 
  

@@ -71,6 +71,7 @@ type gateio struct {
 	es              *storage.ElasticSearch
 	mysql           *storage.MySQL
 	influx          *storage.InfluxDB
+	nats            *storage.NATS
 	wsTerTickers    chan []storage.Ticker
 	wsTerTrades     chan []storage.Trade
 	wsMysqlTickers  chan []storage.Ticker
@@ -79,6 +80,8 @@ type gateio struct {
 	wsEsTrades      chan []storage.Trade
 	wsInfluxTickers chan []storage.Ticker
 	wsInfluxTrades  chan []storage.Trade
+	wsNatsTickers   chan []storage.Ticker
+	wsNatsTrades    chan []storage.Trade
 }
 
 type wsSubGateio struct {
@@ -185,6 +188,15 @@ func newGateio(appCtx context.Context, markets []config.Market, connCfg *config.
 							return g.wsTradesToInflux(ctx)
 						})
 					}
+
+					if g.nats != nil {
+						gateioErrGroup.Go(func() error {
+							return g.wsTickersToNats(ctx)
+						})
+						gateioErrGroup.Go(func() error {
+							return g.wsTradesToNats(ctx)
+						})
+					}
 				}
 
 				key := cfgLookupKey{market: market.ID, channel: info.Channel}
@@ -275,6 +287,13 @@ func (g *gateio) cfgLookup(markets []config.Market) error {
 						g.influx = storage.GetInfluxDB()
 						g.wsInfluxTickers = make(chan []storage.Ticker, 1)
 						g.wsInfluxTrades = make(chan []storage.Trade, 1)
+					}
+				case "nats":
+					val.natsStr = true
+					if g.nats == nil {
+						g.nats = storage.GetNATS()
+						g.wsNatsTickers = make(chan []storage.Ticker, 1)
+						g.wsNatsTrades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -372,6 +391,8 @@ func (g *gateio) readWs(ctx context.Context) error {
 		esTrades:      make([]storage.Trade, 0, g.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, g.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, g.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, g.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, g.connCfg.NATS.TradeCommitBuf),
 	}
 
 	for {
@@ -532,6 +553,19 @@ func (g *gateio) processWs(ctx context.Context, wr *wsRespGateio, cd *commitData
 				cd.influxTickers = nil
 			}
 		}
+		if val.natsStr {
+			cd.natsTickersCount++
+			cd.natsTickers = append(cd.natsTickers, ticker)
+			if cd.natsTickersCount == g.connCfg.NATS.TickerCommitBuf {
+				select {
+				case g.wsNatsTickers <- cd.natsTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.natsTickersCount = 0
+				cd.natsTickers = nil
+			}
+		}
 	case "trade":
 		trade := storage.Trade{}
 		trade.Exchange = "gateio"
@@ -632,6 +666,19 @@ func (g *gateio) processWs(ctx context.Context, wr *wsRespGateio, cd *commitData
 				}
 				cd.influxTradesCount = 0
 				cd.influxTrades = nil
+			}
+		}
+		if val.natsStr {
+			cd.natsTradesCount++
+			cd.natsTrades = append(cd.natsTrades, trade)
+			if cd.natsTradesCount == g.connCfg.NATS.TradeCommitBuf {
+				select {
+				case g.wsNatsTrades <- cd.natsTrades:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.natsTradesCount = 0
+				cd.natsTrades = nil
 			}
 		}
 	}
@@ -762,6 +809,34 @@ func (g *gateio) wsTradesToInflux(ctx context.Context) error {
 	}
 }
 
+func (g *gateio) wsTickersToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-g.wsNatsTickers:
+			err := g.nats.CommitTickers(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (g *gateio) wsTradesToNats(ctx context.Context) error {
+	for {
+		select {
+		case data := <-g.wsNatsTrades:
+			err := g.nats.CommitTrades(data)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (g *gateio) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -797,6 +872,8 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 		esTrades:      make([]storage.Trade, 0, g.connCfg.ES.TradeCommitBuf),
 		influxTickers: make([]storage.Ticker, 0, g.connCfg.InfluxDB.TickerCommitBuf),
 		influxTrades:  make([]storage.Trade, 0, g.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:   make([]storage.Ticker, 0, g.connCfg.NATS.TickerCommitBuf),
+		natsTrades:    make([]storage.Trade, 0, g.connCfg.NATS.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -932,6 +1009,18 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 						cd.influxTickers = nil
 					}
 				}
+				if val.natsStr {
+					cd.natsTickersCount++
+					cd.natsTickers = append(cd.natsTickers, ticker)
+					if cd.natsTickersCount == g.connCfg.NATS.TickerCommitBuf {
+						err := g.nats.CommitTickers(cd.natsTickers)
+						if err != nil {
+							return err
+						}
+						cd.natsTickersCount = 0
+						cd.natsTickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := g.rest.Do(req)
@@ -1053,6 +1142,18 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 							}
 							cd.influxTradesCount = 0
 							cd.influxTrades = nil
+						}
+					}
+					if val.natsStr {
+						cd.natsTradesCount++
+						cd.natsTrades = append(cd.natsTrades, trade)
+						if cd.natsTradesCount == g.connCfg.NATS.TradeCommitBuf {
+							err := g.nats.CommitTrades(cd.natsTrades)
+							if err != nil {
+								return err
+							}
+							cd.natsTradesCount = 0
+							cd.natsTrades = nil
 						}
 					}
 				}

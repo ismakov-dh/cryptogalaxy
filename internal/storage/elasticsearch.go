@@ -38,6 +38,7 @@ func InitElasticSearch(cfg *config.ES) (*ElasticSearch, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		var ctx context.Context
 		if cfg.ReqTimeoutSec > 0 {
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.ReqTimeoutSec)*time.Second)

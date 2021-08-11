@@ -65,7 +65,7 @@ func GetInfluxDB() *InfluxDB {
 	return &influxdb
 }
 
-// CommitTickers batch inserts input ticker data to influx db.
+// CommitTickers batch inserts input ticker data to influxdb.
 func (i *InfluxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 	var sb strings.Builder
 	for i := range data {
@@ -90,7 +90,7 @@ func (i *InfluxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 	return nil
 }
 
-// CommitTrades batch inserts input trade data to influx db.
+// CommitTrades batch inserts input trade data to influxdb.
 func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 	var sb strings.Builder
 	for i := range data {

@@ -121,6 +121,7 @@ type Connection struct {
 	MySQL    MySQL    `json:"mysql"`
 	ES       ES       `json:"elastic_search"`
 	InfluxDB InfluxDB `json:"influxdb"`
+	NATS     NATS     `json:"nats"`
 }
 
 // WS contains config values for websocket connection.
@@ -179,6 +180,17 @@ type InfluxDB struct {
 	MaxIdleConns    int    `json:"max_idle_conns"`
 	TickerCommitBuf int    `json:"ticker_commit_buffer"`
 	TradeCommitBuf  int    `json:"trade_commit_buffer"`
+}
+
+// NATS contains config values for nats.
+type NATS struct {
+	Addresses       []string `json:"addresses"`
+	Username        string   `json:"username"`
+	Password        string   `json:"password"`
+	SubjectBaseName string   `json:"subject_base_name"`
+	ReqTimeoutSec   int      `json:"request_timeout_sec"`
+	TickerCommitBuf int      `json:"ticker_commit_buffer"`
+	TradeCommitBuf  int      `json:"trade_commit_buffer"`
 }
 
 // Log contains config values for logging.

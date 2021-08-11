@@ -20,6 +20,7 @@ import (
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 	"github.com/milkywaybrain/cryptogalaxy/internal/initializer"
 	"github.com/milkywaybrain/cryptogalaxy/internal/storage"
+	nc "github.com/nats-io/nats.go"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -60,13 +61,20 @@ func TestCryptogalaxy(t *testing.T) {
 		t.FailNow()
 	}
 
+	// For testing, nats subject name should start with the name test to avoid mistakenly messing up with
+	// production one.
+	if !strings.HasPrefix(cfg.Connection.NATS.SubjectBaseName, "test") {
+		t.Log("ERROR : nats subject base name should start with test for testing")
+		t.FailNow()
+	}
+
 	// Terminal output we can't actually test, so make file as terminal output.
-	outFile, err := os.Create("./data_test/ter_storage_test.txt")
+	fOutFile, err := os.Create("./data_test/ter_storage_test.txt")
 	if err != nil {
 		t.Log("ERROR : not able to create test terminal storage file : ./data_test/ter_storage_test.txt")
 		t.FailNow()
 	}
-	_ = storage.InitTerminal(outFile)
+	_ = storage.InitTerminal(fOutFile)
 
 	// Delete all data from mysql to have fresh one.
 	mysql, err := storage.InitMySQL(&cfg.Connection.MySQL)
@@ -163,6 +171,19 @@ func TestCryptogalaxy(t *testing.T) {
 		t.FailNow()
 	}
 
+	// Subscribe to NATS subject. Write received data to a file.
+	nOutFile, err := os.Create("./data_test/nats_storage_test.txt")
+	if err != nil {
+		t.Log("ERROR : not able to create test nats storage file : ./data_test/nats_storage_test.txt")
+		t.FailNow()
+	}
+	nats, err := storage.InitNATS(&cfg.Connection.NATS)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.FailNow()
+	}
+	go natsSub(cfg.Connection.NATS.SubjectBaseName+".*", nOutFile, nats, t)
+
 	// Execute the app for 2 minute, which is good enough time to get the data from exchanges.
 	// After that cancel app execution through context error.
 	// If there is any actual error from app execution, then stop testing.
@@ -195,7 +216,14 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	// Close file which has been set as the terminal output in the previous step.
-	err = outFile.Close()
+	err = fOutFile.Close()
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.FailNow()
+	}
+
+	// Close file which has been set as the nats output in the previous step.
+	err = nOutFile.Close()
 	if err != nil {
 		t.Log("ERROR : " + err.Error())
 		t.FailNow()
@@ -215,6 +243,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades := make(map[string]storage.Trade)
 	influxTickers := make(map[string]storage.Ticker)
 	influxTrades := make(map[string]storage.Trade)
+	natsTickers := make(map[string]storage.Ticker)
+	natsTrades := make(map[string]storage.Trade)
 
 	err = readTerminal("ftx", terTickers, terTrades)
 	if err != nil {
@@ -251,7 +281,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !ftxFail {
-		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("ftx", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : ftx exchange function")
+			ftxFail = true
+		}
+	}
+
+	if !ftxFail {
+		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : ftx exchange function")
@@ -272,6 +311,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("coinbase-pro", terTickers, terTrades)
 	if err != nil {
@@ -308,7 +349,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !coinbaseProFail {
-		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("coinbase-pro", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : coinbase-pro exchange function")
+			coinbaseProFail = true
+		}
+	}
+
+	if !coinbaseProFail {
+		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : coinbase-pro exchange function")
@@ -329,6 +379,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("binance", terTickers, terTrades)
 	if err != nil {
@@ -365,7 +417,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !binanceFail {
-		err = verifyData("binance", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("binance", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance exchange function")
+			binanceFail = true
+		}
+	}
+
+	if !binanceFail {
+		err = verifyData("binance", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : binance exchange function")
@@ -386,6 +447,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bitfinex", terTickers, terTrades)
 	if err != nil {
@@ -422,7 +485,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bitfinexFail {
-		err = verifyData("bitfinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("bitfinex", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitfinex exchange function")
+			bitfinexFail = true
+		}
+	}
+
+	if !bitfinexFail {
+		err = verifyData("bitfinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bitfinex exchange function")
@@ -443,6 +515,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("hbtc", terTickers, terTrades)
 	if err != nil {
@@ -479,7 +553,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !hbtcFail {
-		err = verifyData("hbtc", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("hbtc", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : hbtc exchange function")
+			hbtcFail = true
+		}
+	}
+
+	if !hbtcFail {
+		err = verifyData("hbtc", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : hbtc exchange function")
@@ -500,6 +583,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("huobi", terTickers, terTrades)
 	if err != nil {
@@ -536,7 +621,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !huobiFail {
-		err = verifyData("huobi", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("huobi", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : huobi exchange function")
+			huobiFail = true
+		}
+	}
+
+	if !huobiFail {
+		err = verifyData("huobi", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : huobi exchange function")
@@ -557,6 +651,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("gateio", terTickers, terTrades)
 	if err != nil {
@@ -593,7 +689,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !gateioFail {
-		err = verifyData("gateio", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("gateio", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : gateio exchange function")
+			gateioFail = true
+		}
+	}
+
+	if !gateioFail {
+		err = verifyData("gateio", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : gateio exchange function")
@@ -614,6 +719,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("kucoin", terTickers, terTrades)
 	if err != nil {
@@ -650,7 +757,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !kucoinFail {
-		err = verifyData("kucoin", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("kucoin", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : kucoin exchange function")
+			kucoinFail = true
+		}
+	}
+
+	if !kucoinFail {
+		err = verifyData("kucoin", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : kucoin exchange function")
@@ -671,6 +787,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bitstamp", terTickers, terTrades)
 	if err != nil {
@@ -707,7 +825,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bitstampFail {
-		err = verifyData("bitstamp", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("bitstamp", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitstamp exchange function")
+			bitstampFail = true
+		}
+	}
+
+	if !bitstampFail {
+		err = verifyData("bitstamp", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bitstamp exchange function")
@@ -728,6 +855,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bybit", terTickers, terTrades)
 	if err != nil {
@@ -764,7 +893,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bybitFail {
-		err = verifyData("bybit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("bybit", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bybit exchange function")
+			bybitFail = true
+		}
+	}
+
+	if !bybitFail {
+		err = verifyData("bybit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bybit exchange function")
@@ -785,6 +923,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("probit", terTickers, terTrades)
 	if err != nil {
@@ -821,7 +961,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !probitFail {
-		err = verifyData("probit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("probit", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : probit exchange function")
+			probitFail = true
+		}
+	}
+
+	if !probitFail {
+		err = verifyData("probit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : probit exchange function")
@@ -842,6 +991,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("gemini", terTickers, terTrades)
 	if err != nil {
@@ -878,7 +1029,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !geminiFail {
-		err = verifyData("gemini", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("gemini", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : gemini exchange function")
+			geminiFail = true
+		}
+	}
+
+	if !geminiFail {
+		err = verifyData("gemini", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : gemini exchange function")
@@ -899,6 +1059,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("bitmart", terTickers, terTrades)
 	if err != nil {
@@ -935,7 +1097,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !bitmartFail {
-		err = verifyData("bitmart", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("bitmart", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : bitmart exchange function")
+			bitmartFail = true
+		}
+	}
+
+	if !bitmartFail {
+		err = verifyData("bitmart", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : bitmart exchange function")
@@ -956,6 +1127,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("digifinex", terTickers, terTrades)
 	if err != nil {
@@ -992,7 +1165,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !digifinexFail {
-		err = verifyData("digifinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("digifinex", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : digifinex exchange function")
+			digifinexFail = true
+		}
+	}
+
+	if !digifinexFail {
+		err = verifyData("digifinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : digifinex exchange function")
@@ -1013,6 +1195,8 @@ func TestCryptogalaxy(t *testing.T) {
 	esTrades = make(map[string]storage.Trade)
 	influxTickers = make(map[string]storage.Ticker)
 	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
 
 	err = readTerminal("ascendex", terTickers, terTrades)
 	if err != nil {
@@ -1049,7 +1233,16 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if !ascendexFail {
-		err = verifyData("ascendex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, &cfg)
+		err = readNATS("ascendex", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : ascendex exchange function")
+			ascendexFail = true
+		}
+	}
+
+	if !ascendexFail {
+		err = verifyData("ascendex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, &cfg)
 		if err != nil {
 			t.Log("ERROR : " + err.Error())
 			t.Error("FAILURE : ascendex exchange function")
@@ -1060,7 +1253,7 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail {
-		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increse it before actual debugging.")
+		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increase it before actual debugging.")
 	}
 }
 
@@ -1381,11 +1574,66 @@ func readInfluxDB(exchName string, influxTickers map[string]storage.Ticker, infl
 	return nil
 }
 
+// readNATS reads ticker and trade data for an exchange from a file, which has been set as nats output,
+// into passed in maps.
+func readNATS(exchName string, natsTickers map[string]storage.Ticker, natsTrades map[string]storage.Trade) error {
+	outFile, err := os.OpenFile("./data_test/nats_storage_test.txt", os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+	rd := bufio.NewReader(outFile)
+	for {
+		line, err := rd.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+		if line == "\n" {
+			continue
+		}
+		words := strings.Fields(line)
+		if words[1] == exchName {
+			switch words[0] {
+			case "Ticker":
+				key := words[2]
+				price, err := strconv.ParseFloat(words[3], 64)
+				if err != nil {
+					return err
+				}
+				val := storage.Ticker{
+					Price: price,
+				}
+				natsTickers[key] = val
+			case "Trade":
+				key := words[2]
+				size, err := strconv.ParseFloat(words[3], 64)
+				if err != nil {
+					return err
+				}
+				price, err := strconv.ParseFloat(words[4], 64)
+				if err != nil {
+					return err
+				}
+				val := storage.Trade{
+					Size:  size,
+					Price: price,
+				}
+				natsTrades[key] = val
+			}
+		}
+	}
+	return nil
+}
+
 // verifyData checks whether all the configured storage system for an exchange got the required data or not.
 func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades map[string]storage.Trade,
 	mysqlTickers map[string]storage.Ticker, mysqlTrades map[string]storage.Trade,
 	esTickers map[string]storage.Ticker, esTrades map[string]storage.Trade,
 	influxTickers map[string]storage.Ticker, influxTrades map[string]storage.Trade,
+	natsTickers map[string]storage.Ticker, natsTrades map[string]storage.Trade,
 	cfg *config.Config) error {
 
 	for _, exch := range cfg.Exchanges {
@@ -1422,6 +1670,11 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 								if influxTicker.Price <= 0 {
 									return fmt.Errorf("%s ticker data stored in influxdb is not complete", market.ID)
 								}
+							case "nats":
+								natsTicker := natsTickers[marketCommitName]
+								if natsTicker.Price <= 0 {
+									return fmt.Errorf("%s ticker data stored in nats is not complete", market.ID)
+								}
 							}
 						}
 					case "trade":
@@ -1447,6 +1700,12 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 								if influxTrade.Size <= 0 || influxTrade.Price <= 0 {
 									return fmt.Errorf("%s trade data stored in influxdb is not complete", market.ID)
 								}
+							case "nats":
+								natsTrade := natsTrades[marketCommitName]
+								if natsTrade.Size <= 0 || natsTrade.Price <= 0 {
+									return fmt.Errorf("%s trade data stored in nats is not complete", market.ID)
+								}
+
 							}
 						}
 					}
@@ -1455,6 +1714,29 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 		}
 	}
 	return nil
+}
+
+// Subscribe to NATS subject. Write received data to a file.
+func natsSub(subject string, out io.Writer, nats *storage.NATS, t *testing.T) {
+	if _, err := nats.Basic.Subscribe(subject, func(m *nc.Msg) {
+		if strings.HasSuffix(m.Subject, "ticker") {
+			ticker := storage.Ticker{}
+			err := jsoniter.Unmarshal(m.Data, &ticker)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+			}
+			fmt.Fprintf(out, "%-15s%-15s%-15s%20f\n\n", "Ticker", ticker.Exchange, ticker.MktCommitName, ticker.Price)
+		} else {
+			trade := storage.Trade{}
+			err := jsoniter.Unmarshal(m.Data, &trade)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+			}
+			fmt.Fprintf(out, "%-15s%-15s%-5s%20f%20f\n\n", "Trade", trade.Exchange, trade.MktCommitName, trade.Size, trade.Price)
+		}
+	}); err != nil {
+		t.Log("ERROR : " + err.Error())
+	}
 }
 
 type esResp struct {
