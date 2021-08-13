@@ -12,7 +12,7 @@ type Ticker struct {
 	MktCommitName string
 	Price         float64
 	Timestamp     time.Time
-	InfluxVal     int64
+	InfluxVal     int64 `json:",omitempty"`
 }
 
 // Trade represents final form of market trade info received from exchange
@@ -26,5 +26,5 @@ type Trade struct {
 	Size          float64
 	Price         float64
 	Timestamp     time.Time
-	InfluxVal     int64
+	InfluxVal     int64 `json:",omitempty"`
 }

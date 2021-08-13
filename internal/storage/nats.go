@@ -52,6 +52,10 @@ func GetNATS() *NATS {
 func (n *NATS) CommitTickers(data []Ticker) error {
 	for i := range data {
 		ticker := data[i]
+
+		// Variable is used only for InfluxDB.
+		ticker.InfluxVal = 0
+
 		err := n.Client.Publish(n.Cfg.SubjectBaseName+".ticker", &ticker)
 		if err != nil {
 			return err
@@ -72,6 +76,10 @@ func (n *NATS) CommitTickers(data []Ticker) error {
 func (n *NATS) CommitTrades(data []Trade) error {
 	for i := range data {
 		trade := data[i]
+
+		// Variable is used only for InfluxDB.
+		trade.InfluxVal = 0
+
 		err := n.Client.Publish(n.Cfg.SubjectBaseName+".trade", &trade)
 		if err != nil {
 			return err
