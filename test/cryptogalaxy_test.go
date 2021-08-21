@@ -1373,7 +1373,6 @@ func readMySQL(exchName string, mysqlTickers map[string]storage.Ticker, mysqlTra
 	if err != nil {
 		return err
 	}
-	tradeRows.Close()
 	return nil
 }
 

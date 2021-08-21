@@ -65,7 +65,7 @@ func GetElasticSearch() *ElasticSearch {
 	return &elasticSearch
 }
 
-// esData holds either ticker or trade data which will be sent to elastic search
+// esData holds either ticker or trade data which will be sent to elastic search.
 type esData struct {
 	Channel   string    `json:"channel"`
 	Exchange  string    `json:"exchange"`
