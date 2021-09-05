@@ -73,7 +73,7 @@ func (i *InfluxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 		// See influxTimeVal (exchange.go) struct doc for details.
 		// Microsecond time precision is removed before adding custom nanosecond and then
 		// again converted back to nanosecond precision.
-		sb.WriteString(fmt.Sprintf("ticker,exchange=%s,market=%s price=%f %d\n", ticker.Exchange, ticker.MktCommitName, ticker.Price, ((ticker.Timestamp.UnixNano()/1e6)*1e6)+ticker.InfluxVal))
+		sb.WriteString(fmt.Sprintf("ticker,exchange=%v,market=%v price=%v %v\n", ticker.Exchange, ticker.MktCommitName, ticker.Price, ((ticker.Timestamp.UnixNano()/1e6)*1e6)+ticker.InfluxVal))
 	}
 	var ctx context.Context
 	if i.Cfg.ReqTimeoutSec > 0 {
@@ -98,7 +98,7 @@ func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 		// See influxTimeVal (exchange.go) struct doc for details.
 		// Microsecond time precision is removed before adding custom nanosecond and then
 		// again converted back to nanosecond precision.
-		sb.WriteString(fmt.Sprintf("trade,exchange=%s,market=%s,side=%s trade_id=\"%s\",size=%f,price=%f %d\n", trade.Exchange, trade.MktCommitName, trade.Side, trade.TradeID, trade.Size, trade.Price, ((trade.Timestamp.UnixNano()/1e6)*1e6)+trade.InfluxVal))
+		sb.WriteString(fmt.Sprintf("trade,exchange=%v,market=%v,side=%v trade_id=\"%v\",size=%v,price=%v %v\n", trade.Exchange, trade.MktCommitName, trade.Side, trade.TradeID, trade.Size, trade.Price, ((trade.Timestamp.UnixNano()/1e6)*1e6)+trade.InfluxVal))
 	}
 	var ctx context.Context
 	if i.Cfg.ReqTimeoutSec > 0 {

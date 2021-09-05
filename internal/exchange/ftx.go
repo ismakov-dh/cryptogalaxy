@@ -43,10 +43,12 @@ func StartFtx(appCtx context.Context, markets []config.Market, retry *config.Ret
 			}
 			lastRetryTime = time.Now()
 			if retryCount > retry.Number {
-				return fmt.Errorf("not able to connect ftx exchange even after %v retry. please check the log for details", retry.Number)
+				err = fmt.Errorf("not able to connect ftx exchange even after %d retry", retry.Number)
+				log.Error().Err(err).Str("exchange", "ftx").Msg("")
+				return err
 			}
 
-			log.Error().Str("exchange", "ftx").Int("retry", retryCount).Msg(fmt.Sprintf("retrying functions in %v seconds", retry.GapSec))
+			log.Error().Str("exchange", "ftx").Int("retry", retryCount).Msg(fmt.Sprintf("retrying functions in %d seconds", retry.GapSec))
 			tick := time.NewTicker(time.Duration(retry.GapSec) * time.Second)
 			select {
 			case <-tick.C:
