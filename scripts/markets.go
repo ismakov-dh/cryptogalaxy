@@ -60,9 +60,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range coinbaseProMarkets {
-		if err = w.Write([]string{"coinbase-pro", record.Name}); err != nil {
-			log.Error().Err(err).Str("exchange", "coinbase-pro").Msg("writing markets to csv")
-			return
+		if record.Status == "online" {
+			if err = w.Write([]string{"coinbase-pro", record.Name}); err != nil {
+				log.Error().Err(err).Str("exchange", "coinbase-pro").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -81,9 +83,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range binanceMarkets.Result {
-		if err = w.Write([]string{"binance", record.Name}); err != nil {
-			log.Error().Err(err).Str("exchange", "binance").Msg("writing markets to csv")
-			return
+		if record.Status == "TRADING" {
+			if err = w.Write([]string{"binance", record.Name}); err != nil {
+				log.Error().Err(err).Str("exchange", "binance").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -144,9 +148,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range huobiMarkets.Data {
-		if err = w.Write([]string{"huobi", record.Symbol}); err != nil {
-			log.Error().Err(err).Str("exchange", "huobi").Msg("writing markets to csv")
-			return
+		if record.Status == "online" {
+			if err = w.Write([]string{"huobi", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "huobi").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -165,9 +171,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range gateioMarkets {
-		if err = w.Write([]string{"gateio", record.Name}); err != nil {
-			log.Error().Err(err).Str("exchange", "gateio").Msg("writing markets to csv")
-			return
+		if record.Status == "tradable" {
+			if err = w.Write([]string{"gateio", record.Name}); err != nil {
+				log.Error().Err(err).Str("exchange", "gateio").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -186,9 +194,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range kucoinMarkets.Data {
-		if err = w.Write([]string{"kucoin", record.Symbol}); err != nil {
-			log.Error().Err(err).Str("exchange", "kucoin").Msg("writing markets to csv")
-			return
+		if record.Status {
+			if err = w.Write([]string{"kucoin", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "kucoin").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -207,9 +217,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range bitstampMarkets {
-		if err = w.Write([]string{"bitstamp", record.Symbol}); err != nil {
-			log.Error().Err(err).Str("exchange", "bitstamp").Msg("writing markets to csv")
-			return
+		if record.Status == "Enabled" {
+			if err = w.Write([]string{"bitstamp", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "bitstamp").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -228,7 +240,7 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range bybitMarkets.Result {
-		if record.QuoteCurrency != "USDT" {
+		if record.QuoteCurrency != "USDT" || record.Status != "Trading" {
 			continue
 		}
 		if err = w.Write([]string{"bybit", record.Name}); err != nil {
@@ -252,9 +264,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range probitMarkets.Data {
-		if err = w.Write([]string{"probit", record.ID}); err != nil {
-			log.Error().Err(err).Str("exchange", "probit").Msg("writing markets to csv")
-			return
+		if !record.Status {
+			if err = w.Write([]string{"probit", record.ID}); err != nil {
+				log.Error().Err(err).Str("exchange", "probit").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -315,9 +329,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range digifinexMarkets.SymbolList {
-		if err = w.Write([]string{"digifinex", record.Symbol}); err != nil {
-			log.Error().Err(err).Str("exchange", "digifinex").Msg("writing markets to csv")
-			return
+		if record.Status == "TRADING" {
+			if err = w.Write([]string{"digifinex", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "digifinex").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -336,9 +352,11 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range ascendexMarkets.Data {
-		if err = w.Write([]string{"ascendex", record.Symbol}); err != nil {
-			log.Error().Err(err).Str("exchange", "ascendex").Msg("writing markets to csv")
-			return
+		if record.Status == "Normal" {
+			if err = w.Write([]string{"ascendex", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "ascendex").Msg("writing markets to csv")
+				return
+			}
 		}
 	}
 	w.Flush()
@@ -356,14 +374,16 @@ type ftxRespRes struct {
 }
 
 type coinbaseProResp struct {
-	Name string `json:"id"`
+	Name   string `json:"id"`
+	Status string `json:"status"`
 }
 
 type binanceResp struct {
 	Result []binanceRespRes `json:"symbols"`
 }
 type binanceRespRes struct {
-	Name string `json:"symbol"`
+	Name   string `json:"symbol"`
+	Status string `json:"status"`
 }
 
 type bitfinexResp [][]string
@@ -377,10 +397,12 @@ type huobiResp struct {
 }
 type huobiRespData struct {
 	Symbol string `json:"symbol"`
+	Status string `json:"state"`
 }
 
 type gateioResp struct {
-	Name string `json:"id"`
+	Name   string `json:"id"`
+	Status string `json:"trade_status"`
 }
 
 type kucoinResp struct {
@@ -388,10 +410,12 @@ type kucoinResp struct {
 }
 type kucoinRespData struct {
 	Symbol string `json:"symbol"`
+	Status bool   `json:"enableTrading"`
 }
 
 type bitstampResp struct {
 	Symbol string `json:"url_symbol"`
+	Status string `json:"trading"`
 }
 
 type bybitResp struct {
@@ -400,13 +424,15 @@ type bybitResp struct {
 type bybitRespRes struct {
 	Name          string `json:"name"`
 	QuoteCurrency string `json:"quote_currency"`
+	Status        string `json:"status"`
 }
 
 type probitResp struct {
 	Data []probitRespData `json:"data"`
 }
 type probitRespData struct {
-	ID string `json:"id"`
+	ID     string `json:"id"`
+	Status bool   `json:"closed"`
 }
 
 type bitmartResp struct {
@@ -421,6 +447,7 @@ type digifinexResp struct {
 }
 type digifinexRespRes struct {
 	Symbol string `json:"symbol"`
+	Status string `json:"status"`
 }
 
 type ascendexResp struct {
@@ -428,4 +455,5 @@ type ascendexResp struct {
 }
 type ascendexRespData struct {
 	Symbol string `json:"symbol"`
+	Status string `json:"status"`
 }
