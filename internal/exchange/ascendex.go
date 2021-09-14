@@ -64,25 +64,28 @@ func StartAscendex(appCtx context.Context, markets []config.Market, retry *confi
 }
 
 type ascendex struct {
-	ws              connector.Websocket
-	rest            *connector.REST
-	connCfg         *config.Connection
-	cfgMap          map[cfgLookupKey]cfgLookupVal
-	ter             *storage.Terminal
-	es              *storage.ElasticSearch
-	mysql           *storage.MySQL
-	influx          *storage.InfluxDB
-	nats            *storage.NATS
-	wsTerTickers    chan []storage.Ticker
-	wsTerTrades     chan []storage.Trade
-	wsMysqlTickers  chan []storage.Ticker
-	wsMysqlTrades   chan []storage.Trade
-	wsEsTickers     chan []storage.Ticker
-	wsEsTrades      chan []storage.Trade
-	wsInfluxTickers chan []storage.Ticker
-	wsInfluxTrades  chan []storage.Trade
-	wsNatsTickers   chan []storage.Ticker
-	wsNatsTrades    chan []storage.Trade
+	ws                  connector.Websocket
+	rest                *connector.REST
+	connCfg             *config.Connection
+	cfgMap              map[cfgLookupKey]cfgLookupVal
+	ter                 *storage.Terminal
+	es                  *storage.ElasticSearch
+	mysql               *storage.MySQL
+	influx              *storage.InfluxDB
+	nats                *storage.NATS
+	clickhouse          *storage.ClickHouse
+	wsTerTickers        chan []storage.Ticker
+	wsTerTrades         chan []storage.Trade
+	wsMysqlTickers      chan []storage.Ticker
+	wsMysqlTrades       chan []storage.Trade
+	wsEsTickers         chan []storage.Ticker
+	wsEsTrades          chan []storage.Trade
+	wsInfluxTickers     chan []storage.Ticker
+	wsInfluxTrades      chan []storage.Trade
+	wsNatsTickers       chan []storage.Ticker
+	wsNatsTrades        chan []storage.Trade
+	wsClickHouseTickers chan []storage.Ticker
+	wsClickHouseTrades  chan []storage.Trade
 }
 
 type wsRespAscendex struct {
@@ -202,6 +205,15 @@ func newAscendex(appCtx context.Context, markets []config.Market, connCfg *confi
 							return a.wsTradesToNats(ctx)
 						})
 					}
+
+					if a.clickhouse != nil {
+						ascendexErrGroup.Go(func() error {
+							return a.wsTickersToClickHouse(ctx)
+						})
+						ascendexErrGroup.Go(func() error {
+							return a.wsTradesToClickHouse(ctx)
+						})
+					}
 				}
 
 				err = a.subWsChannel(market.ID, info.Channel)
@@ -295,6 +307,13 @@ func (a *ascendex) cfgLookup(markets []config.Market) error {
 						a.nats = storage.GetNATS()
 						a.wsNatsTickers = make(chan []storage.Ticker, 1)
 						a.wsNatsTrades = make(chan []storage.Trade, 1)
+					}
+				case "clickhouse":
+					val.clickHouseStr = true
+					if a.clickhouse == nil {
+						a.clickhouse = storage.GetClickHouse()
+						a.wsClickHouseTickers = make(chan []storage.Ticker, 1)
+						a.wsClickHouseTrades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -395,16 +414,18 @@ func (a *ascendex) readWs(ctx context.Context) error {
 	}
 
 	cd := commitData{
-		terTickers:    make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
-		terTrades:     make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers:  make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:   make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
-		esTickers:     make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
-		esTrades:      make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
-		influxTickers: make([]storage.Ticker, 0, a.connCfg.InfluxDB.TickerCommitBuf),
-		influxTrades:  make([]storage.Trade, 0, a.connCfg.InfluxDB.TradeCommitBuf),
-		natsTickers:   make([]storage.Ticker, 0, a.connCfg.NATS.TickerCommitBuf),
-		natsTrades:    make([]storage.Trade, 0, a.connCfg.NATS.TradeCommitBuf),
+		terTickers:        make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
+		terTrades:         make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:      make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:       make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
+		esTickers:         make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
+		esTrades:          make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
+		influxTickers:     make([]storage.Ticker, 0, a.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:      make([]storage.Trade, 0, a.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:       make([]storage.Ticker, 0, a.connCfg.NATS.TickerCommitBuf),
+		natsTrades:        make([]storage.Trade, 0, a.connCfg.NATS.TradeCommitBuf),
+		clickHouseTickers: make([]storage.Ticker, 0, a.connCfg.ClickHouse.TickerCommitBuf),
+		clickHouseTrades:  make([]storage.Trade, 0, a.connCfg.ClickHouse.TradeCommitBuf),
 	}
 
 	for {
@@ -593,6 +614,19 @@ func (a *ascendex) processWs(ctx context.Context, wr *wsRespAscendex, cd *commit
 				cd.natsTickers = nil
 			}
 		}
+		if val.clickHouseStr {
+			cd.clickHouseTickersCount++
+			cd.clickHouseTickers = append(cd.clickHouseTickers, ticker)
+			if cd.clickHouseTickersCount == a.connCfg.ClickHouse.TickerCommitBuf {
+				select {
+				case a.wsClickHouseTickers <- cd.clickHouseTickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.clickHouseTickersCount = 0
+				cd.clickHouseTickers = nil
+			}
+		}
 	case "trade":
 
 		// Received data is an object for ticker and an array for trade.
@@ -705,6 +739,19 @@ func (a *ascendex) processWs(ctx context.Context, wr *wsRespAscendex, cd *commit
 					}
 					cd.natsTradesCount = 0
 					cd.natsTrades = nil
+				}
+			}
+			if val.clickHouseStr {
+				cd.clickHouseTradesCount++
+				cd.clickHouseTrades = append(cd.clickHouseTrades, trade)
+				if cd.clickHouseTradesCount == a.connCfg.ClickHouse.TradeCommitBuf {
+					select {
+					case a.wsClickHouseTrades <- cd.clickHouseTrades:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+					cd.clickHouseTradesCount = 0
+					cd.clickHouseTrades = nil
 				}
 			}
 		}
@@ -864,6 +911,40 @@ func (a *ascendex) wsTradesToNats(ctx context.Context) error {
 	}
 }
 
+func (a *ascendex) wsTickersToClickHouse(ctx context.Context) error {
+	for {
+		select {
+		case data := <-a.wsClickHouseTickers:
+			err := a.clickhouse.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (a *ascendex) wsTradesToClickHouse(ctx context.Context) error {
+	for {
+		select {
+		case data := <-a.wsClickHouseTrades:
+			err := a.clickhouse.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (a *ascendex) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -891,16 +972,18 @@ func (a *ascendex) processREST(ctx context.Context, mktID string, mktCommitName 
 	)
 
 	cd := commitData{
-		terTickers:    make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
-		terTrades:     make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers:  make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:   make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
-		esTickers:     make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
-		esTrades:      make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
-		influxTickers: make([]storage.Ticker, 0, a.connCfg.InfluxDB.TickerCommitBuf),
-		influxTrades:  make([]storage.Trade, 0, a.connCfg.InfluxDB.TradeCommitBuf),
-		natsTickers:   make([]storage.Ticker, 0, a.connCfg.NATS.TickerCommitBuf),
-		natsTrades:    make([]storage.Trade, 0, a.connCfg.NATS.TradeCommitBuf),
+		terTickers:        make([]storage.Ticker, 0, a.connCfg.Terminal.TickerCommitBuf),
+		terTrades:         make([]storage.Trade, 0, a.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:      make([]storage.Ticker, 0, a.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:       make([]storage.Trade, 0, a.connCfg.MySQL.TradeCommitBuf),
+		esTickers:         make([]storage.Ticker, 0, a.connCfg.ES.TickerCommitBuf),
+		esTrades:          make([]storage.Trade, 0, a.connCfg.ES.TradeCommitBuf),
+		influxTickers:     make([]storage.Ticker, 0, a.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:      make([]storage.Trade, 0, a.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:       make([]storage.Ticker, 0, a.connCfg.NATS.TickerCommitBuf),
+		natsTrades:        make([]storage.Trade, 0, a.connCfg.NATS.TradeCommitBuf),
+		clickHouseTickers: make([]storage.Ticker, 0, a.connCfg.ClickHouse.TickerCommitBuf),
+		clickHouseTrades:  make([]storage.Trade, 0, a.connCfg.ClickHouse.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1045,6 +1128,18 @@ func (a *ascendex) processREST(ctx context.Context, mktID string, mktCommitName 
 						cd.natsTickers = nil
 					}
 				}
+				if val.clickHouseStr {
+					cd.clickHouseTickersCount++
+					cd.clickHouseTickers = append(cd.clickHouseTickers, ticker)
+					if cd.clickHouseTickersCount == a.connCfg.ClickHouse.TickerCommitBuf {
+						err := a.clickhouse.CommitTickers(ctx, cd.clickHouseTickers)
+						if err != nil {
+							return err
+						}
+						cd.clickHouseTickersCount = 0
+						cd.clickHouseTickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := a.rest.Do(req)
@@ -1171,6 +1266,21 @@ func (a *ascendex) processREST(ctx context.Context, mktID string, mktCommitName 
 							}
 							cd.natsTradesCount = 0
 							cd.natsTrades = nil
+						}
+					}
+					if val.clickHouseStr {
+						cd.clickHouseTradesCount++
+						cd.clickHouseTrades = append(cd.clickHouseTrades, trade)
+						if cd.clickHouseTradesCount == a.connCfg.ClickHouse.TradeCommitBuf {
+							err := a.clickhouse.CommitTrades(ctx, cd.clickHouseTrades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.clickHouseTradesCount = 0
+							cd.clickHouseTrades = nil
 						}
 					}
 				}

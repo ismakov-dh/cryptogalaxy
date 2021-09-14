@@ -59,12 +59,13 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 	// Establish connections to different storage systems, connectors and
 	// also validate few user defined config values.
 	var (
-		restConn  bool
-		terStr    bool
-		sqlStr    bool
-		esStr     bool
-		influxStr bool
-		natsStr   bool
+		restConn      bool
+		terStr        bool
+		sqlStr        bool
+		esStr         bool
+		influxStr     bool
+		natsStr       bool
+		clickHouseStr bool
 	)
 	for _, exch := range cfg.Exchanges {
 		for _, market := range exch.Markets {
@@ -120,6 +121,17 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 							}
 							natsStr = true
 							log.Info().Msg("nats connected")
+						}
+					case "clickhouse":
+						if !clickHouseStr {
+							_, err = storage.InitClickHouse(&cfg.Connection.ClickHouse)
+							if err != nil {
+								err = errors.Wrap(err, "clickhouse connection")
+								log.Error().Stack().Err(errors.WithStack(err)).Msg("")
+								return err
+							}
+							clickHouseStr = true
+							log.Info().Msg("clickhouse connected")
 						}
 					}
 				}

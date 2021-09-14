@@ -24,31 +24,36 @@ type cfgLookupVal struct {
 	esStr            bool
 	influxStr        bool
 	natsStr          bool
+	clickHouseStr    bool
 	id               int
 	mktCommitName    string
 }
 
 type commitData struct {
-	terTickersCount    int
-	terTradesCount     int
-	mysqlTickersCount  int
-	mysqlTradesCount   int
-	esTickersCount     int
-	esTradesCount      int
-	influxTickersCount int
-	influxTradesCount  int
-	natsTickersCount   int
-	natsTradesCount    int
-	terTickers         []storage.Ticker
-	terTrades          []storage.Trade
-	mysqlTickers       []storage.Ticker
-	mysqlTrades        []storage.Trade
-	esTickers          []storage.Ticker
-	esTrades           []storage.Trade
-	influxTickers      []storage.Ticker
-	influxTrades       []storage.Trade
-	natsTickers        []storage.Ticker
-	natsTrades         []storage.Trade
+	terTickersCount        int
+	terTradesCount         int
+	mysqlTickersCount      int
+	mysqlTradesCount       int
+	esTickersCount         int
+	esTradesCount          int
+	influxTickersCount     int
+	influxTradesCount      int
+	natsTickersCount       int
+	natsTradesCount        int
+	clickHouseTickersCount int
+	clickHouseTradesCount  int
+	terTickers             []storage.Ticker
+	terTrades              []storage.Trade
+	mysqlTickers           []storage.Ticker
+	mysqlTrades            []storage.Trade
+	esTickers              []storage.Ticker
+	esTrades               []storage.Trade
+	influxTickers          []storage.Ticker
+	influxTrades           []storage.Trade
+	natsTickers            []storage.Ticker
+	natsTrades             []storage.Trade
+	clickHouseTickers      []storage.Ticker
+	clickHouseTrades       []storage.Trade
 }
 
 type influxTimeVal struct {

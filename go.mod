@@ -3,6 +3,7 @@ module github.com/milkywaybrain/cryptogalaxy
 go 1.17
 
 require (
+	github.com/ClickHouse/clickhouse-go v1.4.7
 	github.com/elastic/go-elasticsearch/v7 v7.13.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gobwas/ws v1.1.0
@@ -19,6 +20,7 @@ require (
 )
 
 require (
+	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
 	github.com/deepmap/oapi-codegen v1.6.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect

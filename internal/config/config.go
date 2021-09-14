@@ -115,13 +115,14 @@ type Retry struct {
 
 // Connection contains config values for different API and storage connections.
 type Connection struct {
-	WS       WS       `json:"websocket"`
-	REST     REST     `json:"rest"`
-	Terminal Terminal `json:"terminal"`
-	MySQL    MySQL    `json:"mysql"`
-	ES       ES       `json:"elastic_search"`
-	InfluxDB InfluxDB `json:"influxdb"`
-	NATS     NATS     `json:"nats"`
+	WS         WS         `json:"websocket"`
+	REST       REST       `json:"rest"`
+	Terminal   Terminal   `json:"terminal"`
+	MySQL      MySQL      `json:"mysql"`
+	ES         ES         `json:"elastic_search"`
+	InfluxDB   InfluxDB   `json:"influxdb"`
+	NATS       NATS       `json:"nats"`
+	ClickHouse ClickHouse `json:"clickhouse"`
 }
 
 // WS contains config values for websocket connection.
@@ -189,6 +190,19 @@ type NATS struct {
 	Password        string   `json:"password"`
 	SubjectBaseName string   `json:"subject_base_name"`
 	ReqTimeoutSec   int      `json:"request_timeout_sec"`
+	TickerCommitBuf int      `json:"ticker_commit_buffer"`
+	TradeCommitBuf  int      `json:"trade_commit_buffer"`
+}
+
+// ClickHouse contains config values for clickhouse.
+type ClickHouse struct {
+	User            string   `josn:"user"`
+	Password        string   `json:"password"`
+	URL             string   `json:"URL"`
+	Schema          string   `json:"schema"`
+	ReqTimeoutSec   int      `json:"request_timeout_sec"`
+	AltHosts        []string `json:"alt_hosts"`
+	Compression     bool     `json:"compression"`
 	TickerCommitBuf int      `json:"ticker_commit_buffer"`
 	TradeCommitBuf  int      `json:"trade_commit_buffer"`
 }

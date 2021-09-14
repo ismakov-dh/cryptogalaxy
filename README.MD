@@ -27,6 +27,7 @@ Currently supported storages :
 3. Elasticsearch
 4. InfluxDB
 5. NATS
+6. ClickHouse
  
 ---------------------------------------  
  * [Features](#features)
@@ -52,7 +53,7 @@ Currently supported storages :
  
 * Supports both REST and websocket as a way to fetch data.
  
-* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL, Elasticsearch, InfluxDB and NATS.
+* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL, Elasticsearch, InfluxDB, NATS and ClickHouse.
  
 * Some exchanges impose a rate limit on the number of channel subscriptions sent to websocket connections per second and if it crosses then disconnects the connection. To avoid this, the app makes staggered requests based on the rate limit of specific exchange.
  
@@ -68,7 +69,7 @@ Currently supported storages :
  
 * Request timeout can be set to every websocket read, write connections and REST API.
  
-* Connection pooling for MySQL, Elasticsearch, InfluxDB and NATS commits.
+* Connection pooling for MySQL, Elasticsearch, InfluxDB, NATS and ClickHouse commits.
  
 * Detailed logging of app execution steps, errors to a file for easy debugging.
  
@@ -155,7 +156,7 @@ go get -u github.com/milkywaybrain/cryptogalaxy
  
 * Example configuration file can be found at [./examples/config.json](./examples/config.json) and it's details at [Configuration options](#configuration-options). 
  
-* If you want to store data in MySQL or Elasticsearch or InfluxDB or in NATS along with a terminal display, then please install those systems separately.
+* If you want to store data in MySQL or Elasticsearch or InfluxDB or NATS or in ClickHouse along with a terminal display, then please install those systems separately.
  
 ## Architecture
  
@@ -189,7 +190,8 @@ Example configuration file can be found at [./examples/config.json](./examples/c
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -200,7 +202,8 @@ Example configuration file can be found at [./examples/config.json](./examples/c
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -273,6 +276,20 @@ Example configuration file can be found at [./examples/config.json](./examples/c
             "request_timeout_sec": 10,
             "ticker_commit_buffer": 100,
             "trade_commit_buffer": 100
+        },
+        "clickhouse": {
+            "user": "",
+            "password": "",
+            "URL": "tcp://127.0.0.1:9000",
+            "schema": "cryptogalaxy",
+            "request_timeout_sec": 10,
+            "alt_hosts": [
+                "127.0.0.2:9000",
+                "127.0.0.3:9000"
+            ],
+            "compression": false,
+            "ticker_commit_buffer": 100,
+            "trade_commit_buffer": 100
         }
     },
     "log": {
@@ -328,7 +345,7 @@ Possible values : greater than 0 sec.
  
 * **exchanges : markets : info : storages** : Storage systems on which data need to be stored.
  
-Possible values : terminal, mysql, elastic_search, influxdb, nats.
+Possible values : terminal, mysql, elastic_search, influxdb, nats, clickhouse.
  
 *Note :* Terminal option is only used to check the price on terminal display, it is not persistent.
  
@@ -558,6 +575,44 @@ So for example, if the specified number is 10 and has multiple market data point
  
 NATS client library automatically buffers messages before sending them to the server which we cannot configure. So if the trade_commit_buffer number is very big, then sometimes the data may already be pushed to the server by the client library before the app flush. This is not at all the concern, but mentioned here to just as an information to know.
 
+***ClickHouse settings*** : 
+ 
+These options are needed only if you want to store data in clickhouse.
+ 
+* **connection : clickhouse : user** : Username for database.
+ 
+* **connection : clickhouse : password** : Password for database.
+ 
+* **connection : clickhouse : URL** : URL of the database.
+ 
+* **connection : clickhouse : schema** : Schema name of the database.
+ 
+* **connection : clickhouse : request_timeout_sec** : Timeout for ClickHouse connection and insert data.
+ 
+Possible values : 0 for no timeout, greater than 0 for any other time.
+
+* **connection : clickhouse : alt_hosts** : Comma separated list of single address host for load-balancing.
+ 
+Possible values : list of address or empty array if you don't need it.
+
+* **connection : clickhouse : compression** : Enable lz4 compression.
+ 
+Possible values : boolean true for compression, false for no compression.
+
+* **connection : clickhouse : ticker_commit_buffer** : Size of market tickers to be buffered in memory before inserting data to ClickHouse.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+ 
+* **connection : clickhouse : trade_commit_buffer** : Size of market trades to be buffered in memory before inserting data to ClickHouse.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+
 ***Log settings*** :
  
 * **log : level** : App logging level.
@@ -682,7 +737,37 @@ Size
 Price
 Timestamp
 ```
+
+**ClickHouse**
  
+Script can be found at [./scripts/clickhouse_schema.sql](./scripts/clickhouse_schema.sql).
+ 
+```sql
+CREATE TABLE ticker
+(
+    `exchange` String,
+    `market` String,
+    `price` Float64,
+    `timestamp` DateTime64(3, 'UTC')
+) ENGINE = MergeTree()
+ORDER BY (exchange, market, timestamp);
+```
+ 
+```sql
+CREATE TABLE trade
+(
+    `exchange` String,
+    `market` String,
+    `trade_id` String,
+    `side` String,
+    `size` Float64,
+    `price` Float64,
+    `timestamp` DateTime64(3, 'UTC')
+) ENGINE = MergeTree()
+ORDER BY (exchange, market, side, timestamp);
+```
+*Note :* Above table creation schema is a basic simple one. ClickHouse provides a lot of important configurations via create statement. You can choose a different table and database engine, can do data partition having ‘hot’ and ‘cold’ split, schedule old data deletion, configure sparse indexing structure with data replication etc and all through the simple create schema statements. So please go through the ClickHouse official document and customize the above script specific to your needs. If you want you can also change Float64 to Decimal column type to avoid floating arithmetic error in some use cases (of course overflow checks lead to operations slowdown, but then there is an option to turn it off also!). Only thing to remember is, you should not change the ticker and trade table column names. 
+
 ## Output screenshots
  
 **Terminal :** 
@@ -724,6 +809,14 @@ For enlarged image, please [click here](./docs/nats-output.png).
 <p align="center">
 <img align="center" src="./docs/nats-output.png" />
 </p>
+
+**ClickHouse :** 
+ 
+For enlarged image, please [click here](./docs/clickhouse-output.png). 
+ 
+<p align="center">
+<img align="center" src="./docs/clickhouse-output.png" />
+</p>
  
 ## Testing
  
@@ -740,7 +833,7 @@ Following steps are executed when you run the test :
  
 1. Loads test configuration for the app from ${APP_PATH}/test/config_test.json.
  
-2. Truncates data from storage systems. You should have a test database schema, Elasticsearch index, InfluxDB bucket (with delete access) and NATS subject configured in config_test.json with the name starting as test.
+2. Truncates data from storage systems. You should have a test database schema, Elasticsearch index, InfluxDB bucket (with delete access), NATS subject and ClickHouse database configured in config_test.json with the name starting as test.
  
 3. Sets file at ${APP_PATH}/test/data_test/ter_storage_test.txt as terminal output inorder to test terminal display functionality.
 
@@ -750,7 +843,7 @@ Following steps are executed when you run the test :
  
 6. Cancels app execution and starts testing data.
  
-7. For each exchange, it reads data from Terminal file, MySQL, Elasticsearch , InfluxDB and NATS file to which app execution step ingested data in the previous step.
+7. For each exchange, it reads data from Terminal file, MySQL, Elasticsearch , InfluxDB, NATS file and ClickHouse to which app execution step ingested data in the previous step.
  
 8. For each exchange, it checks and verifies data stored in different storage is correct against configured one.
  
@@ -761,6 +854,12 @@ Following steps are executed when you run the test :
 ## Module dependency
  
 Shoutout to modules on which this app depends on :
+
+* ClickHouse Driver
+ 
+Golang driver for ClickHouse.
+
+[https://github.com/ClickHouse/clickhouse-go](https://github.com/ClickHouse/clickhouse-go)
  
 * Elasticsearch Client
  
@@ -838,7 +937,7 @@ Couple of things to note before code contribution :
  
 2. Linter used is Golangci, configuration for the same can be found at [./.golangci.yml](./.golangci.yml). This also has been configured as one of github release workflows. So, it makes sense to run the same linter on local before committing changes to the main branch.
  
-3. Test written for the app is some combination of unit and integration test which involves MySQL, Elasticsearch, InfluxDB and NATS system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
+3. Test written for the app is some combination of unit and integration test which involves MySQL, Elasticsearch, InfluxDB, NATS and ClickHouse system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
  
 ## License 
  

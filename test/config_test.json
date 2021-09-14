@@ -14,7 +14,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -25,7 +26,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -43,7 +45,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -60,7 +63,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -72,7 +76,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -99,7 +104,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -110,7 +116,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -128,7 +135,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -145,7 +153,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -157,7 +166,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -184,7 +194,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -195,7 +206,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -213,7 +225,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -230,7 +243,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -242,7 +256,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -269,7 +284,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -280,7 +296,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -298,7 +315,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -315,7 +333,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -327,7 +346,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -354,7 +374,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -365,7 +386,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -383,7 +405,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -400,7 +423,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -412,7 +436,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -439,7 +464,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -450,7 +476,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -468,7 +495,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -485,7 +513,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -497,7 +526,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -524,7 +554,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -535,7 +566,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -553,7 +585,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -570,7 +603,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -582,7 +616,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -609,7 +644,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -620,7 +656,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -638,7 +675,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -655,7 +693,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -667,7 +706,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -694,7 +734,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -705,7 +746,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -723,7 +765,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -740,7 +783,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -752,7 +796,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -779,7 +824,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -790,7 +836,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -808,7 +855,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -825,7 +873,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -837,7 +886,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -864,7 +914,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -875,7 +926,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -893,7 +945,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -910,7 +963,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -922,7 +976,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -949,7 +1004,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -960,7 +1016,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -978,7 +1035,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -995,7 +1053,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -1007,7 +1066,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1034,7 +1094,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -1045,7 +1106,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1063,7 +1125,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1080,7 +1143,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -1092,7 +1156,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1119,7 +1184,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -1130,7 +1196,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1148,7 +1215,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1165,7 +1233,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -1177,7 +1246,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1204,7 +1274,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -1215,7 +1286,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1233,7 +1305,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1250,7 +1323,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         },
                         {
@@ -1262,7 +1336,8 @@
                                 "mysql",
                                 "elastic_search",
                                 "influxdb",
-                                "nats"
+                                "nats",
+                                "clickhouse"
                             ]
                         }
                     ],
@@ -1335,6 +1410,19 @@
             "request_timeout_sec": 0,
             "ticker_commit_buffer": 2,
             "trade_commit_buffer": 2
+        },
+        "clickhouse": {
+            "user": "",
+            "password": "",
+            "URL": "tcp://127.0.0.1:9000",
+            "schema": "test_cryptogalaxy",
+            "request_timeout_sec": 0,
+            "alt_hosts": [
+                ""
+            ],
+            "compression": false,
+            "ticker_commit_buffer": 3,
+            "trade_commit_buffer": 3
         }
     },
     "log": {
