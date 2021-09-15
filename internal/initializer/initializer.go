@@ -218,6 +218,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartAscendex(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "kraken":
+			appErrGroup.Go(func() error {
+				return exchange.StartKraken(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

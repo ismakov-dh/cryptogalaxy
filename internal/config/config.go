@@ -73,6 +73,11 @@ const (
 	AscendexWebsocketURL = "wss://ascendex.com/0/api/pro/v1/stream"
 	// AscendexRESTBaseURL is the ascendex exchange base REST url.
 	AscendexRESTBaseURL = "https://ascendex.com/api/pro/v1/"
+
+	// KrakenWebsocketURL is the kraken exchange websocket url.
+	KrakenWebsocketURL = "wss://ws.kraken.com"
+	// KrakenRESTBaseURL is the kraken exchange base REST url.
+	KrakenRESTBaseURL = "https://api.kraken.com/0/public/"
 )
 
 // Config contains config values for the app.

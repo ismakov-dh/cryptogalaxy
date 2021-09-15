@@ -362,6 +362,32 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Ascendex")
 
+	// Kraken exchange.
+	resp, err = http.Get(config.KrakenRESTBaseURL + "AssetPairs")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "kraken").Msg("exchange request for markets")
+		return
+	}
+	krakenMarkets := krakenResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&krakenMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "kraken").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range krakenMarkets.Result {
+		if market, ok := record["wsname"].(string); ok {
+			if err = w.Write([]string{"kraken", market}); err != nil {
+				log.Error().Err(err).Str("exchange", "kraken").Msg("writing markets to csv")
+				return
+			}
+		} else {
+			log.Error().Str("exchange", "kraken").Interface("market", record["wsname"]).Msg("cannot convert market name to string")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Kraken")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -456,4 +482,8 @@ type ascendexResp struct {
 type ascendexRespData struct {
 	Symbol string `json:"symbol"`
 	Status string `json:"status"`
+}
+
+type krakenResp struct {
+	Result map[string]map[string]interface{} `json:"result"`
 }
