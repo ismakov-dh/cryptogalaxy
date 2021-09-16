@@ -78,6 +78,11 @@ const (
 	KrakenWebsocketURL = "wss://ws.kraken.com"
 	// KrakenRESTBaseURL is the kraken exchange base REST url.
 	KrakenRESTBaseURL = "https://api.kraken.com/0/public/"
+
+	// BinanceUSWebsocketURL is the binance-us exchange websocket url.
+	BinanceUSWebsocketURL = "wss://stream.binance.us:9443/ws"
+	// BinanceUSRESTBaseURL is the binance-us exchange base REST url.
+	BinanceUSRESTBaseURL = "https://api.binance.us/api/v3/"
 )
 
 // Config contains config values for the app.

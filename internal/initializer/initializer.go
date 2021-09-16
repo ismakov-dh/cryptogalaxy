@@ -222,6 +222,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartKraken(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "binance-us":
+			appErrGroup.Go(func() error {
+				return exchange.StartBinanceUS(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

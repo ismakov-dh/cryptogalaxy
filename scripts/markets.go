@@ -388,6 +388,29 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Kraken")
 
+	// Binance US exchange.
+	resp, err = http.Get(config.BinanceUSRESTBaseURL + "exchangeInfo")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "binance-us").Msg("exchange request for markets")
+		return
+	}
+	binanceUSMarkets := binanceUSResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&binanceUSMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "binance-us").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range binanceUSMarkets.Result {
+		if record.Status == "TRADING" {
+			if err = w.Write([]string{"binance-us", record.Name}); err != nil {
+				log.Error().Err(err).Str("exchange", "binance-us").Msg("writing markets to csv")
+				return
+			}
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Binance US")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -486,4 +509,12 @@ type ascendexRespData struct {
 
 type krakenResp struct {
 	Result map[string]map[string]interface{} `json:"result"`
+}
+
+type binanceUSResp struct {
+	Result []binanceUSRespRes `json:"symbols"`
+}
+type binanceUSRespRes struct {
+	Name   string `json:"symbol"`
+	Status string `json:"status"`
 }

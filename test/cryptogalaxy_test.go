@@ -1522,7 +1522,86 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail {
+	// Binance US exchange.
+	var binanceUSFail bool
+
+	terTickers = make(map[string]storage.Ticker)
+	terTrades = make(map[string]storage.Trade)
+	mysqlTickers = make(map[string]storage.Ticker)
+	mysqlTrades = make(map[string]storage.Trade)
+	esTickers = make(map[string]storage.Ticker)
+	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
+	clickHouseTickers = make(map[string]storage.Ticker)
+	clickHouseTrades = make(map[string]storage.Trade)
+
+	err = readTerminal("binance-us", terTickers, terTrades)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.Error("FAILURE : binance-us exchange function")
+		binanceUSFail = true
+	}
+
+	if !binanceUSFail {
+		err = readMySQL("binance-us", mysqlTickers, mysqlTrades, mysql)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance-us exchange function")
+			binanceUSFail = true
+		}
+	}
+
+	if !binanceUSFail {
+		err = readElasticSearch("binance-us", esTickers, esTrades, es)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance-us exchange function")
+			binanceUSFail = true
+		}
+	}
+
+	if !binanceUSFail {
+		err = readInfluxDB("binance-us", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance-us exchange function")
+			binanceUSFail = true
+		}
+	}
+
+	if !binanceUSFail {
+		err = readNATS("binance-us", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance-us exchange function")
+			binanceUSFail = true
+		}
+	}
+
+	if !binanceUSFail {
+		err = readClickHouse("binance-us", clickHouseTickers, clickHouseTrades, clickhouse)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance-us exchange function")
+			binanceUSFail = true
+		}
+	}
+
+	if !binanceUSFail {
+		err = verifyData("binance-us", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : binance-us exchange function")
+			binanceUSFail = true
+		} else {
+			t.Log("SUCCESS : binance-us exchange function")
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increase it before actual debugging.")
 	}
 }
