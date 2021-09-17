@@ -83,6 +83,11 @@ const (
 	BinanceUSWebsocketURL = "wss://stream.binance.us:9443/ws"
 	// BinanceUSRESTBaseURL is the binance-us exchange base REST url.
 	BinanceUSRESTBaseURL = "https://api.binance.us/api/v3/"
+
+	// OKExWebsocketURL is the okex exchange websocket url.
+	OKExWebsocketURL = "wss://ws.okex.com:8443/ws/v5/public"
+	// OKExRESTBaseURL is the okex exchange base REST url.
+	OKExRESTBaseURL = "https://www.okex.com/api/v5/"
 )
 
 // Config contains config values for the app.

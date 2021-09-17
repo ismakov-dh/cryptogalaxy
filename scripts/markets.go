@@ -411,6 +411,29 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Binance US")
 
+	// OKEx exchange.
+	resp, err = http.Get(config.OKExRESTBaseURL + "public/instruments?instType=SPOT")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "okex").Msg("exchange request for markets")
+		return
+	}
+	okexMarkets := okexResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&okexMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "okex").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range okexMarkets.Data {
+		if record.Status == "live" {
+			if err = w.Write([]string{"okex", record.InstID}); err != nil {
+				log.Error().Err(err).Str("exchange", "okex").Msg("writing markets to csv")
+				return
+			}
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from OKEx")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -517,4 +540,12 @@ type binanceUSResp struct {
 type binanceUSRespRes struct {
 	Name   string `json:"symbol"`
 	Status string `json:"status"`
+}
+
+type okexResp struct {
+	Data []okexRespData `json:"data"`
+}
+type okexRespData struct {
+	InstID string `json:"instId"`
+	Status string `json:"state"`
 }

@@ -1601,7 +1601,86 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail {
+	// OKEx exchange.
+	var okexFail bool
+
+	terTickers = make(map[string]storage.Ticker)
+	terTrades = make(map[string]storage.Trade)
+	mysqlTickers = make(map[string]storage.Ticker)
+	mysqlTrades = make(map[string]storage.Trade)
+	esTickers = make(map[string]storage.Ticker)
+	esTrades = make(map[string]storage.Trade)
+	influxTickers = make(map[string]storage.Ticker)
+	influxTrades = make(map[string]storage.Trade)
+	natsTickers = make(map[string]storage.Ticker)
+	natsTrades = make(map[string]storage.Trade)
+	clickHouseTickers = make(map[string]storage.Ticker)
+	clickHouseTrades = make(map[string]storage.Trade)
+
+	err = readTerminal("okex", terTickers, terTrades)
+	if err != nil {
+		t.Log("ERROR : " + err.Error())
+		t.Error("FAILURE : okex exchange function")
+		okexFail = true
+	}
+
+	if !okexFail {
+		err = readMySQL("okex", mysqlTickers, mysqlTrades, mysql)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : okex exchange function")
+			okexFail = true
+		}
+	}
+
+	if !okexFail {
+		err = readElasticSearch("okex", esTickers, esTrades, es)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : okex exchange function")
+			okexFail = true
+		}
+	}
+
+	if !okexFail {
+		err = readInfluxDB("okex", influxTickers, influxTrades, influx)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : okex exchange function")
+			okexFail = true
+		}
+	}
+
+	if !okexFail {
+		err = readNATS("okex", natsTickers, natsTrades)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : okex exchange function")
+			okexFail = true
+		}
+	}
+
+	if !okexFail {
+		err = readClickHouse("okex", clickHouseTickers, clickHouseTrades, clickhouse)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : okex exchange function")
+			okexFail = true
+		}
+	}
+
+	if !okexFail {
+		err = verifyData("okex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.Error("FAILURE : okex exchange function")
+			okexFail = true
+		} else {
+			t.Log("SUCCESS : okex exchange function")
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail || okexFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increase it before actual debugging.")
 	}
 }
