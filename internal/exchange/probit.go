@@ -74,6 +74,7 @@ type probit struct {
 	influx              *storage.InfluxDB
 	nats                *storage.NATS
 	clickhouse          *storage.ClickHouse
+	s3                  *storage.S3
 	wsTerTickers        chan []storage.Ticker
 	wsTerTrades         chan []storage.Trade
 	wsMysqlTickers      chan []storage.Ticker
@@ -86,6 +87,8 @@ type probit struct {
 	wsNatsTrades        chan []storage.Trade
 	wsClickHouseTickers chan []storage.Ticker
 	wsClickHouseTrades  chan []storage.Trade
+	wsS3Tickers         chan []storage.Ticker
+	wsS3Trades          chan []storage.Trade
 }
 
 type wsSubProbit struct {
@@ -206,6 +209,15 @@ func newProbit(appCtx context.Context, markets []config.Market, connCfg *config.
 							return p.wsTradesToClickHouse(ctx)
 						})
 					}
+
+					if p.s3 != nil {
+						probitErrGroup.Go(func() error {
+							return p.wsTickersToS3(ctx)
+						})
+						probitErrGroup.Go(func() error {
+							return p.wsTradesToS3(ctx)
+						})
+					}
 				}
 
 				err = p.subWsChannel(market.ID, info.Channel)
@@ -307,6 +319,13 @@ func (p *probit) cfgLookup(markets []config.Market) error {
 						p.wsClickHouseTickers = make(chan []storage.Ticker, 1)
 						p.wsClickHouseTrades = make(chan []storage.Trade, 1)
 					}
+				case "s3":
+					val.s3Str = true
+					if p.s3 == nil {
+						p.s3 = storage.GetS3()
+						p.wsS3Tickers = make(chan []storage.Ticker, 1)
+						p.wsS3Trades = make(chan []storage.Trade, 1)
+					}
 				}
 			}
 			val.mktCommitName = mktCommitName
@@ -398,6 +417,8 @@ func (p *probit) readWs(ctx context.Context) error {
 		natsTrades:        make([]storage.Trade, 0, p.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, p.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, p.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, p.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, p.connCfg.S3.TradeCommitBuf),
 	}
 
 	log.Debug().Str("exchange", "probit").Str("func", "readWs").Msg("unlike other exchanges probit does not send channel subscribed success message")
@@ -590,6 +611,19 @@ func (p *probit) processWs(ctx context.Context, wr *wsRespProbit, cd *commitData
 				cd.clickHouseTickers = nil
 			}
 		}
+		if val.s3Str {
+			cd.s3TickersCount++
+			cd.s3Tickers = append(cd.s3Tickers, ticker)
+			if cd.s3TickersCount == p.connCfg.S3.TickerCommitBuf {
+				select {
+				case p.wsS3Tickers <- cd.s3Tickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TickersCount = 0
+				cd.s3Tickers = nil
+			}
+		}
 	case "trade":
 		for _, data := range wr.TradeData {
 			trade := storage.Trade{}
@@ -701,6 +735,19 @@ func (p *probit) processWs(ctx context.Context, wr *wsRespProbit, cd *commitData
 					}
 					cd.clickHouseTradesCount = 0
 					cd.clickHouseTrades = nil
+				}
+			}
+			if val.s3Str {
+				cd.s3TradesCount++
+				cd.s3Trades = append(cd.s3Trades, trade)
+				if cd.s3TradesCount == p.connCfg.S3.TradeCommitBuf {
+					select {
+					case p.wsS3Trades <- cd.s3Trades:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+					cd.s3TradesCount = 0
+					cd.s3Trades = nil
 				}
 			}
 		}
@@ -894,6 +941,40 @@ func (p *probit) wsTradesToClickHouse(ctx context.Context) error {
 	}
 }
 
+func (p *probit) wsTickersToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-p.wsS3Tickers:
+			err := p.s3.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (p *probit) wsTradesToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-p.wsS3Trades:
+			err := p.s3.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (p *probit) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -935,6 +1016,8 @@ func (p *probit) processREST(ctx context.Context, mktID string, mktCommitName st
 		natsTrades:        make([]storage.Trade, 0, p.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, p.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, p.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, p.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, p.connCfg.S3.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1094,6 +1177,18 @@ func (p *probit) processREST(ctx context.Context, mktID string, mktCommitName st
 						cd.clickHouseTickers = nil
 					}
 				}
+				if val.s3Str {
+					cd.s3TickersCount++
+					cd.s3Tickers = append(cd.s3Tickers, ticker)
+					if cd.s3TickersCount == p.connCfg.S3.TickerCommitBuf {
+						err := p.s3.CommitTickers(ctx, cd.s3Tickers)
+						if err != nil {
+							return err
+						}
+						cd.s3TickersCount = 0
+						cd.s3Tickers = nil
+					}
+				}
 			case "trade":
 
 				// Really, better to use websocket. Start and end time for getting trade data is constructed randomly!
@@ -1234,6 +1329,21 @@ func (p *probit) processREST(ctx context.Context, mktID string, mktCommitName st
 							}
 							cd.clickHouseTradesCount = 0
 							cd.clickHouseTrades = nil
+						}
+					}
+					if val.s3Str {
+						cd.s3TradesCount++
+						cd.s3Trades = append(cd.s3Trades, trade)
+						if cd.s3TradesCount == p.connCfg.S3.TradeCommitBuf {
+							err := p.s3.CommitTrades(ctx, cd.s3Trades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.s3TradesCount = 0
+							cd.s3Trades = nil
 						}
 					}
 				}

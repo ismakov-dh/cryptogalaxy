@@ -73,6 +73,7 @@ type coinbasePro struct {
 	influx              *storage.InfluxDB
 	nats                *storage.NATS
 	clickhouse          *storage.ClickHouse
+	s3                  *storage.S3
 	wsTerTickers        chan []storage.Ticker
 	wsTerTrades         chan []storage.Trade
 	wsMysqlTickers      chan []storage.Ticker
@@ -85,6 +86,8 @@ type coinbasePro struct {
 	wsNatsTrades        chan []storage.Trade
 	wsClickHouseTickers chan []storage.Ticker
 	wsClickHouseTrades  chan []storage.Trade
+	wsS3Tickers         chan []storage.Ticker
+	wsS3Trades          chan []storage.Trade
 }
 
 type wsSubCoinPro struct {
@@ -200,6 +203,15 @@ func newCoinbasePro(appCtx context.Context, markets []config.Market, connCfg *co
 							return c.wsTradesToClickHouse(ctx)
 						})
 					}
+
+					if c.s3 != nil {
+						coinbaseProErrGroup.Go(func() error {
+							return c.wsTickersToS3(ctx)
+						})
+						coinbaseProErrGroup.Go(func() error {
+							return c.wsTradesToS3(ctx)
+						})
+					}
 				}
 
 				err = c.subWsChannel(market.ID, info.Channel)
@@ -310,6 +322,13 @@ func (c *coinbasePro) cfgLookup(markets []config.Market) error {
 						c.wsClickHouseTickers = make(chan []storage.Ticker, 1)
 						c.wsClickHouseTrades = make(chan []storage.Trade, 1)
 					}
+				case "s3":
+					val.s3Str = true
+					if c.s3 == nil {
+						c.s3 = storage.GetS3()
+						c.wsS3Tickers = make(chan []storage.Ticker, 1)
+						c.wsS3Trades = make(chan []storage.Trade, 1)
+					}
 				}
 			}
 			val.mktCommitName = marketCommitName
@@ -401,6 +420,8 @@ func (c *coinbasePro) readWs(ctx context.Context) error {
 		natsTrades:        make([]storage.Trade, 0, c.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, c.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, c.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, c.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, c.connCfg.S3.TradeCommitBuf),
 	}
 
 	for {
@@ -589,6 +610,19 @@ func (c *coinbasePro) processWs(ctx context.Context, wr *respCoinPro, cd *commit
 				cd.clickHouseTickers = nil
 			}
 		}
+		if val.s3Str {
+			cd.s3TickersCount++
+			cd.s3Tickers = append(cd.s3Tickers, ticker)
+			if cd.s3TickersCount == c.connCfg.S3.TickerCommitBuf {
+				select {
+				case c.wsS3Tickers <- cd.s3Tickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TickersCount = 0
+				cd.s3Tickers = nil
+			}
+		}
 	case "trade":
 		trade := storage.Trade{}
 		trade.Exchange = "coinbase-pro"
@@ -706,6 +740,19 @@ func (c *coinbasePro) processWs(ctx context.Context, wr *respCoinPro, cd *commit
 				}
 				cd.clickHouseTradesCount = 0
 				cd.clickHouseTrades = nil
+			}
+		}
+		if val.s3Str {
+			cd.s3TradesCount++
+			cd.s3Trades = append(cd.s3Trades, trade)
+			if cd.s3TradesCount == c.connCfg.S3.TradeCommitBuf {
+				select {
+				case c.wsS3Trades <- cd.s3Trades:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TradesCount = 0
+				cd.s3Trades = nil
 			}
 		}
 	}
@@ -898,6 +945,40 @@ func (c *coinbasePro) wsTradesToClickHouse(ctx context.Context) error {
 	}
 }
 
+func (c *coinbasePro) wsTickersToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-c.wsS3Tickers:
+			err := c.s3.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (c *coinbasePro) wsTradesToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-c.wsS3Trades:
+			err := c.s3.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (c *coinbasePro) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -937,6 +1018,8 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 		natsTrades:        make([]storage.Trade, 0, c.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, c.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, c.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, c.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, c.connCfg.S3.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1091,6 +1174,18 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 						cd.clickHouseTickers = nil
 					}
 				}
+				if val.s3Str {
+					cd.s3TickersCount++
+					cd.s3Tickers = append(cd.s3Tickers, ticker)
+					if cd.s3TickersCount == c.connCfg.S3.TickerCommitBuf {
+						err := c.s3.CommitTickers(ctx, cd.s3Tickers)
+						if err != nil {
+							return err
+						}
+						cd.s3TickersCount = 0
+						cd.s3Tickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := c.rest.Do(req)
@@ -1230,6 +1325,21 @@ func (c *coinbasePro) processREST(ctx context.Context, mktID string, mktCommitNa
 							}
 							cd.clickHouseTradesCount = 0
 							cd.clickHouseTrades = nil
+						}
+					}
+					if val.s3Str {
+						cd.s3TradesCount++
+						cd.s3Trades = append(cd.s3Trades, trade)
+						if cd.s3TradesCount == c.connCfg.S3.TradeCommitBuf {
+							err := c.s3.CommitTrades(ctx, cd.s3Trades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.s3TradesCount = 0
+							cd.s3Trades = nil
 						}
 					}
 				}

@@ -66,6 +66,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 		influxStr     bool
 		natsStr       bool
 		clickHouseStr bool
+		s3Str         bool
 	)
 	for _, exch := range cfg.Exchanges {
 		for _, market := range exch.Markets {
@@ -132,6 +133,17 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 							}
 							clickHouseStr = true
 							log.Info().Msg("clickhouse connected")
+						}
+					case "s3":
+						if !s3Str {
+							_, err = storage.InitS3(&cfg.Connection.S3)
+							if err != nil {
+								err = errors.Wrap(err, "s3 connection")
+								log.Error().Stack().Err(errors.WithStack(err)).Msg("")
+								return err
+							}
+							s3Str = true
+							log.Info().Msg("s3 connected")
 						}
 					}
 				}

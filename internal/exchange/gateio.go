@@ -75,6 +75,7 @@ type gateio struct {
 	influx              *storage.InfluxDB
 	nats                *storage.NATS
 	clickhouse          *storage.ClickHouse
+	s3                  *storage.S3
 	wsTerTickers        chan []storage.Ticker
 	wsTerTrades         chan []storage.Trade
 	wsMysqlTickers      chan []storage.Ticker
@@ -87,6 +88,8 @@ type gateio struct {
 	wsNatsTrades        chan []storage.Trade
 	wsClickHouseTickers chan []storage.Ticker
 	wsClickHouseTrades  chan []storage.Trade
+	wsS3Tickers         chan []storage.Ticker
+	wsS3Trades          chan []storage.Trade
 }
 
 type wsSubGateio struct {
@@ -211,6 +214,15 @@ func newGateio(appCtx context.Context, markets []config.Market, connCfg *config.
 							return g.wsTradesToClickHouse(ctx)
 						})
 					}
+
+					if g.s3 != nil {
+						gateioErrGroup.Go(func() error {
+							return g.wsTickersToS3(ctx)
+						})
+						gateioErrGroup.Go(func() error {
+							return g.wsTradesToS3(ctx)
+						})
+					}
 				}
 
 				key := cfgLookupKey{market: market.ID, channel: info.Channel}
@@ -316,6 +328,13 @@ func (g *gateio) cfgLookup(markets []config.Market) error {
 						g.wsClickHouseTickers = make(chan []storage.Ticker, 1)
 						g.wsClickHouseTrades = make(chan []storage.Trade, 1)
 					}
+				case "s3":
+					val.s3Str = true
+					if g.s3 == nil {
+						g.s3 = storage.GetS3()
+						g.wsS3Tickers = make(chan []storage.Ticker, 1)
+						g.wsS3Trades = make(chan []storage.Trade, 1)
+					}
 				}
 			}
 
@@ -416,6 +435,8 @@ func (g *gateio) readWs(ctx context.Context) error {
 		natsTrades:        make([]storage.Trade, 0, g.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, g.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, g.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, g.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, g.connCfg.S3.TradeCommitBuf),
 	}
 
 	for {
@@ -602,6 +623,19 @@ func (g *gateio) processWs(ctx context.Context, wr *wsRespGateio, cd *commitData
 				cd.clickHouseTickers = nil
 			}
 		}
+		if val.s3Str {
+			cd.s3TickersCount++
+			cd.s3Tickers = append(cd.s3Tickers, ticker)
+			if cd.s3TickersCount == g.connCfg.S3.TickerCommitBuf {
+				select {
+				case g.wsS3Tickers <- cd.s3Tickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TickersCount = 0
+				cd.s3Tickers = nil
+			}
+		}
 	case "trade":
 		trade := storage.Trade{}
 		trade.Exchange = "gateio"
@@ -728,6 +762,19 @@ func (g *gateio) processWs(ctx context.Context, wr *wsRespGateio, cd *commitData
 				}
 				cd.clickHouseTradesCount = 0
 				cd.clickHouseTrades = nil
+			}
+		}
+		if val.s3Str {
+			cd.s3TradesCount++
+			cd.s3Trades = append(cd.s3Trades, trade)
+			if cd.s3TradesCount == g.connCfg.S3.TradeCommitBuf {
+				select {
+				case g.wsS3Trades <- cd.s3Trades:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TradesCount = 0
+				cd.s3Trades = nil
 			}
 		}
 	}
@@ -920,6 +967,40 @@ func (g *gateio) wsTradesToClickHouse(ctx context.Context) error {
 	}
 }
 
+func (g *gateio) wsTickersToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-g.wsS3Tickers:
+			err := g.s3.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (g *gateio) wsTradesToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-g.wsS3Trades:
+			err := g.s3.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (g *gateio) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -959,6 +1040,8 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 		natsTrades:        make([]storage.Trade, 0, g.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, g.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, g.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, g.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, g.connCfg.S3.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1118,6 +1201,18 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 						cd.clickHouseTickers = nil
 					}
 				}
+				if val.s3Str {
+					cd.s3TickersCount++
+					cd.s3Tickers = append(cd.s3Tickers, ticker)
+					if cd.s3TickersCount == g.connCfg.S3.TickerCommitBuf {
+						err := g.s3.CommitTickers(ctx, cd.s3Tickers)
+						if err != nil {
+							return err
+						}
+						cd.s3TickersCount = 0
+						cd.s3Tickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := g.rest.Do(req)
@@ -1266,6 +1361,21 @@ func (g *gateio) processREST(ctx context.Context, mktID string, mktCommitName st
 							}
 							cd.clickHouseTradesCount = 0
 							cd.clickHouseTrades = nil
+						}
+					}
+					if val.s3Str {
+						cd.s3TradesCount++
+						cd.s3Trades = append(cd.s3Trades, trade)
+						if cd.s3TradesCount == g.connCfg.S3.TradeCommitBuf {
+							err := g.s3.CommitTrades(ctx, cd.s3Trades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.s3TradesCount = 0
+							cd.s3Trades = nil
 						}
 					}
 				}

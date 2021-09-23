@@ -15,7 +15,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -27,7 +28,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -46,7 +48,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -64,7 +67,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -77,7 +81,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -105,7 +110,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -117,7 +123,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -136,7 +143,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -154,7 +162,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -167,7 +176,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -195,7 +205,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -207,7 +218,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -226,7 +238,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -244,7 +257,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -257,7 +271,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -285,7 +300,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -297,7 +313,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -316,7 +333,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -334,7 +352,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -347,7 +366,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -375,7 +395,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -387,7 +408,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -406,7 +428,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -424,7 +447,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -437,7 +461,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -465,7 +490,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -477,7 +503,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -496,7 +523,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -514,7 +542,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -527,7 +556,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -555,7 +585,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -567,7 +598,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -586,7 +618,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -604,7 +637,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -617,7 +651,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -645,7 +680,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -657,7 +693,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -676,7 +713,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -694,7 +732,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -707,7 +746,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -735,7 +775,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -747,7 +788,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -766,7 +808,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -784,7 +827,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -797,7 +841,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -825,7 +870,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -837,7 +883,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -856,7 +903,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -874,7 +922,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -887,7 +936,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -915,7 +965,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -927,7 +978,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -946,7 +998,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -964,7 +1017,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -977,7 +1031,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1005,7 +1060,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1017,7 +1073,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1036,7 +1093,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1054,7 +1112,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1067,7 +1126,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1095,7 +1155,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1107,7 +1168,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1126,7 +1188,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1144,7 +1207,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1157,7 +1221,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1185,7 +1250,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1197,7 +1263,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1216,7 +1283,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1234,7 +1302,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1247,7 +1316,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1275,7 +1345,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1287,7 +1358,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1306,7 +1378,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1324,7 +1397,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1337,7 +1411,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1365,7 +1440,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1377,7 +1453,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1396,7 +1473,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1414,7 +1492,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1427,7 +1506,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1455,7 +1535,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1467,7 +1548,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1486,7 +1568,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1504,7 +1587,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1517,7 +1601,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1545,7 +1630,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1557,7 +1643,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1576,7 +1663,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1594,7 +1682,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -1607,7 +1696,8 @@
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -1692,6 +1782,18 @@
                 "127.0.0.3:9000"
             ],
             "compression": false,
+            "ticker_commit_buffer": 100,
+            "trade_commit_buffer": 100
+        },
+        "s3": {
+            "aws_region": "us-west-2",
+            "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+            "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "bucket": "cryptogalaxy",
+            "use_prefix_for_object_name": false,
+            "request_timeout_sec": 10,
+            "max_idle_conns": 10,
+            "max_idle_conns_per_host": 10,
             "ticker_commit_buffer": 100,
             "trade_commit_buffer": 100
         }

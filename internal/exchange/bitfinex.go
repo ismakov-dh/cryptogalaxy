@@ -77,6 +77,7 @@ type bitfinex struct {
 	influx              *storage.InfluxDB
 	nats                *storage.NATS
 	clickhouse          *storage.ClickHouse
+	s3                  *storage.S3
 	wsTerTickers        chan []storage.Ticker
 	wsTerTrades         chan []storage.Trade
 	wsMysqlTickers      chan []storage.Ticker
@@ -89,6 +90,8 @@ type bitfinex struct {
 	wsNatsTrades        chan []storage.Trade
 	wsClickHouseTickers chan []storage.Ticker
 	wsClickHouseTrades  chan []storage.Trade
+	wsS3Tickers         chan []storage.Ticker
+	wsS3Trades          chan []storage.Trade
 }
 
 type respBitfinex []interface{}
@@ -202,6 +205,15 @@ func newBitfinex(appCtx context.Context, markets []config.Market, connCfg *confi
 							return b.wsTradesToClickHouse(ctx)
 						})
 					}
+
+					if b.s3 != nil {
+						bitfinexErrGroup.Go(func() error {
+							return b.wsTickersToS3(ctx)
+						})
+						bitfinexErrGroup.Go(func() error {
+							return b.wsTradesToS3(ctx)
+						})
+					}
 				}
 
 				err = b.subWsChannel(market.ID, info.Channel)
@@ -302,6 +314,13 @@ func (b *bitfinex) cfgLookup(markets []config.Market) error {
 						b.wsClickHouseTickers = make(chan []storage.Ticker, 1)
 						b.wsClickHouseTrades = make(chan []storage.Trade, 1)
 					}
+				case "s3":
+					val.s3Str = true
+					if b.s3 == nil {
+						b.s3 = storage.GetS3()
+						b.wsS3Tickers = make(chan []storage.Ticker, 1)
+						b.wsS3Trades = make(chan []storage.Trade, 1)
+					}
 				}
 			}
 			val.mktCommitName = mktCommitName
@@ -392,6 +411,8 @@ func (b *bitfinex) readWs(ctx context.Context) error {
 		natsTrades:        make([]storage.Trade, 0, b.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, b.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, b.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, b.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, b.connCfg.S3.TradeCommitBuf),
 	}
 
 	for {
@@ -620,6 +641,19 @@ func (b *bitfinex) processWs(ctx context.Context, wr *wsRespInfoBitfinex, cd *co
 				cd.clickHouseTickers = nil
 			}
 		}
+		if val.s3Str {
+			cd.s3TickersCount++
+			cd.s3Tickers = append(cd.s3Tickers, ticker)
+			if cd.s3TickersCount == b.connCfg.S3.TickerCommitBuf {
+				select {
+				case b.wsS3Tickers <- cd.s3Tickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TickersCount = 0
+				cd.s3Tickers = nil
+			}
+		}
 	case "trade":
 		trade := storage.Trade{}
 		trade.Exchange = "bitfinex"
@@ -749,6 +783,19 @@ func (b *bitfinex) processWs(ctx context.Context, wr *wsRespInfoBitfinex, cd *co
 				}
 				cd.clickHouseTradesCount = 0
 				cd.clickHouseTrades = nil
+			}
+		}
+		if val.s3Str {
+			cd.s3TradesCount++
+			cd.s3Trades = append(cd.s3Trades, trade)
+			if cd.s3TradesCount == b.connCfg.S3.TradeCommitBuf {
+				select {
+				case b.wsS3Trades <- cd.s3Trades:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TradesCount = 0
+				cd.s3Trades = nil
 			}
 		}
 	}
@@ -941,6 +988,40 @@ func (b *bitfinex) wsTradesToClickHouse(ctx context.Context) error {
 	}
 }
 
+func (b *bitfinex) wsTickersToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-b.wsS3Tickers:
+			err := b.s3.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (b *bitfinex) wsTradesToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-b.wsS3Trades:
+			err := b.s3.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (b *bitfinex) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -981,6 +1062,8 @@ func (b *bitfinex) processREST(ctx context.Context, mktID string, mktCommitName 
 		natsTrades:        make([]storage.Trade, 0, b.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, b.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, b.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, b.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, b.connCfg.S3.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1135,6 +1218,18 @@ func (b *bitfinex) processREST(ctx context.Context, mktID string, mktCommitName 
 						cd.clickHouseTickers = nil
 					}
 				}
+				if val.s3Str {
+					cd.s3TickersCount++
+					cd.s3Tickers = append(cd.s3Tickers, ticker)
+					if cd.s3TickersCount == b.connCfg.S3.TickerCommitBuf {
+						err := b.s3.CommitTickers(ctx, cd.s3Tickers)
+						if err != nil {
+							return err
+						}
+						cd.s3TickersCount = 0
+						cd.s3Tickers = nil
+					}
+				}
 			case "trade":
 				q.Del("start")
 				req.URL.RawQuery = q.Encode()
@@ -1287,6 +1382,21 @@ func (b *bitfinex) processREST(ctx context.Context, mktID string, mktCommitName 
 							}
 							cd.clickHouseTradesCount = 0
 							cd.clickHouseTrades = nil
+						}
+					}
+					if val.s3Str {
+						cd.s3TradesCount++
+						cd.s3Trades = append(cd.s3Trades, trade)
+						if cd.s3TradesCount == b.connCfg.S3.TradeCommitBuf {
+							err := b.s3.CommitTrades(ctx, cd.s3Trades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.s3TradesCount = 0
+							cd.s3Trades = nil
 						}
 					}
 				}

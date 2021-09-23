@@ -25,6 +25,7 @@ type cfgLookupVal struct {
 	influxStr        bool
 	natsStr          bool
 	clickHouseStr    bool
+	s3Str            bool
 	id               int
 	mktCommitName    string
 }
@@ -42,6 +43,8 @@ type commitData struct {
 	natsTradesCount        int
 	clickHouseTickersCount int
 	clickHouseTradesCount  int
+	s3TickersCount         int
+	s3TradesCount          int
 	terTickers             []storage.Ticker
 	terTrades              []storage.Trade
 	mysqlTickers           []storage.Ticker
@@ -54,6 +57,8 @@ type commitData struct {
 	natsTrades             []storage.Trade
 	clickHouseTickers      []storage.Ticker
 	clickHouseTrades       []storage.Trade
+	s3Tickers              []storage.Ticker
+	s3Trades               []storage.Trade
 }
 
 type influxTimeVal struct {

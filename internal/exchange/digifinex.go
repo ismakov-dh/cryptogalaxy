@@ -75,6 +75,7 @@ type digifinex struct {
 	influx              *storage.InfluxDB
 	nats                *storage.NATS
 	clickhouse          *storage.ClickHouse
+	s3                  *storage.S3
 	wsTerTickers        chan []storage.Ticker
 	wsTerTrades         chan []storage.Trade
 	wsMysqlTickers      chan []storage.Ticker
@@ -87,6 +88,8 @@ type digifinex struct {
 	wsNatsTrades        chan []storage.Trade
 	wsClickHouseTickers chan []storage.Ticker
 	wsClickHouseTrades  chan []storage.Trade
+	wsS3Tickers         chan []storage.Ticker
+	wsS3Trades          chan []storage.Trade
 }
 
 type wsSubDigifinex struct {
@@ -229,6 +232,15 @@ func newDigifinex(appCtx context.Context, markets []config.Market, connCfg *conf
 							return d.wsTradesToClickHouse(ctx)
 						})
 					}
+
+					if d.s3 != nil {
+						digifinexErrGroup.Go(func() error {
+							return d.wsTickersToS3(ctx)
+						})
+						digifinexErrGroup.Go(func() error {
+							return d.wsTradesToS3(ctx)
+						})
+					}
 				}
 
 				key := cfgLookupKey{market: market.ID, channel: info.Channel}
@@ -333,6 +345,13 @@ func (d *digifinex) cfgLookup(markets []config.Market) error {
 						d.clickhouse = storage.GetClickHouse()
 						d.wsClickHouseTickers = make(chan []storage.Ticker, 1)
 						d.wsClickHouseTrades = make(chan []storage.Trade, 1)
+					}
+				case "s3":
+					val.s3Str = true
+					if d.s3 == nil {
+						d.s3 = storage.GetS3()
+						d.wsS3Tickers = make(chan []storage.Ticker, 1)
+						d.wsS3Trades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -460,6 +479,8 @@ func (d *digifinex) readWs(ctx context.Context) error {
 		natsTrades:        make([]storage.Trade, 0, d.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, d.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, d.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, d.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, d.connCfg.S3.TradeCommitBuf),
 	}
 
 	for {
@@ -702,6 +723,19 @@ func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *
 				cd.clickHouseTickers = nil
 			}
 		}
+		if val.s3Str {
+			cd.s3TickersCount++
+			cd.s3Tickers = append(cd.s3Tickers, ticker)
+			if cd.s3TickersCount == d.connCfg.S3.TickerCommitBuf {
+				select {
+				case d.wsS3Tickers <- cd.s3Tickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TickersCount = 0
+				cd.s3Tickers = nil
+			}
+		}
 	case "trade":
 		switch trades := wr.trades.(type) {
 		case []interface{}:
@@ -846,6 +880,19 @@ func (d *digifinex) processWs(ctx context.Context, wr *wsRespDataDigifinex, cd *
 							}
 							cd.clickHouseTradesCount = 0
 							cd.clickHouseTrades = nil
+						}
+					}
+					if val.s3Str {
+						cd.s3TradesCount++
+						cd.s3Trades = append(cd.s3Trades, trade)
+						if cd.s3TradesCount == d.connCfg.S3.TradeCommitBuf {
+							select {
+							case d.wsS3Trades <- cd.s3Trades:
+							case <-ctx.Done():
+								return ctx.Err()
+							}
+							cd.s3TradesCount = 0
+							cd.s3Trades = nil
 						}
 					}
 				} else {
@@ -1047,6 +1094,40 @@ func (d *digifinex) wsTradesToClickHouse(ctx context.Context) error {
 	}
 }
 
+func (d *digifinex) wsTickersToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-d.wsS3Tickers:
+			err := d.s3.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (d *digifinex) wsTradesToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-d.wsS3Trades:
+			err := d.s3.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (d *digifinex) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -1086,6 +1167,8 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 		natsTrades:        make([]storage.Trade, 0, d.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, d.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, d.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, d.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, d.connCfg.S3.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1237,6 +1320,18 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 						cd.clickHouseTickers = nil
 					}
 				}
+				if val.s3Str {
+					cd.s3TickersCount++
+					cd.s3Tickers = append(cd.s3Tickers, ticker)
+					if cd.s3TickersCount == d.connCfg.S3.TickerCommitBuf {
+						err := d.s3.CommitTickers(ctx, cd.s3Tickers)
+						if err != nil {
+							return err
+						}
+						cd.s3TickersCount = 0
+						cd.s3Tickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := d.rest.Do(req)
@@ -1360,6 +1455,21 @@ func (d *digifinex) processREST(ctx context.Context, mktID string, mktCommitName
 							}
 							cd.clickHouseTradesCount = 0
 							cd.clickHouseTrades = nil
+						}
+					}
+					if val.s3Str {
+						cd.s3TradesCount++
+						cd.s3Trades = append(cd.s3Trades, trade)
+						if cd.s3TradesCount == d.connCfg.S3.TradeCommitBuf {
+							err := d.s3.CommitTrades(ctx, cd.s3Trades)
+							if err != nil {
+								if !errors.Is(err, ctx.Err()) {
+									logErrStack(err)
+								}
+								return err
+							}
+							cd.s3TradesCount = 0
+							cd.s3Trades = nil
 						}
 					}
 				}

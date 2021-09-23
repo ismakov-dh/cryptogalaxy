@@ -74,6 +74,7 @@ type huobi struct {
 	influx              *storage.InfluxDB
 	nats                *storage.NATS
 	clickhouse          *storage.ClickHouse
+	s3                  *storage.S3
 	wsTerTickers        chan []storage.Ticker
 	wsTerTrades         chan []storage.Trade
 	wsMysqlTickers      chan []storage.Ticker
@@ -86,6 +87,8 @@ type huobi struct {
 	wsNatsTrades        chan []storage.Trade
 	wsClickHouseTickers chan []storage.Ticker
 	wsClickHouseTrades  chan []storage.Trade
+	wsS3Tickers         chan []storage.Ticker
+	wsS3Trades          chan []storage.Trade
 }
 
 type respHuobi struct {
@@ -203,6 +206,15 @@ func newHuobi(appCtx context.Context, markets []config.Market, connCfg *config.C
 							return h.wsTradesToClickHouse(ctx)
 						})
 					}
+
+					if h.s3 != nil {
+						huobiErrGroup.Go(func() error {
+							return h.wsTickersToS3(ctx)
+						})
+						huobiErrGroup.Go(func() error {
+							return h.wsTradesToS3(ctx)
+						})
+					}
 				}
 
 				err = h.subWsChannel(market.ID, info.Channel)
@@ -303,6 +315,13 @@ func (h *huobi) cfgLookup(markets []config.Market) error {
 						h.clickhouse = storage.GetClickHouse()
 						h.wsClickHouseTickers = make(chan []storage.Ticker, 1)
 						h.wsClickHouseTrades = make(chan []storage.Trade, 1)
+					}
+				case "s3":
+					val.s3Str = true
+					if h.s3 == nil {
+						h.s3 = storage.GetS3()
+						h.wsS3Tickers = make(chan []storage.Ticker, 1)
+						h.wsS3Trades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
@@ -413,6 +432,8 @@ func (h *huobi) readWs(ctx context.Context) error {
 		natsTrades:        make([]storage.Trade, 0, h.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, h.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, h.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, h.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, h.connCfg.S3.TradeCommitBuf),
 	}
 
 	for {
@@ -600,6 +621,19 @@ func (h *huobi) processWs(ctx context.Context, wr *respHuobi, cd *commitData, it
 				cd.clickHouseTickers = nil
 			}
 		}
+		if val.s3Str {
+			cd.s3TickersCount++
+			cd.s3Tickers = append(cd.s3Tickers, ticker)
+			if cd.s3TickersCount == h.connCfg.S3.TickerCommitBuf {
+				select {
+				case h.wsS3Tickers <- cd.s3Tickers:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				cd.s3TickersCount = 0
+				cd.s3Tickers = nil
+			}
+		}
 	case "trade":
 		for _, data := range wr.Tick.TradeData {
 			trade := storage.Trade{}
@@ -701,6 +735,19 @@ func (h *huobi) processWs(ctx context.Context, wr *respHuobi, cd *commitData, it
 					}
 					cd.clickHouseTradesCount = 0
 					cd.clickHouseTrades = nil
+				}
+			}
+			if val.s3Str {
+				cd.s3TradesCount++
+				cd.s3Trades = append(cd.s3Trades, trade)
+				if cd.s3TradesCount == h.connCfg.S3.TradeCommitBuf {
+					select {
+					case h.wsS3Trades <- cd.s3Trades:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+					cd.s3TradesCount = 0
+					cd.s3Trades = nil
 				}
 			}
 		}
@@ -894,6 +941,40 @@ func (h *huobi) wsTradesToClickHouse(ctx context.Context) error {
 	}
 }
 
+func (h *huobi) wsTickersToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-h.wsS3Tickers:
+			err := h.s3.CommitTickers(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (h *huobi) wsTradesToS3(ctx context.Context) error {
+	for {
+		select {
+		case data := <-h.wsS3Trades:
+			err := h.s3.CommitTrades(ctx, data)
+			if err != nil {
+				if !errors.Is(err, ctx.Err()) {
+					logErrStack(err)
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (h *huobi) connectRest() error {
 	rest, err := connector.GetREST()
 	if err != nil {
@@ -933,6 +1014,8 @@ func (h *huobi) processREST(ctx context.Context, mktID string, mktCommitName str
 		natsTrades:        make([]storage.Trade, 0, h.connCfg.NATS.TradeCommitBuf),
 		clickHouseTickers: make([]storage.Ticker, 0, h.connCfg.ClickHouse.TickerCommitBuf),
 		clickHouseTrades:  make([]storage.Trade, 0, h.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, h.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, h.connCfg.S3.TradeCommitBuf),
 	}
 
 	switch channel {
@@ -1084,6 +1167,18 @@ func (h *huobi) processREST(ctx context.Context, mktID string, mktCommitName str
 						cd.clickHouseTickers = nil
 					}
 				}
+				if val.s3Str {
+					cd.s3TickersCount++
+					cd.s3Tickers = append(cd.s3Tickers, ticker)
+					if cd.s3TickersCount == h.connCfg.S3.TickerCommitBuf {
+						err := h.s3.CommitTickers(ctx, cd.s3Tickers)
+						if err != nil {
+							return err
+						}
+						cd.s3TickersCount = 0
+						cd.s3Tickers = nil
+					}
+				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
 				resp, err := h.rest.Do(req)
@@ -1209,6 +1304,21 @@ func (h *huobi) processREST(ctx context.Context, mktID string, mktCommitName str
 								}
 								cd.clickHouseTradesCount = 0
 								cd.clickHouseTrades = nil
+							}
+						}
+						if val.s3Str {
+							cd.s3TradesCount++
+							cd.s3Trades = append(cd.s3Trades, trade)
+							if cd.s3TradesCount == h.connCfg.S3.TradeCommitBuf {
+								err := h.s3.CommitTrades(ctx, cd.s3Trades)
+								if err != nil {
+									if !errors.Is(err, ctx.Err()) {
+										logErrStack(err)
+									}
+									return err
+								}
+								cd.s3TradesCount = 0
+								cd.s3Trades = nil
 							}
 						}
 					}

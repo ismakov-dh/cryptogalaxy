@@ -138,6 +138,7 @@ type Connection struct {
 	InfluxDB   InfluxDB   `json:"influxdb"`
 	NATS       NATS       `json:"nats"`
 	ClickHouse ClickHouse `json:"clickhouse"`
+	S3         S3         `json:"s3"`
 }
 
 // WS contains config values for websocket connection.
@@ -220,6 +221,20 @@ type ClickHouse struct {
 	Compression     bool     `json:"compression"`
 	TickerCommitBuf int      `json:"ticker_commit_buffer"`
 	TradeCommitBuf  int      `json:"trade_commit_buffer"`
+}
+
+// S3 contains config values for s3.
+type S3 struct {
+	AWSRegion           string `json:"aws_region"`
+	AccessKeyID         string `json:"access_key_id"`
+	SecretAccessKey     string `json:"secret_access_key"`
+	Bucket              string `json:"bucket"`
+	UsePrefixForObjName bool   `json:"use_prefix_for_object_name"`
+	ReqTimeoutSec       int    `json:"request_timeout_sec"`
+	MaxIdleConns        int    `json:"max_idle_conns"`
+	MaxIdleConnsPerHost int    `json:"max_idle_conns_per_host"`
+	TickerCommitBuf     int    `json:"ticker_commit_buffer"`
+	TradeCommitBuf      int    `json:"trade_commit_buffer"`
 }
 
 // Log contains config values for logging.

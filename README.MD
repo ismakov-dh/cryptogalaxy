@@ -31,6 +31,7 @@ Currently supported storages :
 4. InfluxDB
 5. NATS
 6. ClickHouse
+7. S3
  
 ---------------------------------------  
  * [Features](#features)
@@ -56,7 +57,7 @@ Currently supported storages :
  
 * Supports both REST and websocket as a way to fetch data.
  
-* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL, Elasticsearch, InfluxDB, NATS and ClickHouse.
+* All the data received from multiple exchanges are converted into common format and then displayed in terminal or stored to MySQL, Elasticsearch, InfluxDB, NATS, ClickHouse and S3.
  
 * Some exchanges impose a rate limit on the number of channel subscriptions sent to websocket connections per second and if it crosses then disconnects the connection. To avoid this, the app makes staggered requests based on the rate limit of specific exchange.
  
@@ -72,7 +73,7 @@ Currently supported storages :
  
 * Request timeout can be set to every websocket read, write connections and REST API.
  
-* Connection pooling for MySQL, Elasticsearch, InfluxDB, NATS and ClickHouse commits.
+* Connection pooling for MySQL, Elasticsearch, InfluxDB, NATS, ClickHouse and S3 commits.
  
 * Detailed logging of app execution steps, errors to a file for easy debugging.
  
@@ -159,7 +160,7 @@ go get -u github.com/milkywaybrain/cryptogalaxy
  
 * Example configuration file can be found at [./examples/config.json](./examples/config.json) and it's details at [Configuration options](#configuration-options). 
  
-* If you want to store data in MySQL or Elasticsearch or InfluxDB or NATS or in ClickHouse along with a terminal display, then please install those systems separately.
+* If you want to store data in MySQL or Elasticsearch or InfluxDB or NATS or ClickHouse or in S3 along with a terminal display, then please install those systems separately.
  
 ## Architecture
  
@@ -194,7 +195,8 @@ Example configuration file can be found at [./examples/config.json](./examples/c
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         },
                         {
@@ -206,7 +208,8 @@ Example configuration file can be found at [./examples/config.json](./examples/c
                                 "elastic_search",
                                 "influxdb",
                                 "nats",
-                                "clickhouse"
+                                "clickhouse",
+                                "s3"
                             ]
                         }
                     ],
@@ -293,6 +296,18 @@ Example configuration file can be found at [./examples/config.json](./examples/c
             "compression": false,
             "ticker_commit_buffer": 100,
             "trade_commit_buffer": 100
+        },
+        "s3": {
+            "aws_region": "us-west-2",
+            "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+            "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "bucket": "cryptogalaxy",
+            "use_prefix_for_object_name": false,
+            "request_timeout_sec": 10,
+            "max_idle_conns": 10,
+            "max_idle_conns_per_host": 10,
+            "ticker_commit_buffer": 100,
+            "trade_commit_buffer": 100
         }
     },
     "log": {
@@ -348,7 +363,7 @@ Possible values : greater than 0 sec.
  
 * **exchanges : markets : info : storages** : Storage systems on which data need to be stored.
  
-Possible values : terminal, mysql, elastic_search, influxdb, nats, clickhouse.
+Possible values : terminal, mysql, elastic_search, influxdb, nats, clickhouse, s3.
  
 *Note :* Terminal option is only used to check the price on terminal display, it is not persistent.
  
@@ -616,6 +631,48 @@ Possible values : > 0
 *Note :* All REST API and websocket methods buffers data locally and then commits.
 So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
 
+***S3 settings*** : 
+ 
+These options are needed only if you want to store data in s3.
+ 
+* **connection : s3 : aws_region** : Where to send requests, such as us-west-2 or us-east-2.
+ 
+* **connection : s3 : access_key_id** : AWS access key ID.
+ 
+* **connection : s3 : secret_access_key** : AWS secret access key.
+ 
+* **connection : s3 : bucket** : S3 bucket name.
+ 
+* **connection : s3 : use_prefix_for_object_name** : Enable 0-9 prefixing for object name in the bucket. For example, if enabled, the object key name would be s3://cryptogalaxy/3/trade/binance1632400443835060152.json or it will be s3://cryptogalaxy/trade/binance1632400443835060152.json.
+ 
+Possible values : boolean true for prefixing, false for no prefix.
+
+* **connection : s3 : request_timeout_sec** : S3 API request timeout.
+ 
+Possible values : 0 for no timeout, greater than 0 sec for any other time.
+ 
+* **connection : s3 : max_idle_conns** : This setting represents the maximum number of idle (keep-alive) connections across all hosts. One use case for increasing this value is when you are seeing many connections in a short period from the same clients.
+ 
+Possible values : 0 for no limit, greater than 0 for any other number.
+ 
+* **connection : s3 : max_idle_conns_per_host** : This setting represents the maximum number of idle (keep-alive) connections to keep per-host. One use case for increasing this value is when you are seeing many connections in a short period from the same clients.
+ 
+Possible values : 0 for 2 (this may change in future), greater than 0 for any other number. 
+
+* **connection : s3 : ticker_commit_buffer** : Size of market tickers to be buffered in memory before inserting data to S3.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+ 
+* **connection : s3 : trade_commit_buffer** : Size of market trades to be buffered in memory before inserting data to S3.
+ 
+Possible values : > 0
+ 
+*Note :* All REST API and websocket methods buffers data locally and then commits.
+So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
+
 ***Log settings*** :
  
 * **log : level** : App logging level.
@@ -718,7 +775,7 @@ ${APP_PATH}/internal/storage/influxdb.go
 
 **NATS**
 
-Two subjects to be published in the NATS server in JSON format. One is for ticker data and another one is for trade data. Structures for the same is as follows :
+Two subjects to be published in the NATS server in JSON format. One is for ticker data and another one is for trade data. Structures for the same are as follows :
 
 ```
 configured_subject_base_name.ticker
@@ -771,6 +828,47 @@ ORDER BY (exchange, market, side, timestamp);
 ```
 *Note :* Above table creation schema is a basic simple one. ClickHouse provides a lot of important configurations via create statement. You can choose a different table and database engine, can do data partition having ‘hot’ and ‘cold’ split, schedule old data deletion, configure sparse indexing structure with data replication etc and all through the simple create schema statements. So please go through the ClickHouse official document and customize the above script specific to your needs. If you want you can also change Float64 to Decimal column type to avoid floating arithmetic error in some use cases (of course overflow checks lead to operations slowdown, but then there is an option to turn it off also!). Only thing to remember is, you should not change the ticker and trade table column names. 
 
+**S3**
+
+Two objects to be published in the S3 bucket in JSON array format. One is for ticker data and another one is for trade data. Structures for the same are as follows :
+
+```
+s3_bucket_name/ticker/exchange_name_UNIX_NANOSECOND_TIMESTAMP
+ex : s3://cryptogalaxy/ticker/binance1632400443835060152.json
+
+OR if "connection:s3:use_prefix_for_object_name" set to 'true',
+
+s3_bucket_name/random [0-9]/ticker/exchange_name_UNIX_NANOSECOND_TIMESTAMP
+ex : s3://cryptogalaxy/3/ticker/binance1632400443835060152.json
+
+[{
+Exchange
+MktID
+MktCommitName
+Price
+Timestamp
+}]
+
+s3_bucket_name/trade/exchange_name_UNIX_NANOSECOND_TIMESTAMP
+ex : s3://cryptogalaxy/trade/binance1632400443835060152.json
+
+OR if "connection:s3:use_prefix_for_object_name" set to 'true',
+
+s3_bucket_name/random [0-9]/trade/exchange_name_UNIX_NANOSECOND_TIMESTAMP
+ex : s3://cryptogalaxy/3/trade/binance1632400443835060152.json
+
+[{
+Exchange
+MktID
+MktCommitName
+TradeID
+Side
+Size
+Price
+Timestamp
+}]
+```
+
 ## Output screenshots
  
 **Terminal :** 
@@ -820,6 +918,14 @@ For enlarged image, please [click here](./docs/clickhouse-output.png).
 <p align="center">
 <img align="center" src="./docs/clickhouse-output.png" />
 </p>
+
+**S3 :** 
+ 
+For enlarged image, please [click here](./docs/s3-output.png). 
+ 
+<p align="center">
+<img align="center" src="./docs/s3-output.png" />
+</p>
  
 ## Testing
  
@@ -836,7 +942,7 @@ Following steps are executed when you run the test :
  
 1. Loads test configuration for the app from ${APP_PATH}/test/config_test.json.
  
-2. Truncates data from storage systems. You should have a test database schema, Elasticsearch index, InfluxDB bucket (with delete access), NATS subject and ClickHouse database configured in config_test.json with the name starting as test.
+2. Truncates data from storage systems. You should have a test database schema, Elasticsearch index, InfluxDB bucket (with delete access), NATS subject, ClickHouse database and S3 bucket configured in config_test.json with the name starting as test.
  
 3. Sets file at ${APP_PATH}/test/data_test/ter_storage_test.txt as terminal output inorder to test terminal display functionality.
 
@@ -846,13 +952,17 @@ Following steps are executed when you run the test :
  
 6. Cancels app execution and starts testing data.
  
-7. For each exchange, it reads data from Terminal file, MySQL, Elasticsearch , InfluxDB, NATS file and ClickHouse to which app execution step ingested data in the previous step.
+7. For each exchange, it reads data from Terminal file, MySQL, Elasticsearch , InfluxDB, NATS file, ClickHouse and S3 to which app execution step ingested data in the previous step.
  
 8. For each exchange, it checks and verifies data stored in different storage is correct against configured one.
  
 9. If all the exchange passes the verification then it marks the test as success.
  
-*Note :* It only checks if the data is present in the different storage system, not the actual value of it.
+*Note :* 
+
+* It only checks if the data is present in the different storage system, not the actual value of it.
+
+* It is always good to test all the exchanges with all the possible combinations of storage systems as specified in the default test configuration file, ${APP_PATH}/test/config_test.json. But having said that, sometimes some exchanges will have zero trades during the app test run so the app does not receive the data and therefore the test fails. Also for all the people it is not possible to get AWS S3 configured. So in all these exceptional cases, modify the test configuration file specific to your code changes and run the test.
  
 ## Module dependency
  
@@ -863,6 +973,12 @@ Shoutout to modules on which this app depends on :
 Golang driver for ClickHouse.
 
 [https://github.com/ClickHouse/clickhouse-go](https://github.com/ClickHouse/clickhouse-go)
+
+* AWS SDK
+ 
+AWS SDK for the Go programming language.
+
+[https://github.com/aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2)
  
 * Elasticsearch Client
  
@@ -940,7 +1056,7 @@ Couple of things to note before code contribution :
  
 2. Linter used is Golangci, configuration for the same can be found at [./.golangci.yml](./.golangci.yml). This also has been configured as one of github release workflows. So, it makes sense to run the same linter on local before committing changes to the main branch.
  
-3. Test written for the app is some combination of unit and integration test which involves MySQL, Elasticsearch, InfluxDB, NATS and ClickHouse system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
+3. Test written for the app is some combination of unit and integration test which involves MySQL, Elasticsearch, InfluxDB, NATS, ClickHouse and S3 system, which is difficult to configure as one of github release workflows. So, you need to run the test locally before committing changes to the main branch. 
  
 ## License 
  

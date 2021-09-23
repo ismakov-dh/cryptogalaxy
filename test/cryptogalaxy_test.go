@@ -16,6 +16,8 @@ import (
 	"time"
 
 	_ "github.com/ClickHouse/clickhouse-go"
+	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	_ "github.com/go-sql-driver/mysql"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
@@ -42,172 +44,315 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 	cfgFile.Close()
 
+	// Get the details of different storage options configured for testing.
+	var (
+		terStr        bool
+		sqlStr        bool
+		esStr         bool
+		influxStr     bool
+		natsStr       bool
+		clickHouseStr bool
+		s3Str         bool
+
+		fOutFile   *os.File
+		mysql      *storage.MySQL
+		es         *storage.ElasticSearch
+		influx     *storage.InfluxDB
+		clickhouse *storage.ClickHouse
+		s3         *storage.S3
+		nOutFile   *os.File
+	)
+	enabledExchanges := make(map[string]bool)
+	for _, exch := range cfg.Exchanges {
+		enabledExchanges[exch.Name] = true
+		for _, market := range exch.Markets {
+			for _, info := range market.Info {
+				for _, str := range info.Storages {
+					switch str {
+					case "terminal":
+						if !terStr {
+							terStr = true
+						}
+					case "mysql":
+						if !sqlStr {
+							sqlStr = true
+						}
+					case "elastic_search":
+						if !esStr {
+							esStr = true
+						}
+					case "influxdb":
+						if !influxStr {
+							influxStr = true
+						}
+					case "nats":
+						if !natsStr {
+							natsStr = true
+						}
+					case "clickhouse":
+						if !clickHouseStr {
+							clickHouseStr = true
+						}
+					case "s3":
+						if !s3Str {
+							s3Str = true
+						}
+					}
+				}
+				if info.Connector == "rest" {
+					if info.RESTPingIntSec < 1 {
+						t.Log("ERROR : rest_ping_interval_sec should be greater than zero")
+						t.FailNow()
+					}
+				}
+			}
+		}
+	}
+
 	// For testing, mysql schema name should start with the name test to avoid mistakenly messing up with production one.
-	if !strings.HasPrefix(cfg.Connection.MySQL.Schema, "test") {
+	if sqlStr && !strings.HasPrefix(cfg.Connection.MySQL.Schema, "test") {
 		t.Log("ERROR : mysql schema name should start with test for testing")
 		t.FailNow()
 	}
 
 	// For testing, elastic search index name should start with the name test to avoid mistakenly messing up with
 	// production one.
-	if !strings.HasPrefix(cfg.Connection.ES.IndexName, "test") {
+	if esStr && !strings.HasPrefix(cfg.Connection.ES.IndexName, "test") {
 		t.Log("ERROR : elastic search index name should start with test for testing")
 		t.FailNow()
 	}
 
 	// For testing, influxdb bucket name should start with the name test to avoid mistakenly messing up with
 	// production one.
-	if !strings.HasPrefix(cfg.Connection.InfluxDB.Bucket, "test") {
+	if influxStr && !strings.HasPrefix(cfg.Connection.InfluxDB.Bucket, "test") {
 		t.Log("ERROR : influxdb bucket name should start with test for testing")
 		t.FailNow()
 	}
 
 	// For testing, nats subject name should start with the name test to avoid mistakenly messing up with
 	// production one.
-	if !strings.HasPrefix(cfg.Connection.NATS.SubjectBaseName, "test") {
+	if natsStr && !strings.HasPrefix(cfg.Connection.NATS.SubjectBaseName, "test") {
 		t.Log("ERROR : nats subject base name should start with test for testing")
 		t.FailNow()
 	}
 
 	// For testing, clickhouse schema name should start with the name test to avoid mistakenly messing up with production one.
-	if !strings.HasPrefix(cfg.Connection.ClickHouse.Schema, "test") {
+	if clickHouseStr && !strings.HasPrefix(cfg.Connection.ClickHouse.Schema, "test") {
 		t.Log("ERROR : clickhouse schema name should start with test for testing")
 		t.FailNow()
 	}
 
-	// Terminal output we can't actually test, so make file as terminal output.
-	fOutFile, err := os.Create("./data_test/ter_storage_test.txt")
-	if err != nil {
-		t.Log("ERROR : not able to create test terminal storage file : ./data_test/ter_storage_test.txt")
+	// For testing, s3 bucket name should start with the name test to avoid mistakenly messing up with production one.
+	if s3Str && !strings.HasPrefix(cfg.Connection.S3.Bucket, "test") {
+		t.Log("ERROR : s3 bucket name should start with test for testing")
 		t.FailNow()
 	}
-	_ = storage.InitTerminal(fOutFile)
+
+	// Terminal output we can't actually test, so make file as terminal output.
+	if terStr {
+		fOutFile, err = os.Create("./data_test/ter_storage_test.txt")
+		if err != nil {
+			t.Log("ERROR : not able to create test terminal storage file : ./data_test/ter_storage_test.txt")
+			t.FailNow()
+		}
+		_ = storage.InitTerminal(fOutFile)
+	}
 
 	// Delete all data from mysql to have fresh one.
-	mysql, err := storage.InitMySQL(&cfg.Connection.MySQL)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
-	}
+	if sqlStr {
+		mysql, err = storage.InitMySQL(&cfg.Connection.MySQL)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 
-	var mysqlCtx context.Context
-	if cfg.Connection.MySQL.ReqTimeoutSec > 0 {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.MySQL.ReqTimeoutSec)*time.Second)
-		mysqlCtx = timeoutCtx
-		defer cancel()
-	} else {
-		mysqlCtx = context.Background()
-	}
-	_, err = mysql.DB.ExecContext(mysqlCtx, "truncate ticker")
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
-	}
+		var mysqlCtx context.Context
+		if cfg.Connection.MySQL.ReqTimeoutSec > 0 {
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.MySQL.ReqTimeoutSec)*time.Second)
+			mysqlCtx = timeoutCtx
+			defer cancel()
+		} else {
+			mysqlCtx = context.Background()
+		}
+		_, err = mysql.DB.ExecContext(mysqlCtx, "truncate ticker")
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 
-	if cfg.Connection.MySQL.ReqTimeoutSec > 0 {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.MySQL.ReqTimeoutSec)*time.Second)
-		mysqlCtx = timeoutCtx
-		defer cancel()
-	} else {
-		mysqlCtx = context.Background()
-	}
-	_, err = mysql.DB.ExecContext(mysqlCtx, "truncate trade")
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
+		if cfg.Connection.MySQL.ReqTimeoutSec > 0 {
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.MySQL.ReqTimeoutSec)*time.Second)
+			mysqlCtx = timeoutCtx
+			defer cancel()
+		} else {
+			mysqlCtx = context.Background()
+		}
+		_, err = mysql.DB.ExecContext(mysqlCtx, "truncate trade")
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 	}
 
 	// Delete all data from elastic search to have fresh one.
-	es, err := storage.InitElasticSearch(&cfg.Connection.ES)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
-	}
+	if esStr {
+		es, err = storage.InitElasticSearch(&cfg.Connection.ES)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 
-	indexNames := make([]string, 0, 1)
-	indexNames = append(indexNames, es.IndexName)
-	var buf bytes.Buffer
-	deleteQuery := []byte(`{"query":{"match_all":{}}}`)
-	buf.Grow(len(deleteQuery))
-	buf.Write(deleteQuery)
+		indexNames := make([]string, 0, 1)
+		indexNames = append(indexNames, es.IndexName)
+		var buf bytes.Buffer
+		deleteQuery := []byte(`{"query":{"match_all":{}}}`)
+		buf.Grow(len(deleteQuery))
+		buf.Write(deleteQuery)
 
-	var esCtx context.Context
-	if cfg.Connection.ES.ReqTimeoutSec > 0 {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.ES.ReqTimeoutSec)*time.Second)
-		esCtx = timeoutCtx
-		defer cancel()
-	} else {
-		esCtx = context.Background()
-	}
-	resp, err := es.ES.DeleteByQuery(indexNames, bytes.NewReader(buf.Bytes()), es.ES.DeleteByQuery.WithContext(esCtx))
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Log("ERROR : " + fmt.Errorf("code : %v, status : %v", resp.StatusCode, resp.Status()).Error())
-		t.FailNow()
-	}
-	_, err = io.Copy(io.Discard, resp.Body)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
+		var esCtx context.Context
+		if cfg.Connection.ES.ReqTimeoutSec > 0 {
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.ES.ReqTimeoutSec)*time.Second)
+			esCtx = timeoutCtx
+			defer cancel()
+		} else {
+			esCtx = context.Background()
+		}
+		resp, esErr := es.ES.DeleteByQuery(indexNames, bytes.NewReader(buf.Bytes()), es.ES.DeleteByQuery.WithContext(esCtx))
+		if esErr != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Log("ERROR : " + fmt.Errorf("code : %v, status : %v", resp.StatusCode, resp.Status()).Error())
+			t.FailNow()
+		}
+		_, err = io.Copy(io.Discard, resp.Body)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 	}
 
 	// Delete all data from influxdb to have fresh one.
-	influx, err := storage.InitInfluxDB(&cfg.Connection.InfluxDB)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
-	}
+	if influxStr {
+		influx, err = storage.InitInfluxDB(&cfg.Connection.InfluxDB)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 
-	var influxCtx context.Context
-	if cfg.Connection.InfluxDB.ReqTimeoutSec > 0 {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.InfluxDB.ReqTimeoutSec)*time.Second)
-		influxCtx = timeoutCtx
-		defer cancel()
-	} else {
-		influxCtx = context.Background()
-	}
-	start := time.Date(2021, time.Month(7), 25, 1, 1, 1, 1, time.UTC)
-	end := time.Now().UTC()
-	err = influx.DeleteAPI.DeleteWithName(influxCtx, cfg.Connection.InfluxDB.Organization, cfg.Connection.InfluxDB.Bucket, start, end, "")
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
+		var influxCtx context.Context
+		if cfg.Connection.InfluxDB.ReqTimeoutSec > 0 {
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Connection.InfluxDB.ReqTimeoutSec)*time.Second)
+			influxCtx = timeoutCtx
+			defer cancel()
+		} else {
+			influxCtx = context.Background()
+		}
+		start := time.Date(2021, time.Month(7), 25, 1, 1, 1, 1, time.UTC)
+		end := time.Now().UTC()
+		err = influx.DeleteAPI.DeleteWithName(influxCtx, cfg.Connection.InfluxDB.Organization, cfg.Connection.InfluxDB.Bucket, start, end, "")
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 	}
 
 	// Subscribe to NATS subject. Write received data to a file.
-	nOutFile, err := os.Create("./data_test/nats_storage_test.txt")
-	if err != nil {
-		t.Log("ERROR : not able to create test nats storage file : ./data_test/nats_storage_test.txt")
-		t.FailNow()
+	if natsStr {
+		nOutFile, err = os.Create("./data_test/nats_storage_test.txt")
+		if err != nil {
+			t.Log("ERROR : not able to create test nats storage file : ./data_test/nats_storage_test.txt")
+			t.FailNow()
+		}
+		nats, natsErr := storage.InitNATS(&cfg.Connection.NATS)
+		if natsErr != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
+		go natsSub(cfg.Connection.NATS.SubjectBaseName+".*", nOutFile, nats, t)
 	}
-	nats, err := storage.InitNATS(&cfg.Connection.NATS)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
-	}
-	go natsSub(cfg.Connection.NATS.SubjectBaseName+".*", nOutFile, nats, t)
 
 	// Delete all data from clickhouse to have fresh one.
-	clickhouse, err := storage.InitClickHouse(&cfg.Connection.ClickHouse)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
+	if clickHouseStr {
+		clickhouse, err = storage.InitClickHouse(&cfg.Connection.ClickHouse)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
+
+		_, err = clickhouse.DB.Exec("truncate ticker")
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
+
+		_, err = clickhouse.DB.Exec("truncate trade")
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 	}
 
-	_, err = clickhouse.DB.Exec("truncate ticker")
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
-	}
+	// Delete all data from s3 to have fresh one.
+	if s3Str {
+		s3, err = storage.InitS3(&cfg.Connection.S3)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 
-	_, err = clickhouse.DB.Exec("truncate trade")
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
+		for {
+			objInput := &awss3.ListObjectsV2Input{
+				Bucket: &cfg.Connection.S3.Bucket,
+			}
+			objResp, errs3 := s3.Client.ListObjectsV2(context.TODO(), objInput)
+			if errs3 != nil {
+				t.Log("ERROR : " + err.Error())
+				t.FailNow()
+			}
+			if len(objResp.Contents) > 0 {
+				delArray := make([]types.ObjectIdentifier, 0, len(objResp.Contents))
+				for _, item := range objResp.Contents {
+					objIdent := types.ObjectIdentifier{
+						Key: item.Key,
+					}
+					delArray = append(delArray, objIdent)
+					if len(delArray) == 1000 {
+						deleteDetail := types.Delete{
+							Objects: delArray,
+						}
+						delInput := &awss3.DeleteObjectsInput{
+							Bucket: &cfg.Connection.S3.Bucket,
+							Delete: &deleteDetail,
+						}
+						_, err = s3.Client.DeleteObjects(context.TODO(), delInput)
+						if err != nil {
+							t.Log("ERROR : " + err.Error())
+							t.FailNow()
+						}
+						delArray = nil
+					}
+				}
+				if len(delArray) > 0 {
+					deleteDetail := types.Delete{
+						Objects: delArray,
+					}
+					delInput := &awss3.DeleteObjectsInput{
+						Bucket: &cfg.Connection.S3.Bucket,
+						Delete: &deleteDetail,
+					}
+					_, err = s3.Client.DeleteObjects(context.TODO(), delInput)
+					if err != nil {
+						t.Log("ERROR : " + err.Error())
+						t.FailNow()
+					}
+				}
+			} else {
+				break
+			}
+		}
 	}
 
 	// Execute the app for 2 minute, which is good enough time to get the data from exchanges.
@@ -242,21 +387,36 @@ func TestCryptogalaxy(t *testing.T) {
 	}
 
 	// Close file which has been set as the terminal output in the previous step.
-	err = fOutFile.Close()
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
+	if terStr {
+		err = fOutFile.Close()
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 	}
 
 	// Close file which has been set as the nats output in the previous step.
-	err = nOutFile.Close()
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.FailNow()
+	if natsStr {
+		err = nOutFile.Close()
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
 	}
 
 	// Read data from different storage which has been set in the app execution stage.
 	// Then verify it.
+
+	// Read from S3 once for all exchanges.
+	s3AllTickers := make(map[string]map[string]storage.Ticker)
+	s3AllTrades := make(map[string]map[string]storage.Trade)
+	if s3Str {
+		err = readS3(s3AllTickers, s3AllTrades, s3)
+		if err != nil {
+			t.Log("ERROR : " + err.Error())
+			t.FailNow()
+		}
+	}
 
 	// FTX exchange.
 	var ftxFail bool
@@ -273,1410 +433,1516 @@ func TestCryptogalaxy(t *testing.T) {
 	natsTrades := make(map[string]storage.Trade)
 	clickHouseTickers := make(map[string]storage.Ticker)
 	clickHouseTrades := make(map[string]storage.Trade)
+	s3Tickers := s3AllTickers["ftx"]
+	s3Trades := s3AllTrades["ftx"]
 
-	err = readTerminal("ftx", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : ftx exchange function")
-		ftxFail = true
-	}
-
-	if !ftxFail {
-		err = readMySQL("ftx", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ftx exchange function")
-			ftxFail = true
+	if enabledExchanges["ftx"] {
+		if terStr {
+			err = readTerminal("ftx", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ftx exchange function")
+				ftxFail = true
+			}
 		}
-	}
 
-	if !ftxFail {
-		err = readElasticSearch("ftx", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ftx exchange function")
-			ftxFail = true
+		if sqlStr && !ftxFail {
+			err = readMySQL("ftx", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ftx exchange function")
+				ftxFail = true
+			}
 		}
-	}
 
-	if !ftxFail {
-		err = readInfluxDB("ftx", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ftx exchange function")
-			ftxFail = true
+		if esStr && !ftxFail {
+			err = readElasticSearch("ftx", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ftx exchange function")
+				ftxFail = true
+			}
 		}
-	}
 
-	if !ftxFail {
-		err = readNATS("ftx", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ftx exchange function")
-			ftxFail = true
+		if influxStr && !ftxFail {
+			err = readInfluxDB("ftx", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ftx exchange function")
+				ftxFail = true
+			}
 		}
-	}
 
-	if !ftxFail {
-		err = readClickHouse("ftx", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ftx exchange function")
-			ftxFail = true
+		if natsStr && !ftxFail {
+			err = readNATS("ftx", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ftx exchange function")
+				ftxFail = true
+			}
 		}
-	}
 
-	if !ftxFail {
-		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ftx exchange function")
-			ftxFail = true
-		} else {
-			t.Log("SUCCESS : ftx exchange function")
+		if clickHouseStr && !ftxFail {
+			err = readClickHouse("ftx", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ftx exchange function")
+				ftxFail = true
+			}
+		}
+
+		if !ftxFail {
+			err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ftx exchange function")
+				ftxFail = true
+			} else {
+				t.Log("SUCCESS : ftx exchange function")
+			}
 		}
 	}
 
 	// Coinbase-Pro exchange.
 	var coinbaseProFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["coinbase-pro"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["coinbase-pro"]
+		s3Trades = s3AllTrades["coinbase-pro"]
 
-	err = readTerminal("coinbase-pro", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : coinbase-pro exchange function")
-		coinbaseProFail = true
-	}
-
-	if !coinbaseProFail {
-		err = readMySQL("coinbase-pro", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : coinbase-pro exchange function")
-			coinbaseProFail = true
+		if terStr {
+			err = readTerminal("coinbase-pro", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : coinbase-pro exchange function")
+				coinbaseProFail = true
+			}
 		}
-	}
 
-	if !coinbaseProFail {
-		err = readElasticSearch("coinbase-pro", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : coinbase-pro exchange function")
-			coinbaseProFail = true
+		if sqlStr && !coinbaseProFail {
+			err = readMySQL("coinbase-pro", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : coinbase-pro exchange function")
+				coinbaseProFail = true
+			}
 		}
-	}
 
-	if !coinbaseProFail {
-		err = readInfluxDB("coinbase-pro", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : coinbase-pro exchange function")
-			coinbaseProFail = true
+		if esStr && !coinbaseProFail {
+			err = readElasticSearch("coinbase-pro", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : coinbase-pro exchange function")
+				coinbaseProFail = true
+			}
 		}
-	}
 
-	if !coinbaseProFail {
-		err = readNATS("coinbase-pro", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : coinbase-pro exchange function")
-			coinbaseProFail = true
+		if influxStr && !coinbaseProFail {
+			err = readInfluxDB("coinbase-pro", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : coinbase-pro exchange function")
+				coinbaseProFail = true
+			}
 		}
-	}
 
-	if !coinbaseProFail {
-		err = readClickHouse("coinbase-pro", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : coinbase-pro exchange function")
-			coinbaseProFail = true
+		if natsStr && !coinbaseProFail {
+			err = readNATS("coinbase-pro", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : coinbase-pro exchange function")
+				coinbaseProFail = true
+			}
 		}
-	}
 
-	if !coinbaseProFail {
-		err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : coinbase-pro exchange function")
-			coinbaseProFail = true
-		} else {
-			t.Log("SUCCESS : coinbase-pro exchange function")
+		if clickHouseStr && !coinbaseProFail {
+			err = readClickHouse("coinbase-pro", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : coinbase-pro exchange function")
+				coinbaseProFail = true
+			}
+		}
+
+		if !coinbaseProFail {
+			err = verifyData("ftx", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : coinbase-pro exchange function")
+				coinbaseProFail = true
+			} else {
+				t.Log("SUCCESS : coinbase-pro exchange function")
+			}
 		}
 	}
 
 	// Binance exchange.
 	var binanceFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["binance"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["binance"]
+		s3Trades = s3AllTrades["binance"]
 
-	err = readTerminal("binance", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : binance exchange function")
-		binanceFail = true
-	}
-
-	if !binanceFail {
-		err = readMySQL("binance", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance exchange function")
-			binanceFail = true
+		if terStr {
+			err = readTerminal("binance", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance exchange function")
+				binanceFail = true
+			}
 		}
-	}
 
-	if !binanceFail {
-		err = readElasticSearch("binance", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance exchange function")
-			binanceFail = true
+		if sqlStr && !binanceFail {
+			err = readMySQL("binance", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance exchange function")
+				binanceFail = true
+			}
 		}
-	}
 
-	if !binanceFail {
-		err = readInfluxDB("binance", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance exchange function")
-			binanceFail = true
+		if esStr && !binanceFail {
+			err = readElasticSearch("binance", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance exchange function")
+				binanceFail = true
+			}
 		}
-	}
 
-	if !binanceFail {
-		err = readNATS("binance", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance exchange function")
-			binanceFail = true
+		if influxStr && !binanceFail {
+			err = readInfluxDB("binance", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance exchange function")
+				binanceFail = true
+			}
 		}
-	}
 
-	if !binanceFail {
-		err = readClickHouse("binance", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance exchange function")
-			binanceFail = true
+		if natsStr && !binanceFail {
+			err = readNATS("binance", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance exchange function")
+				binanceFail = true
+			}
 		}
-	}
 
-	if !binanceFail {
-		err = verifyData("binance", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance exchange function")
-			binanceFail = true
-		} else {
-			t.Log("SUCCESS : binance exchange function")
+		if clickHouseStr && !binanceFail {
+			err = readClickHouse("binance", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance exchange function")
+				binanceFail = true
+			}
+		}
+
+		if !binanceFail {
+			err = verifyData("binance", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance exchange function")
+				binanceFail = true
+			} else {
+				t.Log("SUCCESS : binance exchange function")
+			}
 		}
 	}
 
 	// Bitfinex exchange.
 	var bitfinexFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["bitfinex"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["bitfinex"]
+		s3Trades = s3AllTrades["bitfinex"]
 
-	err = readTerminal("bitfinex", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : bitfinex exchange function")
-		bitfinexFail = true
-	}
-
-	if !bitfinexFail {
-		err = readMySQL("bitfinex", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitfinex exchange function")
-			bitfinexFail = true
+		if terStr {
+			err = readTerminal("bitfinex", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitfinex exchange function")
+				bitfinexFail = true
+			}
 		}
-	}
 
-	if !bitfinexFail {
-		err = readElasticSearch("bitfinex", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitfinex exchange function")
-			bitfinexFail = true
+		if sqlStr && !bitfinexFail {
+			err = readMySQL("bitfinex", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitfinex exchange function")
+				bitfinexFail = true
+			}
 		}
-	}
 
-	if !bitfinexFail {
-		err = readInfluxDB("bitfinex", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitfinex exchange function")
-			bitfinexFail = true
+		if esStr && !bitfinexFail {
+			err = readElasticSearch("bitfinex", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitfinex exchange function")
+				bitfinexFail = true
+			}
 		}
-	}
 
-	if !bitfinexFail {
-		err = readNATS("bitfinex", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitfinex exchange function")
-			bitfinexFail = true
+		if influxStr && !bitfinexFail {
+			err = readInfluxDB("bitfinex", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitfinex exchange function")
+				bitfinexFail = true
+			}
 		}
-	}
 
-	if !bitfinexFail {
-		err = readClickHouse("bitfinex", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitfinex exchange function")
-			bitfinexFail = true
+		if natsStr && !bitfinexFail {
+			err = readNATS("bitfinex", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitfinex exchange function")
+				bitfinexFail = true
+			}
 		}
-	}
 
-	if !bitfinexFail {
-		err = verifyData("bitfinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitfinex exchange function")
-			bitfinexFail = true
-		} else {
-			t.Log("SUCCESS : bitfinex exchange function")
+		if clickHouseStr && !bitfinexFail {
+			err = readClickHouse("bitfinex", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitfinex exchange function")
+				bitfinexFail = true
+			}
+		}
+
+		if !bitfinexFail {
+			err = verifyData("bitfinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitfinex exchange function")
+				bitfinexFail = true
+			} else {
+				t.Log("SUCCESS : bitfinex exchange function")
+			}
 		}
 	}
 
 	// Hbtc exchange.
 	var hbtcFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["hbtc"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["hbtc"]
+		s3Trades = s3AllTrades["hbtc"]
 
-	err = readTerminal("hbtc", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : hbtc exchange function")
-		hbtcFail = true
-	}
-
-	if !hbtcFail {
-		err = readMySQL("hbtc", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : hbtc exchange function")
-			hbtcFail = true
+		if terStr {
+			err = readTerminal("hbtc", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hbtc exchange function")
+				hbtcFail = true
+			}
 		}
-	}
 
-	if !hbtcFail {
-		err = readElasticSearch("hbtc", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : hbtc exchange function")
-			hbtcFail = true
+		if sqlStr && !hbtcFail {
+			err = readMySQL("hbtc", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hbtc exchange function")
+				hbtcFail = true
+			}
 		}
-	}
 
-	if !hbtcFail {
-		err = readInfluxDB("hbtc", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : hbtc exchange function")
-			hbtcFail = true
+		if esStr && !hbtcFail {
+			err = readElasticSearch("hbtc", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hbtc exchange function")
+				hbtcFail = true
+			}
 		}
-	}
 
-	if !hbtcFail {
-		err = readNATS("hbtc", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : hbtc exchange function")
-			hbtcFail = true
+		if influxStr && !hbtcFail {
+			err = readInfluxDB("hbtc", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hbtc exchange function")
+				hbtcFail = true
+			}
 		}
-	}
 
-	if !hbtcFail {
-		err = readClickHouse("hbtc", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : hbtc exchange function")
-			hbtcFail = true
+		if natsStr && !hbtcFail {
+			err = readNATS("hbtc", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hbtc exchange function")
+				hbtcFail = true
+			}
 		}
-	}
 
-	if !hbtcFail {
-		err = verifyData("hbtc", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : hbtc exchange function")
-			hbtcFail = true
-		} else {
-			t.Log("SUCCESS : hbtc exchange function")
+		if clickHouseStr && !hbtcFail {
+			err = readClickHouse("hbtc", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hbtc exchange function")
+				hbtcFail = true
+			}
+		}
+
+		if !hbtcFail {
+			err = verifyData("hbtc", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hbtc exchange function")
+				hbtcFail = true
+			} else {
+				t.Log("SUCCESS : hbtc exchange function")
+			}
 		}
 	}
 
 	// Huobi exchange.
 	var huobiFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["huobi"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["huobi"]
+		s3Trades = s3AllTrades["huobi"]
 
-	err = readTerminal("huobi", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : huobi exchange function")
-		huobiFail = true
-	}
-
-	if !huobiFail {
-		err = readMySQL("huobi", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : huobi exchange function")
-			huobiFail = true
+		if terStr {
+			err = readTerminal("huobi", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : huobi exchange function")
+				huobiFail = true
+			}
 		}
-	}
 
-	if !huobiFail {
-		err = readElasticSearch("huobi", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : huobi exchange function")
-			huobiFail = true
+		if sqlStr && !huobiFail {
+			err = readMySQL("huobi", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : huobi exchange function")
+				huobiFail = true
+			}
 		}
-	}
 
-	if !huobiFail {
-		err = readInfluxDB("huobi", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : huobi exchange function")
-			huobiFail = true
+		if esStr && !huobiFail {
+			err = readElasticSearch("huobi", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : huobi exchange function")
+				huobiFail = true
+			}
 		}
-	}
 
-	if !huobiFail {
-		err = readNATS("huobi", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : huobi exchange function")
-			huobiFail = true
+		if influxStr && !huobiFail {
+			err = readInfluxDB("huobi", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : huobi exchange function")
+				huobiFail = true
+			}
 		}
-	}
 
-	if !huobiFail {
-		err = readClickHouse("huobi", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : huobi exchange function")
-			huobiFail = true
+		if natsStr && !huobiFail {
+			err = readNATS("huobi", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : huobi exchange function")
+				huobiFail = true
+			}
 		}
-	}
 
-	if !huobiFail {
-		err = verifyData("huobi", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : huobi exchange function")
-			huobiFail = true
-		} else {
-			t.Log("SUCCESS : huobi exchange function")
+		if clickHouseStr && !huobiFail {
+			err = readClickHouse("huobi", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : huobi exchange function")
+				huobiFail = true
+			}
+		}
+
+		if !huobiFail {
+			err = verifyData("huobi", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : huobi exchange function")
+				huobiFail = true
+			} else {
+				t.Log("SUCCESS : huobi exchange function")
+			}
 		}
 	}
 
 	// Gateio exchange.
 	var gateioFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["gateio"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["gateio"]
+		s3Trades = s3AllTrades["gateio"]
 
-	err = readTerminal("gateio", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : gateio exchange function")
-		gateioFail = true
-	}
-
-	if !gateioFail {
-		err = readMySQL("gateio", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gateio exchange function")
-			gateioFail = true
+		if terStr {
+			err = readTerminal("gateio", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gateio exchange function")
+				gateioFail = true
+			}
 		}
-	}
 
-	if !gateioFail {
-		err = readElasticSearch("gateio", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gateio exchange function")
-			gateioFail = true
+		if sqlStr && !gateioFail {
+			err = readMySQL("gateio", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gateio exchange function")
+				gateioFail = true
+			}
 		}
-	}
 
-	if !gateioFail {
-		err = readInfluxDB("gateio", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gateio exchange function")
-			gateioFail = true
+		if esStr && !gateioFail {
+			err = readElasticSearch("gateio", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gateio exchange function")
+				gateioFail = true
+			}
 		}
-	}
 
-	if !gateioFail {
-		err = readNATS("gateio", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gateio exchange function")
-			gateioFail = true
+		if influxStr && !gateioFail {
+			err = readInfluxDB("gateio", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gateio exchange function")
+				gateioFail = true
+			}
 		}
-	}
 
-	if !gateioFail {
-		err = readClickHouse("gateio", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gateio exchange function")
-			gateioFail = true
+		if natsStr && !gateioFail {
+			err = readNATS("gateio", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gateio exchange function")
+				gateioFail = true
+			}
 		}
-	}
 
-	if !gateioFail {
-		err = verifyData("gateio", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gateio exchange function")
-			gateioFail = true
-		} else {
-			t.Log("SUCCESS : gateio exchange function")
+		if clickHouseStr && !gateioFail {
+			err = readClickHouse("gateio", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gateio exchange function")
+				gateioFail = true
+			}
+		}
+
+		if !gateioFail {
+			err = verifyData("gateio", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gateio exchange function")
+				gateioFail = true
+			} else {
+				t.Log("SUCCESS : gateio exchange function")
+			}
 		}
 	}
 
 	// Kucoin exchange.
 	var kucoinFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["kucoin"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["kucoin"]
+		s3Trades = s3AllTrades["kucoin"]
 
-	err = readTerminal("kucoin", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : kucoin exchange function")
-		kucoinFail = true
-	}
-
-	if !kucoinFail {
-		err = readMySQL("kucoin", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kucoin exchange function")
-			kucoinFail = true
+		if terStr {
+			err = readTerminal("kucoin", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kucoin exchange function")
+				kucoinFail = true
+			}
 		}
-	}
 
-	if !kucoinFail {
-		err = readElasticSearch("kucoin", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kucoin exchange function")
-			kucoinFail = true
+		if sqlStr && !kucoinFail {
+			err = readMySQL("kucoin", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kucoin exchange function")
+				kucoinFail = true
+			}
 		}
-	}
 
-	if !kucoinFail {
-		err = readInfluxDB("kucoin", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kucoin exchange function")
-			kucoinFail = true
+		if esStr && !kucoinFail {
+			err = readElasticSearch("kucoin", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kucoin exchange function")
+				kucoinFail = true
+			}
 		}
-	}
 
-	if !kucoinFail {
-		err = readNATS("kucoin", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kucoin exchange function")
-			kucoinFail = true
+		if influxStr && !kucoinFail {
+			err = readInfluxDB("kucoin", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kucoin exchange function")
+				kucoinFail = true
+			}
 		}
-	}
 
-	if !kucoinFail {
-		err = readClickHouse("kucoin", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kucoin exchange function")
-			kucoinFail = true
+		if natsStr && !kucoinFail {
+			err = readNATS("kucoin", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kucoin exchange function")
+				kucoinFail = true
+			}
 		}
-	}
 
-	if !kucoinFail {
-		err = verifyData("kucoin", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kucoin exchange function")
-			kucoinFail = true
-		} else {
-			t.Log("SUCCESS : kucoin exchange function")
+		if clickHouseStr && !kucoinFail {
+			err = readClickHouse("kucoin", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kucoin exchange function")
+				kucoinFail = true
+			}
+		}
+
+		if !kucoinFail {
+			err = verifyData("kucoin", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kucoin exchange function")
+				kucoinFail = true
+			} else {
+				t.Log("SUCCESS : kucoin exchange function")
+			}
 		}
 	}
 
 	// Bitstamp exchange.
 	var bitstampFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["bitstamp"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["bitstamp"]
+		s3Trades = s3AllTrades["bitstamp"]
 
-	err = readTerminal("bitstamp", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : bitstamp exchange function")
-		bitstampFail = true
-	}
-
-	if !bitstampFail {
-		err = readMySQL("bitstamp", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitstamp exchange function")
-			bitstampFail = true
+		if terStr {
+			err = readTerminal("bitstamp", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitstamp exchange function")
+				bitstampFail = true
+			}
 		}
-	}
 
-	if !bitstampFail {
-		err = readElasticSearch("bitstamp", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitstamp exchange function")
-			bitstampFail = true
+		if sqlStr && !bitstampFail {
+			err = readMySQL("bitstamp", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitstamp exchange function")
+				bitstampFail = true
+			}
 		}
-	}
 
-	if !bitstampFail {
-		err = readInfluxDB("bitstamp", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitstamp exchange function")
-			bitstampFail = true
+		if esStr && !bitstampFail {
+			err = readElasticSearch("bitstamp", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitstamp exchange function")
+				bitstampFail = true
+			}
 		}
-	}
 
-	if !bitstampFail {
-		err = readNATS("bitstamp", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitstamp exchange function")
-			bitstampFail = true
+		if influxStr && !bitstampFail {
+			err = readInfluxDB("bitstamp", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitstamp exchange function")
+				bitstampFail = true
+			}
 		}
-	}
 
-	if !bitstampFail {
-		err = readClickHouse("bitstamp", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitstamp exchange function")
-			bitstampFail = true
+		if natsStr && !bitstampFail {
+			err = readNATS("bitstamp", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitstamp exchange function")
+				bitstampFail = true
+			}
 		}
-	}
 
-	if !bitstampFail {
-		err = verifyData("bitstamp", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitstamp exchange function")
-			bitstampFail = true
-		} else {
-			t.Log("SUCCESS : bitstamp exchange function")
+		if clickHouseStr && !bitstampFail {
+			err = readClickHouse("bitstamp", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitstamp exchange function")
+				bitstampFail = true
+			}
+		}
+
+		if !bitstampFail {
+			err = verifyData("bitstamp", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitstamp exchange function")
+				bitstampFail = true
+			} else {
+				t.Log("SUCCESS : bitstamp exchange function")
+			}
 		}
 	}
 
 	// Bybit exchange.
 	var bybitFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["bybit"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["bybit"]
+		s3Trades = s3AllTrades["bybit"]
 
-	err = readTerminal("bybit", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : bybit exchange function")
-		bybitFail = true
-	}
-
-	if !bybitFail {
-		err = readMySQL("bybit", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bybit exchange function")
-			bybitFail = true
+		if terStr {
+			err = readTerminal("bybit", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bybit exchange function")
+				bybitFail = true
+			}
 		}
-	}
 
-	if !bybitFail {
-		err = readElasticSearch("bybit", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bybit exchange function")
-			bybitFail = true
+		if sqlStr && !bybitFail {
+			err = readMySQL("bybit", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bybit exchange function")
+				bybitFail = true
+			}
 		}
-	}
 
-	if !bybitFail {
-		err = readInfluxDB("bybit", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bybit exchange function")
-			bybitFail = true
+		if esStr && !bybitFail {
+			err = readElasticSearch("bybit", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bybit exchange function")
+				bybitFail = true
+			}
 		}
-	}
 
-	if !bybitFail {
-		err = readNATS("bybit", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bybit exchange function")
-			bybitFail = true
+		if influxStr && !bybitFail {
+			err = readInfluxDB("bybit", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bybit exchange function")
+				bybitFail = true
+			}
 		}
-	}
 
-	if !bybitFail {
-		err = readClickHouse("bybit", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bybit exchange function")
-			bybitFail = true
+		if natsStr && !bybitFail {
+			err = readNATS("bybit", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bybit exchange function")
+				bybitFail = true
+			}
 		}
-	}
 
-	if !bybitFail {
-		err = verifyData("bybit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bybit exchange function")
-			bybitFail = true
-		} else {
-			t.Log("SUCCESS : bybit exchange function")
+		if clickHouseStr && !bybitFail {
+			err = readClickHouse("bybit", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bybit exchange function")
+				bybitFail = true
+			}
+		}
+
+		if !bybitFail {
+			err = verifyData("bybit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bybit exchange function")
+				bybitFail = true
+			} else {
+				t.Log("SUCCESS : bybit exchange function")
+			}
 		}
 	}
 
 	// Probit exchange.
 	var probitFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["probit"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["probit"]
+		s3Trades = s3AllTrades["probit"]
 
-	err = readTerminal("probit", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : probit exchange function")
-		probitFail = true
-	}
-
-	if !probitFail {
-		err = readMySQL("probit", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : probit exchange function")
-			probitFail = true
+		if terStr {
+			err = readTerminal("probit", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : probit exchange function")
+				probitFail = true
+			}
 		}
-	}
 
-	if !probitFail {
-		err = readElasticSearch("probit", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : probit exchange function")
-			probitFail = true
+		if sqlStr && !probitFail {
+			err = readMySQL("probit", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : probit exchange function")
+				probitFail = true
+			}
 		}
-	}
 
-	if !probitFail {
-		err = readInfluxDB("probit", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : probit exchange function")
-			probitFail = true
+		if esStr && !probitFail {
+			err = readElasticSearch("probit", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : probit exchange function")
+				probitFail = true
+			}
 		}
-	}
 
-	if !probitFail {
-		err = readNATS("probit", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : probit exchange function")
-			probitFail = true
+		if influxStr && !probitFail {
+			err = readInfluxDB("probit", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : probit exchange function")
+				probitFail = true
+			}
 		}
-	}
 
-	if !probitFail {
-		err = readClickHouse("probit", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : probit exchange function")
-			probitFail = true
+		if natsStr && !probitFail {
+			err = readNATS("probit", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : probit exchange function")
+				probitFail = true
+			}
 		}
-	}
 
-	if !probitFail {
-		err = verifyData("probit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : probit exchange function")
-			probitFail = true
-		} else {
-			t.Log("SUCCESS : probit exchange function")
+		if clickHouseStr && !probitFail {
+			err = readClickHouse("probit", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : probit exchange function")
+				probitFail = true
+			}
+		}
+
+		if !probitFail {
+			err = verifyData("probit", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : probit exchange function")
+				probitFail = true
+			} else {
+				t.Log("SUCCESS : probit exchange function")
+			}
 		}
 	}
 
 	// Gemini exchange.
 	var geminiFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["gemini"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["gemini"]
+		s3Trades = s3AllTrades["gemini"]
 
-	err = readTerminal("gemini", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : gemini exchange function")
-		geminiFail = true
-	}
-
-	if !geminiFail {
-		err = readMySQL("gemini", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gemini exchange function")
-			geminiFail = true
+		if terStr {
+			err = readTerminal("gemini", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gemini exchange function")
+				geminiFail = true
+			}
 		}
-	}
 
-	if !geminiFail {
-		err = readElasticSearch("gemini", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gemini exchange function")
-			geminiFail = true
+		if sqlStr && !geminiFail {
+			err = readMySQL("gemini", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gemini exchange function")
+				geminiFail = true
+			}
 		}
-	}
 
-	if !geminiFail {
-		err = readInfluxDB("gemini", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gemini exchange function")
-			geminiFail = true
+		if esStr && !geminiFail {
+			err = readElasticSearch("gemini", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gemini exchange function")
+				geminiFail = true
+			}
 		}
-	}
 
-	if !geminiFail {
-		err = readNATS("gemini", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gemini exchange function")
-			geminiFail = true
+		if influxStr && !geminiFail {
+			err = readInfluxDB("gemini", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gemini exchange function")
+				geminiFail = true
+			}
 		}
-	}
 
-	if !geminiFail {
-		err = readClickHouse("gemini", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gemini exchange function")
-			geminiFail = true
+		if natsStr && !geminiFail {
+			err = readNATS("gemini", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gemini exchange function")
+				geminiFail = true
+			}
 		}
-	}
 
-	if !geminiFail {
-		err = verifyData("gemini", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : gemini exchange function")
-			geminiFail = true
-		} else {
-			t.Log("SUCCESS : gemini exchange function")
+		if clickHouseStr && !geminiFail {
+			err = readClickHouse("gemini", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gemini exchange function")
+				geminiFail = true
+			}
+		}
+
+		if !geminiFail {
+			err = verifyData("gemini", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : gemini exchange function")
+				geminiFail = true
+			} else {
+				t.Log("SUCCESS : gemini exchange function")
+			}
 		}
 	}
 
 	// Bitmart exchange.
 	var bitmartFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["bitmart"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["bitmart"]
+		s3Trades = s3AllTrades["bitmart"]
 
-	err = readTerminal("bitmart", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : bitmart exchange function")
-		bitmartFail = true
-	}
-
-	if !bitmartFail {
-		err = readMySQL("bitmart", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitmart exchange function")
-			bitmartFail = true
+		if terStr {
+			err = readTerminal("bitmart", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitmart exchange function")
+				bitmartFail = true
+			}
 		}
-	}
 
-	if !bitmartFail {
-		err = readElasticSearch("bitmart", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitmart exchange function")
-			bitmartFail = true
+		if sqlStr && !bitmartFail {
+			err = readMySQL("bitmart", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitmart exchange function")
+				bitmartFail = true
+			}
 		}
-	}
 
-	if !bitmartFail {
-		err = readInfluxDB("bitmart", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitmart exchange function")
-			bitmartFail = true
+		if esStr && !bitmartFail {
+			err = readElasticSearch("bitmart", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitmart exchange function")
+				bitmartFail = true
+			}
 		}
-	}
 
-	if !bitmartFail {
-		err = readNATS("bitmart", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitmart exchange function")
-			bitmartFail = true
+		if influxStr && !bitmartFail {
+			err = readInfluxDB("bitmart", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitmart exchange function")
+				bitmartFail = true
+			}
 		}
-	}
 
-	if !bitmartFail {
-		err = readClickHouse("bitmart", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitmart exchange function")
-			bitmartFail = true
+		if natsStr && !bitmartFail {
+			err = readNATS("bitmart", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitmart exchange function")
+				bitmartFail = true
+			}
 		}
-	}
 
-	if !bitmartFail {
-		err = verifyData("bitmart", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : bitmart exchange function")
-			bitmartFail = true
-		} else {
-			t.Log("SUCCESS : bitmart exchange function")
+		if clickHouseStr && !bitmartFail {
+			err = readClickHouse("bitmart", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitmart exchange function")
+				bitmartFail = true
+			}
+		}
+
+		if !bitmartFail {
+			err = verifyData("bitmart", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitmart exchange function")
+				bitmartFail = true
+			} else {
+				t.Log("SUCCESS : bitmart exchange function")
+			}
 		}
 	}
 
 	// Digifinex exchange.
 	var digifinexFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["digifinex"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["digifinex"]
+		s3Trades = s3AllTrades["digifinex"]
 
-	err = readTerminal("digifinex", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : digifinex exchange function")
-		digifinexFail = true
-	}
-
-	if !digifinexFail {
-		err = readMySQL("digifinex", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : digifinex exchange function")
-			digifinexFail = true
+		if terStr {
+			err = readTerminal("digifinex", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : digifinex exchange function")
+				digifinexFail = true
+			}
 		}
-	}
 
-	if !digifinexFail {
-		err = readElasticSearch("digifinex", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : digifinex exchange function")
-			digifinexFail = true
+		if sqlStr && !digifinexFail {
+			err = readMySQL("digifinex", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : digifinex exchange function")
+				digifinexFail = true
+			}
 		}
-	}
 
-	if !digifinexFail {
-		err = readInfluxDB("digifinex", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : digifinex exchange function")
-			digifinexFail = true
+		if esStr && !digifinexFail {
+			err = readElasticSearch("digifinex", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : digifinex exchange function")
+				digifinexFail = true
+			}
 		}
-	}
 
-	if !digifinexFail {
-		err = readNATS("digifinex", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : digifinex exchange function")
-			digifinexFail = true
+		if influxStr && !digifinexFail {
+			err = readInfluxDB("digifinex", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : digifinex exchange function")
+				digifinexFail = true
+			}
 		}
-	}
 
-	if !digifinexFail {
-		err = readClickHouse("digifinex", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : digifinex exchange function")
-			digifinexFail = true
+		if natsStr && !digifinexFail {
+			err = readNATS("digifinex", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : digifinex exchange function")
+				digifinexFail = true
+			}
 		}
-	}
 
-	if !digifinexFail {
-		err = verifyData("digifinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : digifinex exchange function")
-			digifinexFail = true
-		} else {
-			t.Log("SUCCESS : digifinex exchange function")
+		if clickHouseStr && !digifinexFail {
+			err = readClickHouse("digifinex", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : digifinex exchange function")
+				digifinexFail = true
+			}
+		}
+
+		if !digifinexFail {
+			err = verifyData("digifinex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : digifinex exchange function")
+				digifinexFail = true
+			} else {
+				t.Log("SUCCESS : digifinex exchange function")
+			}
 		}
 	}
 
 	// Ascendex exchange.
 	var ascendexFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["ascendex"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["ascendex"]
+		s3Trades = s3AllTrades["ascendex"]
 
-	err = readTerminal("ascendex", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : ascendex exchange function")
-		ascendexFail = true
-	}
-
-	if !ascendexFail {
-		err = readMySQL("ascendex", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ascendex exchange function")
-			ascendexFail = true
+		if terStr {
+			err = readTerminal("ascendex", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ascendex exchange function")
+				ascendexFail = true
+			}
 		}
-	}
 
-	if !ascendexFail {
-		err = readElasticSearch("ascendex", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ascendex exchange function")
-			ascendexFail = true
+		if sqlStr && !ascendexFail {
+			err = readMySQL("ascendex", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ascendex exchange function")
+				ascendexFail = true
+			}
 		}
-	}
 
-	if !ascendexFail {
-		err = readInfluxDB("ascendex", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ascendex exchange function")
-			ascendexFail = true
+		if esStr && !ascendexFail {
+			err = readElasticSearch("ascendex", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ascendex exchange function")
+				ascendexFail = true
+			}
 		}
-	}
 
-	if !ascendexFail {
-		err = readNATS("ascendex", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ascendex exchange function")
-			ascendexFail = true
+		if influxStr && !ascendexFail {
+			err = readInfluxDB("ascendex", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ascendex exchange function")
+				ascendexFail = true
+			}
 		}
-	}
 
-	if !ascendexFail {
-		err = readClickHouse("ascendex", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ascendex exchange function")
-			ascendexFail = true
+		if natsStr && !ascendexFail {
+			err = readNATS("ascendex", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ascendex exchange function")
+				ascendexFail = true
+			}
 		}
-	}
 
-	if !ascendexFail {
-		err = verifyData("ascendex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : ascendex exchange function")
-			ascendexFail = true
-		} else {
-			t.Log("SUCCESS : ascendex exchange function")
+		if clickHouseStr && !ascendexFail {
+			err = readClickHouse("ascendex", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ascendex exchange function")
+				ascendexFail = true
+			}
+		}
+
+		if !ascendexFail {
+			err = verifyData("ascendex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : ascendex exchange function")
+				ascendexFail = true
+			} else {
+				t.Log("SUCCESS : ascendex exchange function")
+			}
 		}
 	}
 
 	// Kraken exchange.
 	var krakenFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["kraken"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["kraken"]
+		s3Trades = s3AllTrades["kraken"]
 
-	err = readTerminal("kraken", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : kraken exchange function")
-		krakenFail = true
-	}
-
-	if !krakenFail {
-		err = readMySQL("kraken", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kraken exchange function")
-			krakenFail = true
+		if terStr {
+			err = readTerminal("kraken", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kraken exchange function")
+				krakenFail = true
+			}
 		}
-	}
 
-	if !krakenFail {
-		err = readElasticSearch("kraken", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kraken exchange function")
-			krakenFail = true
+		if sqlStr && !krakenFail {
+			err = readMySQL("kraken", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kraken exchange function")
+				krakenFail = true
+			}
 		}
-	}
 
-	if !krakenFail {
-		err = readInfluxDB("kraken", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kraken exchange function")
-			krakenFail = true
+		if esStr && !krakenFail {
+			err = readElasticSearch("kraken", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kraken exchange function")
+				krakenFail = true
+			}
 		}
-	}
 
-	if !krakenFail {
-		err = readNATS("kraken", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kraken exchange function")
-			krakenFail = true
+		if influxStr && !krakenFail {
+			err = readInfluxDB("kraken", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kraken exchange function")
+				krakenFail = true
+			}
 		}
-	}
 
-	if !krakenFail {
-		err = readClickHouse("kraken", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kraken exchange function")
-			krakenFail = true
+		if natsStr && !krakenFail {
+			err = readNATS("kraken", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kraken exchange function")
+				krakenFail = true
+			}
 		}
-	}
 
-	if !krakenFail {
-		err = verifyData("kraken", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : kraken exchange function")
-			krakenFail = true
-		} else {
-			t.Log("SUCCESS : kraken exchange function")
+		if clickHouseStr && !krakenFail {
+			err = readClickHouse("kraken", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kraken exchange function")
+				krakenFail = true
+			}
+		}
+
+		if !krakenFail {
+			err = verifyData("kraken", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : kraken exchange function")
+				krakenFail = true
+			} else {
+				t.Log("SUCCESS : kraken exchange function")
+			}
 		}
 	}
 
 	// Binance US exchange.
 	var binanceUSFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["binance-us"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["binance-us"]
+		s3Trades = s3AllTrades["binance-us"]
 
-	err = readTerminal("binance-us", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : binance-us exchange function")
-		binanceUSFail = true
-	}
-
-	if !binanceUSFail {
-		err = readMySQL("binance-us", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance-us exchange function")
-			binanceUSFail = true
+		if terStr {
+			err = readTerminal("binance-us", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance-us exchange function")
+				binanceUSFail = true
+			}
 		}
-	}
 
-	if !binanceUSFail {
-		err = readElasticSearch("binance-us", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance-us exchange function")
-			binanceUSFail = true
+		if sqlStr && !binanceUSFail {
+			err = readMySQL("binance-us", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance-us exchange function")
+				binanceUSFail = true
+			}
 		}
-	}
 
-	if !binanceUSFail {
-		err = readInfluxDB("binance-us", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance-us exchange function")
-			binanceUSFail = true
+		if esStr && !binanceUSFail {
+			err = readElasticSearch("binance-us", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance-us exchange function")
+				binanceUSFail = true
+			}
 		}
-	}
 
-	if !binanceUSFail {
-		err = readNATS("binance-us", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance-us exchange function")
-			binanceUSFail = true
+		if influxStr && !binanceUSFail {
+			err = readInfluxDB("binance-us", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance-us exchange function")
+				binanceUSFail = true
+			}
 		}
-	}
 
-	if !binanceUSFail {
-		err = readClickHouse("binance-us", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance-us exchange function")
-			binanceUSFail = true
+		if natsStr && !binanceUSFail {
+			err = readNATS("binance-us", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance-us exchange function")
+				binanceUSFail = true
+			}
 		}
-	}
 
-	if !binanceUSFail {
-		err = verifyData("binance-us", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : binance-us exchange function")
-			binanceUSFail = true
-		} else {
-			t.Log("SUCCESS : binance-us exchange function")
+		if clickHouseStr && !binanceUSFail {
+			err = readClickHouse("binance-us", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance-us exchange function")
+				binanceUSFail = true
+			}
+		}
+
+		if !binanceUSFail {
+			err = verifyData("binance-us", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : binance-us exchange function")
+				binanceUSFail = true
+			} else {
+				t.Log("SUCCESS : binance-us exchange function")
+			}
 		}
 	}
 
 	// OKEx exchange.
 	var okexFail bool
 
-	terTickers = make(map[string]storage.Ticker)
-	terTrades = make(map[string]storage.Trade)
-	mysqlTickers = make(map[string]storage.Ticker)
-	mysqlTrades = make(map[string]storage.Trade)
-	esTickers = make(map[string]storage.Ticker)
-	esTrades = make(map[string]storage.Trade)
-	influxTickers = make(map[string]storage.Ticker)
-	influxTrades = make(map[string]storage.Trade)
-	natsTickers = make(map[string]storage.Ticker)
-	natsTrades = make(map[string]storage.Trade)
-	clickHouseTickers = make(map[string]storage.Ticker)
-	clickHouseTrades = make(map[string]storage.Trade)
+	if enabledExchanges["okex"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["okex"]
+		s3Trades = s3AllTrades["okex"]
 
-	err = readTerminal("okex", terTickers, terTrades)
-	if err != nil {
-		t.Log("ERROR : " + err.Error())
-		t.Error("FAILURE : okex exchange function")
-		okexFail = true
-	}
-
-	if !okexFail {
-		err = readMySQL("okex", mysqlTickers, mysqlTrades, mysql)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : okex exchange function")
-			okexFail = true
+		if terStr {
+			err = readTerminal("okex", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : okex exchange function")
+				okexFail = true
+			}
 		}
-	}
 
-	if !okexFail {
-		err = readElasticSearch("okex", esTickers, esTrades, es)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : okex exchange function")
-			okexFail = true
+		if sqlStr && !okexFail {
+			err = readMySQL("okex", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : okex exchange function")
+				okexFail = true
+			}
 		}
-	}
 
-	if !okexFail {
-		err = readInfluxDB("okex", influxTickers, influxTrades, influx)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : okex exchange function")
-			okexFail = true
+		if esStr && !okexFail {
+			err = readElasticSearch("okex", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : okex exchange function")
+				okexFail = true
+			}
 		}
-	}
 
-	if !okexFail {
-		err = readNATS("okex", natsTickers, natsTrades)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : okex exchange function")
-			okexFail = true
+		if influxStr && !okexFail {
+			err = readInfluxDB("okex", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : okex exchange function")
+				okexFail = true
+			}
 		}
-	}
 
-	if !okexFail {
-		err = readClickHouse("okex", clickHouseTickers, clickHouseTrades, clickhouse)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : okex exchange function")
-			okexFail = true
+		if natsStr && !okexFail {
+			err = readNATS("okex", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : okex exchange function")
+				okexFail = true
+			}
 		}
-	}
 
-	if !okexFail {
-		err = verifyData("okex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, &cfg)
-		if err != nil {
-			t.Log("ERROR : " + err.Error())
-			t.Error("FAILURE : okex exchange function")
-			okexFail = true
-		} else {
-			t.Log("SUCCESS : okex exchange function")
+		if clickHouseStr && !okexFail {
+			err = readClickHouse("okex", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : okex exchange function")
+				okexFail = true
+			}
+		}
+
+		if !okexFail {
+			err = verifyData("okex", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : okex exchange function")
+				okexFail = true
+			} else {
+				t.Log("SUCCESS : okex exchange function")
+			}
 		}
 	}
 
@@ -2105,6 +2371,74 @@ func readClickHouse(exchName string, clickHouseTickers map[string]storage.Ticker
 	return nil
 }
 
+// readS3 reads ticker and trade data for all the exchanges from s3 into passed in maps.
+func readS3(s3AllTickers map[string]map[string]storage.Ticker, s3AllTrades map[string]map[string]storage.Trade, s3 *storage.S3) error {
+	var lastObjKey string
+	var objInput *awss3.ListObjectsV2Input
+	for {
+		if lastObjKey == "" {
+			objInput = &awss3.ListObjectsV2Input{
+				Bucket: &s3.Cfg.Bucket,
+			}
+		} else {
+			objInput = &awss3.ListObjectsV2Input{
+				Bucket:     &s3.Cfg.Bucket,
+				StartAfter: &lastObjKey,
+			}
+		}
+		objResp, err := s3.Client.ListObjectsV2(context.TODO(), objInput)
+		if err != nil {
+			return err
+		}
+		if len(objResp.Contents) > 0 {
+			for _, item := range objResp.Contents {
+				lastObjKey = *item.Key
+				detailInput := &awss3.GetObjectInput{
+					Bucket: &s3.Cfg.Bucket,
+					Key:    item.Key,
+				}
+				detailResp, err := s3.Client.GetObject(context.TODO(), detailInput)
+				if err != nil {
+					return err
+				}
+				if strings.Contains(lastObjKey, "ticker") {
+					data := []storage.Ticker{}
+					if err := jsoniter.NewDecoder(detailResp.Body).Decode(&data); err != nil {
+						return err
+					}
+					for i := range data {
+						ticker := data[i]
+						s3SubTickers, pres := s3AllTickers[ticker.Exchange]
+						if !pres {
+							s3SubTickers = make(map[string]storage.Ticker)
+						}
+						s3SubTickers[ticker.MktCommitName] = ticker
+						s3AllTickers[ticker.Exchange] = s3SubTickers
+					}
+				} else {
+					data := []storage.Trade{}
+					if err := jsoniter.NewDecoder(detailResp.Body).Decode(&data); err != nil {
+						return err
+					}
+					for i := range data {
+						trade := data[i]
+						s3SubTrades, pres := s3AllTrades[trade.Exchange]
+						if !pres {
+							s3SubTrades = make(map[string]storage.Trade)
+						}
+						s3SubTrades[trade.MktCommitName] = trade
+						s3AllTrades[trade.Exchange] = s3SubTrades
+					}
+				}
+				detailResp.Body.Close()
+			}
+		} else {
+			break
+		}
+	}
+	return nil
+}
+
 // verifyData checks whether all the configured storage system for an exchange got the required data or not.
 func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades map[string]storage.Trade,
 	mysqlTickers map[string]storage.Ticker, mysqlTrades map[string]storage.Trade,
@@ -2112,6 +2446,7 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 	influxTickers map[string]storage.Ticker, influxTrades map[string]storage.Trade,
 	natsTickers map[string]storage.Ticker, natsTrades map[string]storage.Trade,
 	clickHouseTickers map[string]storage.Ticker, clickHouseTrades map[string]storage.Trade,
+	s3Tickers map[string]storage.Ticker, s3Trades map[string]storage.Trade,
 	cfg *config.Config) error {
 
 	for _, exch := range cfg.Exchanges {
@@ -2158,6 +2493,11 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 								if clickHouseTicker.Price <= 0 {
 									return fmt.Errorf("%s ticker data stored in clickhouse is not complete", market.ID)
 								}
+							case "s3":
+								s3Ticker := s3Tickers[marketCommitName]
+								if s3Ticker.Price <= 0 {
+									return fmt.Errorf("%s ticker data stored in s3 is not complete", market.ID)
+								}
 							}
 						}
 					case "trade":
@@ -2192,6 +2532,11 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 								clickHouseTrade := clickHouseTrades[marketCommitName]
 								if clickHouseTrade.Size <= 0 || clickHouseTrade.Price <= 0 {
 									return fmt.Errorf("%s trade data stored in clickhouse is not complete", market.ID)
+								}
+							case "s3":
+								s3Trade := s3Trades[marketCommitName]
+								if s3Trade.Size <= 0 || s3Trade.Price <= 0 {
+									return fmt.Errorf("%s trade data stored in s3 is not complete", market.ID)
 								}
 							}
 						}
