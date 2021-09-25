@@ -242,6 +242,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartOKEx(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "ftx-us":
+			appErrGroup.Go(func() error {
+				return exchange.StartFtxUS(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

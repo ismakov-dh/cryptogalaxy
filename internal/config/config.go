@@ -88,6 +88,11 @@ const (
 	OKExWebsocketURL = "wss://ws.okex.com:8443/ws/v5/public"
 	// OKExRESTBaseURL is the okex exchange base REST url.
 	OKExRESTBaseURL = "https://www.okex.com/api/v5/"
+
+	// FtxUSWebsocketURL is the ftx-us exchange websocket url.
+	FtxUSWebsocketURL = "wss://ftx.us/ws/"
+	// FtxUSRESTBaseURL is the ftx-us exchange base REST url.
+	FtxUSRESTBaseURL = "https://ftx.us/api/"
 )
 
 // Config contains config values for the app.

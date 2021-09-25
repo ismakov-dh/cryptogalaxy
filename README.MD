@@ -22,6 +22,7 @@ Currently supported exchanges :
 16. Kraken
 17. Binance US
 18. OKEx
+19. FTX US
 
 Currently supported storages : 
 
@@ -85,7 +86,7 @@ Currently supported storages :
  
 * App creates a single websocket connection per exchange. So, you may hit the threshold of no. of markets you want to get the data from it. In that case you need to run a new instance of the app for more markets.
  
-*Note :* Out of 18 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
+*Note :* Out of 19 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
  
 ## Why the app
  
@@ -325,7 +326,7 @@ Example configuration file can be found at [./examples/config.json](./examples/c
  
 * **exchanges : name** : Name of the exchange from which you need data.
  
-Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi, gateio, kucoin, bitstamp, bybit, probit, gemini, bitmart, digifinex, ascendex, kraken, binance-us, okex.
+Possible values : ftx, coinbase-pro, binance, bitfinex, hbtc, huobi, gateio, kucoin, bitstamp, bybit, probit, gemini, bitmart, digifinex, ascendex, kraken, binance-us, okex, ftx-us.
  
 * **exchanges : markets : id** : Market symbol for which data is needed. This has to be the exact one defined by exchange.
  
@@ -659,14 +660,14 @@ Possible values : 0 for no limit, greater than 0 for any other number.
  
 Possible values : 0 for 2 (this may change in future), greater than 0 for any other number. 
 
-* **connection : s3 : ticker_commit_buffer** : Size of market tickers to be buffered in memory before inserting data to S3.
+* **connection : s3 : ticker_commit_buffer** : Size of market tickers to be buffered in memory before inserting data to S3. Each commit to S3 will create a new object in the specified bucket.
  
 Possible values : > 0
  
 *Note :* All REST API and websocket methods buffers data locally and then commits.
 So for example, if the specified number is 10 and has multiple market data points then each corresponding method commits data once it reaches the buffer size limit 10 and not the time all methods combined buffer reaches cumulative size of 10. 
  
-* **connection : s3 : trade_commit_buffer** : Size of market trades to be buffered in memory before inserting data to S3.
+* **connection : s3 : trade_commit_buffer** : Size of market trades to be buffered in memory before inserting data to S3. Each commit to S3 will create a new object in the specified bucket.
  
 Possible values : > 0
  

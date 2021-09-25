@@ -434,6 +434,30 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from OKEx")
 
+	// FTX US exchange.
+	resp, err = http.Get(config.FtxUSRESTBaseURL + "markets")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "ftx-us").Msg("exchange request for markets")
+		return
+	}
+	ftxUSMarkets := ftxUSResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&ftxUSMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "ftx-us").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range ftxUSMarkets.Result {
+		if record.Type != "spot" {
+			continue
+		}
+		if err = w.Write([]string{"ftx-us", record.Name}); err != nil {
+			log.Error().Err(err).Str("exchange", "ftx-us").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from FTX US")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -548,4 +572,12 @@ type okexResp struct {
 type okexRespData struct {
 	InstID string `json:"instId"`
 	Status string `json:"state"`
+}
+
+type ftxUSResp struct {
+	Result []ftxUSRespRes `json:"result"`
+}
+type ftxUSRespRes struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
