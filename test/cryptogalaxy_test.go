@@ -2031,7 +2031,92 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail || okexFail || ftxUSFail {
+	// HitBTC exchange.
+	var hitBTCFail bool
+
+	if enabledExchanges["hitbtc"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["hitbtc"]
+		s3Trades = s3AllTrades["hitbtc"]
+
+		if terStr {
+			err = readTerminal("hitbtc", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hitbtc exchange function")
+				hitBTCFail = true
+			}
+		}
+
+		if sqlStr && !hitBTCFail {
+			err = readMySQL("hitbtc", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hitbtc exchange function")
+				hitBTCFail = true
+			}
+		}
+
+		if esStr && !hitBTCFail {
+			err = readElasticSearch("hitbtc", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hitbtc exchange function")
+				hitBTCFail = true
+			}
+		}
+
+		if influxStr && !hitBTCFail {
+			err = readInfluxDB("hitbtc", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hitbtc exchange function")
+				hitBTCFail = true
+			}
+		}
+
+		if natsStr && !hitBTCFail {
+			err = readNATS("hitbtc", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hitbtc exchange function")
+				hitBTCFail = true
+			}
+		}
+
+		if clickHouseStr && !hitBTCFail {
+			err = readClickHouse("hitbtc", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hitbtc exchange function")
+				hitBTCFail = true
+			}
+		}
+
+		if !hitBTCFail {
+			err = verifyData("hitbtc", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : hitbtc exchange function")
+				hitBTCFail = true
+			} else {
+				t.Log("SUCCESS : hitbtc exchange function")
+			}
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail || okexFail || ftxUSFail || hitBTCFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increase it before actual debugging.")
 	}
 }

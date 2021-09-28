@@ -114,8 +114,8 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Bitfinex")
 
-	// Hbtc exchange.
-	resp, err = http.Get(config.HbtcRESTBaseURL + "openapi/v1/pairs")
+	// BHEX exchange.
+	resp, err = http.Get(config.BHEXRESTBaseURL + "openapi/v1/pairs")
 	if err != nil {
 		log.Error().Err(err).Str("exchange", "hbtc").Msg("exchange request for markets")
 		return
@@ -127,13 +127,13 @@ func main() {
 	}
 	resp.Body.Close()
 	for _, record := range hbtcMarkets {
-		if err = w.Write([]string{"hbtc", record.Name}); err != nil {
+		if err = w.Write([]string{"bhex", record.Name}); err != nil {
 			log.Error().Err(err).Str("exchange", "hbtc").Msg("writing markets to csv")
 			return
 		}
 	}
 	w.Flush()
-	fmt.Println("got market info from Hbtc")
+	fmt.Println("got market info from BHEX")
 
 	// Huobi exchange.
 	resp, err = http.Get(config.HuobiRESTBaseURL + "v1/common/symbols")
@@ -458,6 +458,29 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from FTX US")
 
+	// HitBTC exchange.
+	resp, err = http.Get(config.HitBTCRESTBaseURL + "symbol")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "hitbtc").Msg("exchange request for markets")
+		return
+	}
+	hitBTCMarkets := make(map[string]hitBTCResp)
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&hitBTCMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "hitbtc").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for market, record := range hitBTCMarkets {
+		if record.Type == "spot" {
+			if err = w.Write([]string{"hitbtc", market}); err != nil {
+				log.Error().Err(err).Str("exchange", "hitbtc").Msg("writing markets to csv")
+				return
+			}
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from HitBTC")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -579,5 +602,9 @@ type ftxUSResp struct {
 }
 type ftxUSRespRes struct {
 	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+type hitBTCResp struct {
 	Type string `json:"type"`
 }

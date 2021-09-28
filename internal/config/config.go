@@ -21,10 +21,10 @@ const (
 	// BitfinexRESTBaseURL is the bitfinex exchange base REST url.
 	BitfinexRESTBaseURL = "https://api-pub.bitfinex.com/v2/"
 
-	// HbtcWebsocketURL is the hbtc exchange websocket url.
-	HbtcWebsocketURL = "wss://wsapi.hbtc.com/openapi/quote/ws/v2"
-	// HbtcRESTBaseURL is the hbtc exchange base REST url.
-	HbtcRESTBaseURL = "https://api.hbtc.com/"
+	// BHEXWebsocketURL is the bhex exchange websocket url.
+	BHEXWebsocketURL = "wss://wsapi.bhex.com/openapi/quote/ws/v2"
+	// BHEXRESTBaseURL is the bhex exchange base REST url.
+	BHEXRESTBaseURL = "https://api.bhex.com/"
 
 	// HuobiWebsocketURL is the huobi exchange websocket url.
 	HuobiWebsocketURL = "wss://api.huobi.pro/ws"
@@ -93,6 +93,11 @@ const (
 	FtxUSWebsocketURL = "wss://ftx.us/ws/"
 	// FtxUSRESTBaseURL is the ftx-us exchange base REST url.
 	FtxUSRESTBaseURL = "https://ftx.us/api/"
+
+	// HitBTCWebsocketURL is the hitbtc websocket url.
+	HitBTCWebsocketURL = "wss://api.hitbtc.com/api/3/ws/public"
+	// HitBTCRESTBaseURL is the hitbtc base REST url.
+	HitBTCRESTBaseURL = "https://api.hitbtc.com/api/3/public/"
 )
 
 // Config contains config values for the app.
