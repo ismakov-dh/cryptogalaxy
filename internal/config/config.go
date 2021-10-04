@@ -98,6 +98,11 @@ const (
 	HitBTCWebsocketURL = "wss://api.hitbtc.com/api/3/ws/public"
 	// HitBTCRESTBaseURL is the hitbtc base REST url.
 	HitBTCRESTBaseURL = "https://api.hitbtc.com/api/3/public/"
+
+	// AAXWebsocketURL is the aax websocket url.
+	AAXWebsocketURL = "wss://realtime.aax.com/marketdata/v2/"
+	// AAXRESTBaseURL is the aax base REST url.
+	AAXRESTBaseURL = "https://api.aax.com/v2/"
 )
 
 // Config contains config values for the app.

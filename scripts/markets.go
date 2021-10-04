@@ -481,6 +481,30 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from HitBTC")
 
+	// AAX exchange.
+	resp, err = http.Get(config.AAXRESTBaseURL + "instruments")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "aax").Msg("exchange request for markets")
+		return
+	}
+	aaxMarkets := aaxResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&aaxMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "aax").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range aaxMarkets.Data {
+		if record.Type != "spot" {
+			continue
+		}
+		if err = w.Write([]string{"aax", record.Symbol}); err != nil {
+			log.Error().Err(err).Str("exchange", "aax").Msg("writing markets to csv")
+			return
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from AAX")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -607,4 +631,13 @@ type ftxUSRespRes struct {
 
 type hitBTCResp struct {
 	Type string `json:"type"`
+}
+
+type aaxResp struct {
+	Data []aaxRespData `json:"data"`
+}
+type aaxRespData struct {
+	Symbol string `json:"symbol"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
 }

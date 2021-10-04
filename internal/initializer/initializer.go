@@ -250,6 +250,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartHitBTC(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "aax":
+			appErrGroup.Go(func() error {
+				return exchange.StartAAX(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 
