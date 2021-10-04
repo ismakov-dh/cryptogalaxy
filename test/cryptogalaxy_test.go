@@ -2201,7 +2201,92 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail || okexFail || ftxUSFail || hitBTCFail || aaxFail {
+	// Bitrue exchange.
+	var bitrueFail bool
+
+	if enabledExchanges["bitrue"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["bitrue"]
+		s3Trades = s3AllTrades["bitrue"]
+
+		if terStr {
+			err = readTerminal("bitrue", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitrue exchange function")
+				bitrueFail = true
+			}
+		}
+
+		if sqlStr && !bitrueFail {
+			err = readMySQL("bitrue", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitrue exchange function")
+				bitrueFail = true
+			}
+		}
+
+		if esStr && !bitrueFail {
+			err = readElasticSearch("bitrue", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitrue exchange function")
+				bitrueFail = true
+			}
+		}
+
+		if influxStr && !bitrueFail {
+			err = readInfluxDB("bitrue", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitrue exchange function")
+				bitrueFail = true
+			}
+		}
+
+		if natsStr && !bitrueFail {
+			err = readNATS("bitrue", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitrue exchange function")
+				bitrueFail = true
+			}
+		}
+
+		if clickHouseStr && !bitrueFail {
+			err = readClickHouse("bitrue", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitrue exchange function")
+				bitrueFail = true
+			}
+		}
+
+		if !bitrueFail {
+			err = verifyData("bitrue", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : bitrue exchange function")
+				bitrueFail = true
+			} else {
+				t.Log("SUCCESS : bitrue exchange function")
+			}
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail || okexFail || ftxUSFail || hitBTCFail || aaxFail || bitrueFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increase it before actual debugging.")
 	}
 }

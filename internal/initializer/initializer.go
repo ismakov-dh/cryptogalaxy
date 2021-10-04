@@ -254,6 +254,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartAAX(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "bitrue":
+			appErrGroup.Go(func() error {
+				return exchange.StartBitrue(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

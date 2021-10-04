@@ -103,6 +103,11 @@ const (
 	AAXWebsocketURL = "wss://realtime.aax.com/marketdata/v2/"
 	// AAXRESTBaseURL is the aax base REST url.
 	AAXRESTBaseURL = "https://api.aax.com/v2/"
+
+	// BitrueWebsocketURL is the bitrue exchange websocket url.
+	BitrueWebsocketURL = "wss://ws.bitrue.com/kline-api/ws"
+	// BitrueRESTBaseURL is the bitrue exchange base REST url.
+	BitrueRESTBaseURL = "https://www.bitrue.com/api/v1/"
 )
 
 // Config contains config values for the app.

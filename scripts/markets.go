@@ -505,6 +505,29 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from AAX")
 
+	// Bitrue exchange.
+	resp, err = http.Get(config.BitrueRESTBaseURL + "exchangeInfo")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "bitrue").Msg("exchange request for markets")
+		return
+	}
+	bitrueMarkets := bitrueResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&bitrueMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "bitrue").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range bitrueMarkets.Symbols {
+		if record.Status == "TRADING" {
+			if err = w.Write([]string{"bitrue", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "bitrue").Msg("writing markets to csv")
+				return
+			}
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Bitrue")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -639,5 +662,13 @@ type aaxResp struct {
 type aaxRespData struct {
 	Symbol string `json:"symbol"`
 	Type   string `json:"type"`
+	Status string `json:"status"`
+}
+
+type bitrueResp struct {
+	Symbols []bitrueRespSymb `json:"symbols"`
+}
+type bitrueRespSymb struct {
+	Symbol string `json:"symbol"`
 	Status string `json:"status"`
 }
