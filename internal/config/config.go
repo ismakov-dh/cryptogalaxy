@@ -113,6 +113,11 @@ const (
 	BTSEWebsocketURL = "wss://ws.btse.com/ws/spot"
 	// BTSERESTBaseURL is the btse exchange base REST url.
 	BTSERESTBaseURL = "https://api.btse.com/spot/api/v3.2/"
+
+	// MexoWebsocketURL is the mexo exchange websocket url.
+	MexoWebsocketURL = "wss://wsapi.mexo.io/openapi/quote/ws/v1"
+	// MexoRESTBaseURL is the mexo exchange base REST url.
+	MexoRESTBaseURL = "https://api.mexo.io/openapi/"
 )
 
 // Config contains config values for the app.

@@ -2371,7 +2371,92 @@ func TestCryptogalaxy(t *testing.T) {
 		}
 	}
 
-	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail || okexFail || ftxUSFail || hitBTCFail || aaxFail || bitrueFail || btseFail {
+	// Mexo exchange.
+	var mexoFail bool
+
+	if enabledExchanges["mexo"] {
+		terTickers = make(map[string]storage.Ticker)
+		terTrades = make(map[string]storage.Trade)
+		mysqlTickers = make(map[string]storage.Ticker)
+		mysqlTrades = make(map[string]storage.Trade)
+		esTickers = make(map[string]storage.Ticker)
+		esTrades = make(map[string]storage.Trade)
+		influxTickers = make(map[string]storage.Ticker)
+		influxTrades = make(map[string]storage.Trade)
+		natsTickers = make(map[string]storage.Ticker)
+		natsTrades = make(map[string]storage.Trade)
+		clickHouseTickers = make(map[string]storage.Ticker)
+		clickHouseTrades = make(map[string]storage.Trade)
+		s3Tickers = s3AllTickers["mexo"]
+		s3Trades = s3AllTrades["mexo"]
+
+		if terStr {
+			err = readTerminal("mexo", terTickers, terTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : mexo exchange function")
+				mexoFail = true
+			}
+		}
+
+		if sqlStr && !mexoFail {
+			err = readMySQL("mexo", mysqlTickers, mysqlTrades, mysql)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : mexo exchange function")
+				mexoFail = true
+			}
+		}
+
+		if esStr && !mexoFail {
+			err = readElasticSearch("mexo", esTickers, esTrades, es)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : mexo exchange function")
+				mexoFail = true
+			}
+		}
+
+		if influxStr && !mexoFail {
+			err = readInfluxDB("mexo", influxTickers, influxTrades, influx)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : mexo exchange function")
+				mexoFail = true
+			}
+		}
+
+		if natsStr && !mexoFail {
+			err = readNATS("mexo", natsTickers, natsTrades)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : mexo exchange function")
+				mexoFail = true
+			}
+		}
+
+		if clickHouseStr && !mexoFail {
+			err = readClickHouse("mexo", clickHouseTickers, clickHouseTrades, clickhouse)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : mexo exchange function")
+				mexoFail = true
+			}
+		}
+
+		if !mexoFail {
+			err = verifyData("mexo", terTickers, terTrades, mysqlTickers, mysqlTrades, esTickers, esTrades, influxTickers, influxTrades, natsTickers, natsTrades, clickHouseTickers, clickHouseTrades, s3Tickers, s3Trades, &cfg)
+			if err != nil {
+				t.Log("ERROR : " + err.Error())
+				t.Error("FAILURE : mexo exchange function")
+				mexoFail = true
+			} else {
+				t.Log("SUCCESS : mexo exchange function")
+			}
+		}
+	}
+
+	if ftxFail || coinbaseProFail || binanceFail || bitfinexFail || hbtcFail || huobiFail || gateioFail || kucoinFail || bitstampFail || bybitFail || probitFail || geminiFail || bitmartFail || digifinexFail || ascendexFail || krakenFail || binanceUSFail || okexFail || ftxUSFail || hitBTCFail || aaxFail || bitrueFail || btseFail || mexoFail {
 		t.Log("INFO : May be 2 minute app execution time is not good enough to get the data. Try to increase it before actual debugging.")
 	}
 }

@@ -262,6 +262,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartBTSE(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "mexo":
+			appErrGroup.Go(func() error {
+				return exchange.StartMexo(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

@@ -551,6 +551,29 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from BTSE")
 
+	// Mexo exchange.
+	resp, err = http.Get(config.MexoRESTBaseURL + "v1/brokerInfo")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "mexo").Msg("exchange request for markets")
+		return
+	}
+	mexoMarkets := mexoResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&mexoMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "mexo").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range mexoMarkets.Symbols {
+		if record.Status == "TRADING" {
+			if err = w.Write([]string{"mexo", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "mexo").Msg("writing markets to csv")
+				return
+			}
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from Mexo")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -700,4 +723,12 @@ type btseResp struct {
 	Symbol  string `json:"symbol"`
 	Active  bool   `json:"active"`
 	Futures bool   `json:"futures"`
+}
+
+type mexoResp struct {
+	Symbols []mexoRespSymb `json:"symbols"`
+}
+type mexoRespSymb struct {
+	Symbol string `json:"symbol"`
+	Status string `json:"status"`
 }
