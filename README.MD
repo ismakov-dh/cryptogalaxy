@@ -1,44 +1,44 @@
 ## Cryptogalaxy
  
 Cryptogalaxy is an app which will get any cryptocurrencies ticker and trade data in real time from multiple exchanges and then saves it in multiple storage systems.
+
+<p>Currently supported exchanges :<br></p>
+
+<div>1. <img src="./docs/exchange/ftx.png" height="24" width="24"/> FTX</div>
+<div>2. <img src="./docs/exchange/coinbase-pro.png" height="24" width="24"/> Coinbase Pro</div>
+<div>3. <img src="./docs/exchange/binance.png" height="24" width="24"/> Binance</div>
+<div>4. <img src="./docs/exchange/bitfinex.png" height="24" width="24"/> Bitfinex</div>
+<div>5. <img src="./docs/exchange/bhex.png" height="24" width="24"/> BHEX</div>
+<div>6. <img src="./docs/exchange/huobi.png" height="24" width="24"/> Huobi</div>
+<div>7. <img src="./docs/exchange/gateio.png" height="24" width="24"/> Gateio</div>
+<div>8. <img src="./docs/exchange/kucoin.png" height="24" width="24"/> Kucoin</div>
+<div>9. <img src="./docs/exchange/bitstamp.png" height="24" width="24"/> Bitstamp</div>
+<div>10. <img src="./docs/exchange/bybit.png" height="24" width="24"/> Bybit</div>
+<div>11. <img src="./docs/exchange/probit.png" height="24" width="24"/> Probit</div>
+<div>12. <img src="./docs/exchange/gemini.png" height="24" width="24"/> Gemini</div>
+<div>13. <img src="./docs/exchange/bitmart.png" height="24" width="24"/> Bitmart</div>
+<div>14. <img src="./docs/exchange/digifinex.png" height="24" width="24"/> Digifinex</div>
+<div>15. <img src="./docs/exchange/ascendex.png" height="24" width="24"/> AscendEX</div>
+<div>16. <img src="./docs/exchange/kraken.png" height="24" width="24"/> Kraken</div>
+<div>17. <img src="./docs/exchange/binance-us.png" height="24" width="24"/> Binance US</div>
+<div>18. <img src="./docs/exchange/okex.png" height="24" width="24"/> OKEx</div>
+<div>19. <img src="./docs/exchange/ftx-us.png" height="24" width="24"/> FTX US</div>
+<div>20. <img src="./docs/exchange/hitbtc.png" height="24" width="24"/> HitBTC</div>
+<div>21. <img src="./docs/exchange/aax.png" height="24" width="24"/> AAX</div>
+<div>22. <img src="./docs/exchange/bitrue.png" height="24" width="24"/> Bitrue</div>
+<div>23. <img src="./docs/exchange/btse.png" height="24" width="24"/> BTSE</div>
+<div>24. <img src="./docs/exchange/mexo.png" height="24" width="24"/> Mexo</div>
+<div>25. <img src="./docs/exchange/bequant.png" height="24" width="24"/> BEQUANT</div>
  
-Currently supported exchanges : 
+<p><br>Currently supported storages :<br></p>
 
-1. FTX
-2. Coinbase Pro
-3. Binance
-4. Bitfinex
-5. BHEX
-6. Huobi
-7. Gateio
-8. Kucoin
-9. Bitstamp
-10. Bybit
-11. Probit
-12. Gemini
-13. Bitmart
-14. Digifinex
-15. AscendEX
-16. Kraken
-17. Binance US
-18. OKEx
-19. FTX US
-20. HitBTC
-21. AAX
-22. Bitrue
-23. BTSE
-24. Mexo
-25. BEQUANT
-
-Currently supported storages : 
-
-1. Terminal Output
-2. MySQL
-3. Elasticsearch
-4. InfluxDB
-5. NATS
-6. ClickHouse
-7. S3
+<div>1. <img src="./docs/storage/terminal.png" height="24" width="24"/> Terminal Output</div>
+<div>2. <img src="./docs/storage/mysql.png" height="24" width="24"/> MySQL</div>
+<div>3. <img src="./docs/storage/elasticsearch.png" height="24" width="24"/> Elasticsearch</div>
+<div>4. <img src="./docs/storage/influxdb.svg" height="24" width="24"/> InfluxDB</div>
+<div>5. <img src="./docs/storage/nats.png" height="24" width="24"/> NATS</div>
+<div>6. <img src="./docs/storage/clickhouse.jpeg" height="24" width="24"/> ClickHouse</div>
+<div>7. <img src="./docs/storage/s3.png" height="24" width="24"/> S3</div>
  
 ---------------------------------------  
  * [Features](#features)
