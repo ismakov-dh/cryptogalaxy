@@ -258,6 +258,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartBitrue(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "btse":
+			appErrGroup.Go(func() error {
+				return exchange.StartBTSE(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

@@ -528,6 +528,29 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Bitrue")
 
+	// BTSE exchange.
+	resp, err = http.Get(config.BTSERESTBaseURL + "market_summary")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "btse").Msg("exchange request for markets")
+		return
+	}
+	btseMarkets := []btseResp{}
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&btseMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "btse").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for _, record := range btseMarkets {
+		if record.Active && !record.Futures {
+			if err = w.Write([]string{"btse", record.Symbol}); err != nil {
+				log.Error().Err(err).Str("exchange", "btse").Msg("writing markets to csv")
+				return
+			}
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from BTSE")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -671,4 +694,10 @@ type bitrueResp struct {
 type bitrueRespSymb struct {
 	Symbol string `json:"symbol"`
 	Status string `json:"status"`
+}
+
+type btseResp struct {
+	Symbol  string `json:"symbol"`
+	Active  bool   `json:"active"`
+	Futures bool   `json:"futures"`
 }

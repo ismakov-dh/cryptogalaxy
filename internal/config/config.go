@@ -108,6 +108,11 @@ const (
 	BitrueWebsocketURL = "wss://ws.bitrue.com/kline-api/ws"
 	// BitrueRESTBaseURL is the bitrue exchange base REST url.
 	BitrueRESTBaseURL = "https://www.bitrue.com/api/v1/"
+
+	// BTSEWebsocketURL is the btse exchange websocket url.
+	BTSEWebsocketURL = "wss://ws.btse.com/ws/spot"
+	// BTSERESTBaseURL is the btse exchange base REST url.
+	BTSERESTBaseURL = "https://api.btse.com/spot/api/v3.2/"
 )
 
 // Config contains config values for the app.
