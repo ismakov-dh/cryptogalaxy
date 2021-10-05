@@ -266,6 +266,10 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			appErrGroup.Go(func() error {
 				return exchange.StartMexo(appCtx, markets, &retry, &cfg.Connection)
 			})
+		case "bequant":
+			appErrGroup.Go(func() error {
+				return exchange.StartBequant(appCtx, markets, &retry, &cfg.Connection)
+			})
 		}
 	}
 

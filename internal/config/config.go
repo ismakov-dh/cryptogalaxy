@@ -118,6 +118,11 @@ const (
 	MexoWebsocketURL = "wss://wsapi.mexo.io/openapi/quote/ws/v1"
 	// MexoRESTBaseURL is the mexo exchange base REST url.
 	MexoRESTBaseURL = "https://api.mexo.io/openapi/"
+
+	// BequantWebsocketURL is the bequant exchange websocket url.
+	BequantWebsocketURL = "wss://api.bequant.io/api/3/ws/public"
+	// BequantRESTBaseURL is the bequant exchange base REST url.
+	BequantRESTBaseURL = "https://api.bequant.io/api/3/public/"
 )
 
 // Config contains config values for the app.

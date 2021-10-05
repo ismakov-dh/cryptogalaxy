@@ -574,6 +574,29 @@ func main() {
 	w.Flush()
 	fmt.Println("got market info from Mexo")
 
+	// Bequant exchange.
+	resp, err = http.Get(config.BequantRESTBaseURL + "symbol")
+	if err != nil {
+		log.Error().Err(err).Str("exchange", "bequant").Msg("exchange request for markets")
+		return
+	}
+	bequantMarkets := make(map[string]bequantResp)
+	if err = jsoniter.NewDecoder(resp.Body).Decode(&bequantMarkets); err != nil {
+		log.Error().Err(err).Str("exchange", "bequant").Msg("convert markets response")
+		return
+	}
+	resp.Body.Close()
+	for market, record := range bequantMarkets {
+		if record.Type == "spot" {
+			if err = w.Write([]string{"bequant", market}); err != nil {
+				log.Error().Err(err).Str("exchange", "bequant").Msg("writing markets to csv")
+				return
+			}
+		}
+	}
+	w.Flush()
+	fmt.Println("got market info from BEQUANT")
+
 	fmt.Println("CSV file generated successfully at ./examples/markets.csv")
 }
 
@@ -731,4 +754,8 @@ type mexoResp struct {
 type mexoRespSymb struct {
 	Symbol string `json:"symbol"`
 	Status string `json:"status"`
+}
+
+type bequantResp struct {
+	Type string `json:"type"`
 }

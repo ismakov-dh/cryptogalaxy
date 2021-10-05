@@ -28,6 +28,7 @@ Currently supported exchanges :
 22. Bitrue
 23. BTSE
 24. Mexo
+25. BEQUANT
 
 Currently supported storages : 
 
@@ -91,7 +92,7 @@ Currently supported storages :
  
 * App creates a single websocket connection per exchange. So, you may hit the threshold of no. of markets you want to get the data from it. In that case you need to run a new instance of the app for more markets.
  
-*Note :* Out of 24 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
+*Note :* Out of 25 currently supported exchanges, this is a real problem only in Bitfinex which is restricting 25 public channel subscriptions per websocket connection. So if you want to subscribe to more than 25 markets data from Bitfinex through websocket, then you need to have one more instance of the app running.
  
 ## Why the app
  
@@ -331,7 +332,7 @@ Example configuration file can be found at [./examples/config.json](./examples/c
  
 * **exchanges : name** : Name of the exchange from which you need data.
  
-Possible values : ftx, coinbase-pro, binance, bitfinex, bhex, huobi, gateio, kucoin, bitstamp, bybit, probit, gemini, bitmart, digifinex, ascendex, kraken, binance-us, okex, ftx-us, hitbtc, aax, bitrue, btse, mexo.
+Possible values : ftx, coinbase-pro, binance, bitfinex, bhex, huobi, gateio, kucoin, bitstamp, bybit, probit, gemini, bitmart, digifinex, ascendex, kraken, binance-us, okex, ftx-us, hitbtc, aax, bitrue, btse, mexo, bequant.
  
 * **exchanges : markets : id** : Market symbol for which data is needed. This has to be the exact one defined by exchange.
  
