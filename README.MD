@@ -4,41 +4,41 @@ Cryptogalaxy is an app which will get any cryptocurrencies ticker and trade data
 
 <p>Currently supported exchanges :<br></p>
 
-<div>1. <img src="./docs/exchange/ftx.png" height="24" width="24"/> FTX</div>
-<div>2. <img src="./docs/exchange/coinbase-pro.png" height="24" width="24"/> Coinbase Pro</div>
-<div>3. <img src="./docs/exchange/binance.png" height="24" width="24"/> Binance</div>
-<div>4. <img src="./docs/exchange/bitfinex.png" height="24" width="24"/> Bitfinex</div>
-<div>5. <img src="./docs/exchange/bhex.png" height="24" width="24"/> BHEX</div>
-<div>6. <img src="./docs/exchange/huobi.png" height="24" width="24"/> Huobi</div>
-<div>7. <img src="./docs/exchange/gateio.png" height="24" width="24"/> Gateio</div>
-<div>8. <img src="./docs/exchange/kucoin.png" height="24" width="24"/> Kucoin</div>
-<div>9. <img src="./docs/exchange/bitstamp.png" height="24" width="24"/> Bitstamp</div>
-<div>10. <img src="./docs/exchange/bybit.png" height="24" width="24"/> Bybit</div>
-<div>11. <img src="./docs/exchange/probit.png" height="24" width="24"/> Probit</div>
-<div>12. <img src="./docs/exchange/gemini.png" height="24" width="24"/> Gemini</div>
-<div>13. <img src="./docs/exchange/bitmart.png" height="24" width="24"/> Bitmart</div>
-<div>14. <img src="./docs/exchange/digifinex.png" height="24" width="24"/> Digifinex</div>
-<div>15. <img src="./docs/exchange/ascendex.png" height="24" width="24"/> AscendEX</div>
-<div>16. <img src="./docs/exchange/kraken.png" height="24" width="24"/> Kraken</div>
-<div>17. <img src="./docs/exchange/binance-us.png" height="24" width="24"/> Binance US</div>
-<div>18. <img src="./docs/exchange/okex.png" height="24" width="24"/> OKEx</div>
-<div>19. <img src="./docs/exchange/ftx-us.png" height="24" width="24"/> FTX US</div>
-<div>20. <img src="./docs/exchange/hitbtc.png" height="24" width="24"/> HitBTC</div>
-<div>21. <img src="./docs/exchange/aax.png" height="24" width="24"/> AAX</div>
-<div>22. <img src="./docs/exchange/bitrue.png" height="24" width="24"/> Bitrue</div>
-<div>23. <img src="./docs/exchange/btse.png" height="24" width="24"/> BTSE</div>
-<div>24. <img src="./docs/exchange/mexo.png" height="24" width="24"/> Mexo</div>
-<div>25. <img src="./docs/exchange/bequant.png" height="24" width="24"/> BEQUANT</div>
+<div>1. <img src="./docs/exchange/ftx.png" title="FTX" height="24" width="24"/> FTX</div>
+<div>2. <img src="./docs/exchange/coinbase-pro.png" title="Coinbase Pro" height="24" width="24"/> Coinbase Pro</div>
+<div>3. <img src="./docs/exchange/binance.png" title="Binance" height="24" width="24"/> Binance</div>
+<div>4. <img src="./docs/exchange/bitfinex.png" title="Bitfinex" height="24" width="24"/> Bitfinex</div>
+<div>5. <img src="./docs/exchange/bhex.png" title="BHEX" height="24" width="24"/> BHEX</div>
+<div>6. <img src="./docs/exchange/huobi.png" title="Huobi" height="24" width="24"/> Huobi</div>
+<div>7. <img src="./docs/exchange/gateio.png" title="Gateio" height="24" width="24"/> Gateio</div>
+<div>8. <img src="./docs/exchange/kucoin.png" title="Kucoin" height="24" width="24"/> Kucoin</div>
+<div>9. <img src="./docs/exchange/bitstamp.png" title="Bitstamp" height="24" width="24"/> Bitstamp</div>
+<div>10. <img src="./docs/exchange/bybit.png" title="Bybit" height="24" width="24"/> Bybit</div>
+<div>11. <img src="./docs/exchange/probit.png" title="Probit" height="24" width="24"/> Probit</div>
+<div>12. <img src="./docs/exchange/gemini.png" title="Gemini" height="24" width="24"/> Gemini</div>
+<div>13. <img src="./docs/exchange/bitmart.png" title="Bitmart" height="24" width="24"/> Bitmart</div>
+<div>14. <img src="./docs/exchange/digifinex.png" title="Digifinex" height="24" width="24"/> Digifinex</div>
+<div>15. <img src="./docs/exchange/ascendex.png" title="AscendEX" height="24" width="24"/> AscendEX</div>
+<div>16. <img src="./docs/exchange/kraken.png" title="Kraken" height="24" width="24"/> Kraken</div>
+<div>17. <img src="./docs/exchange/binance-us.png" title="Binance US" height="24" width="24"/> Binance US</div>
+<div>18. <img src="./docs/exchange/okex.png" title="OKEx" height="24" width="24"/> OKEx</div>
+<div>19. <img src="./docs/exchange/ftx-us.png" title="FTX US" height="24" width="24"/> FTX US</div>
+<div>20. <img src="./docs/exchange/hitbtc.png" title="HitBTC" height="24" width="24"/> HitBTC</div>
+<div>21. <img src="./docs/exchange/aax.png" title="AAX" height="24" width="24"/> AAX</div>
+<div>22. <img src="./docs/exchange/bitrue.png" title="Bitrue" height="24" width="24"/> Bitrue</div>
+<div>23. <img src="./docs/exchange/btse.png" title="BTSE" height="24" width="24"/> BTSE</div>
+<div>24. <img src="./docs/exchange/mexo.png" title="Mexo" height="24" width="24"/> Mexo</div>
+<div>25. <img src="./docs/exchange/bequant.png" title="BEQUANT" height="24" width="24"/> BEQUANT</div>
  
 <p><br>Currently supported storages :<br></p>
 
-<div>1. <img src="./docs/storage/terminal.png" height="24" width="24"/> Terminal Output</div>
-<div>2. <img src="./docs/storage/mysql.png" height="24" width="24"/> MySQL</div>
-<div>3. <img src="./docs/storage/elasticsearch.png" height="24" width="24"/> Elasticsearch</div>
-<div>4. <img src="./docs/storage/influxdb.svg" height="24" width="24"/> InfluxDB</div>
-<div>5. <img src="./docs/storage/nats.png" height="24" width="24"/> NATS</div>
-<div>6. <img src="./docs/storage/clickhouse.jpeg" height="24" width="24"/> ClickHouse</div>
-<div>7. <img src="./docs/storage/s3.png" height="24" width="24"/> S3</div>
+<div>1. <img src="./docs/storage/terminal.png" title="Terminal Output" height="24" width="24"/> Terminal Output</div>
+<div>2. <img src="./docs/storage/mysql.png" title="MySQL" height="24" width="24"/> MySQL</div>
+<div>3. <img src="./docs/storage/elasticsearch.png" title="Elasticsearch" height="24" width="24"/> Elasticsearch</div>
+<div>4. <img src="./docs/storage/influxdb.svg" title="InfluxDB" height="24" width="24"/> InfluxDB</div>
+<div>5. <img src="./docs/storage/nats.png" title="NATS" height="24" width="24"/> NATS</div>
+<div>6. <img src="./docs/storage/clickhouse.jpeg" title="ClickHouse" height="24" width="24"/> ClickHouse</div>
+<div>7. <img src="./docs/storage/s3.png" title="S3" height="24" width="24"/> S3</div>
  
 ---------------------------------------  
  * [Features](#features)
