@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -19,49 +18,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 )
-
-// StartBinanceUS is for starting binance-us exchange functions.
-func StartBinanceUS(appCtx context.Context, markets []config.Market, retry *config.Retry, connCfg *config.Connection) error {
-
-	// If any error occurs or connection is lost, retry the exchange functions with a time gap till it reaches
-	// a configured number of retry.
-	// Retry counter will be reset back to zero if the elapsed time since the last retry is greater than the configured one.
-	var retryCount int
-	lastRetryTime := time.Now()
-
-	for {
-		err := newBinanceUS(appCtx, markets, connCfg)
-		if err != nil {
-			log.Error().Err(err).Str("exchange", "binance-us").Msg("error occurred")
-			if retry.Number == 0 {
-				return errors.New("not able to connect binance-us exchange. please check the log for details")
-			}
-			if retry.ResetSec == 0 || time.Since(lastRetryTime).Seconds() < float64(retry.ResetSec) {
-				retryCount++
-			} else {
-				retryCount = 1
-			}
-			lastRetryTime = time.Now()
-			if retryCount > retry.Number {
-				err = fmt.Errorf("not able to connect binance-us exchange even after %d retry", retry.Number)
-				log.Error().Err(err).Str("exchange", "binance-us").Msg("")
-				return err
-			}
-
-			log.Error().Str("exchange", "binance-us").Int("retry", retryCount).Msg(fmt.Sprintf("retrying functions in %d seconds", retry.GapSec))
-			tick := time.NewTicker(time.Duration(retry.GapSec) * time.Second)
-			select {
-			case <-tick.C:
-				tick.Stop()
-
-			// Return, if there is any error from another exchange.
-			case <-appCtx.Done():
-				log.Error().Str("exchange", "binance-us").Msg("ctx canceled, return from StartBinanceUS")
-				return appCtx.Err()
-			}
-		}
-	}
-}
 
 type binanceUS struct {
 	ws                  connector.Websocket
@@ -126,7 +82,7 @@ type restRespBinanceUS struct {
 	Time    int64  `json:"time"`
 }
 
-func newBinanceUS(appCtx context.Context, markets []config.Market, connCfg *config.Connection) error {
+func NewBinanceUS(appCtx context.Context, markets []config.Market, connCfg *config.Connection) error {
 
 	// If any exchange function fails, force all the other functions to stop and return.
 	binanceUSErrGroup, ctx := errgroup.WithContext(appCtx)

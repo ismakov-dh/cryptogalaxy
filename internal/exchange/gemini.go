@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -19,49 +18,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 )
-
-// StartGemini is for starting gemini exchange functions.
-func StartGemini(appCtx context.Context, markets []config.Market, retry *config.Retry, connCfg *config.Connection) error {
-
-	// If any error occurs or connection is lost, retry the exchange functions with a time gap till it reaches
-	// a configured number of retry.
-	// Retry counter will be reset back to zero if the elapsed time since the last retry is greater than the configured one.
-	var retryCount int
-	lastRetryTime := time.Now()
-
-	for {
-		err := newGemini(appCtx, markets, connCfg)
-		if err != nil {
-			log.Error().Err(err).Str("exchange", "gemini").Msg("error occurred")
-			if retry.Number == 0 {
-				return errors.New("not able to connect gemini exchange. please check the log for details")
-			}
-			if retry.ResetSec == 0 || time.Since(lastRetryTime).Seconds() < float64(retry.ResetSec) {
-				retryCount++
-			} else {
-				retryCount = 1
-			}
-			lastRetryTime = time.Now()
-			if retryCount > retry.Number {
-				err = fmt.Errorf("not able to connect gemini exchange even after %d retry", retry.Number)
-				log.Error().Err(err).Str("exchange", "gemini").Msg("")
-				return err
-			}
-
-			log.Error().Str("exchange", "gemini").Int("retry", retryCount).Msg(fmt.Sprintf("retrying functions in %d seconds", retry.GapSec))
-			tick := time.NewTicker(time.Duration(retry.GapSec) * time.Second)
-			select {
-			case <-tick.C:
-				tick.Stop()
-
-			// Return, if there is any error from another exchange.
-			case <-appCtx.Done():
-				log.Error().Str("exchange", "gemini").Msg("ctx canceled, return from StartGemini")
-				return appCtx.Err()
-			}
-		}
-	}
-}
 
 type gemini struct {
 	ws                  connector.Websocket
@@ -122,7 +78,7 @@ type restRespGemini struct {
 	TickerPrice string `json:"last"`
 }
 
-func newGemini(appCtx context.Context, markets []config.Market, connCfg *config.Connection) error {
+func NewGemini(appCtx context.Context, markets []config.Market, connCfg *config.Connection) error {
 
 	// If any exchange function fails, force all the other functions to stop and return.
 	geminiErrGroup, ctx := errgroup.WithContext(appCtx)
