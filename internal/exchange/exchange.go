@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
+	"github.com/milkywaybrain/cryptogalaxy/internal/connector"
 	"time"
 
 	"github.com/milkywaybrain/cryptogalaxy/internal/storage"
@@ -74,7 +75,7 @@ type influxTimeVal struct {
 	// 1 millisecond to have a unique timestamp entry for each data point. This will not change anything
 	// as we are maintaining only millisecond precision ticker and trade records.
 	// Of course this will break if we have more than a million trades per millisecond per market in an exchange. But we
-	// are excluding that scenario.
+	// are excluding that scenarie.
 	TickerMap map[string]int64
 	TradeMap  map[string]int64
 }
@@ -122,6 +123,16 @@ func Start(
 			}
 		}
 	}
+}
+
+func connectRest(exchange string) (client *connector.REST, err error) {
+	client, err = connector.GetREST()
+	if err != nil {
+		logErrStack(err)
+		return
+	}
+	log.Info().Str("exchange", exchange).Msg("REST connection setup is done")
+	return
 }
 
 // logErrStack logs error with stack trace.

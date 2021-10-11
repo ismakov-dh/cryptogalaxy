@@ -89,9 +89,9 @@ func NewKraken(appCtx context.Context, markets []config.Market, connCfg *config.
 	// If any exchange function fails, force all the other functions to stop and return.
 	krakenErrGroup, ctx := errgroup.WithContext(appCtx)
 
-	k := kraken{connCfg: connCfg}
+	e := kraken{connCfg: connCfg}
 
-	err := k.cfgLookup(markets)
+	err := e.cfgLookup(markets)
 	if err != nil {
 		return err
 	}
@@ -107,94 +107,95 @@ func NewKraken(appCtx context.Context, markets []config.Market, connCfg *config.
 			case "websocket":
 				if wsCount == 0 {
 
-					err = k.connectWs(ctx)
+					err = e.connectWs(ctx)
 					if err != nil {
 						return err
 					}
 
 					krakenErrGroup.Go(func() error {
-						return k.closeWsConnOnError(ctx)
+						return e.closeWsConnOnError(ctx)
 					})
 
 					krakenErrGroup.Go(func() error {
-						return k.readWs(ctx)
+						return e.readWs(ctx)
 					})
 
-					if k.ter != nil {
+					if e.ter != nil {
 						krakenErrGroup.Go(func() error {
-							return k.wsTickersToTerminal(ctx)
+							return storage.TickersToStorage(ctx, e.ter, e.wsTerTickers)
 						})
 						krakenErrGroup.Go(func() error {
-							return k.wsTradesToTerminal(ctx)
-						})
-					}
-
-					if k.mysql != nil {
-						krakenErrGroup.Go(func() error {
-							return k.wsTickersToMySQL(ctx)
-						})
-						krakenErrGroup.Go(func() error {
-							return k.wsTradesToMySQL(ctx)
+							return storage.TradesToStorage(ctx, e.ter, e.wsTerTrades)
 						})
 					}
 
-					if k.es != nil {
+					if e.mysql != nil {
 						krakenErrGroup.Go(func() error {
-							return k.wsTickersToES(ctx)
+							return storage.TickersToStorage(ctx, e.mysql, e.wsMysqlTickers)
 						})
 						krakenErrGroup.Go(func() error {
-							return k.wsTradesToES(ctx)
-						})
-					}
-
-					if k.influx != nil {
-						krakenErrGroup.Go(func() error {
-							return k.wsTickersToInflux(ctx)
-						})
-						krakenErrGroup.Go(func() error {
-							return k.wsTradesToInflux(ctx)
+							return storage.TradesToStorage(ctx, e.mysql, e.wsMysqlTrades)
 						})
 					}
 
-					if k.nats != nil {
+					if e.es != nil {
 						krakenErrGroup.Go(func() error {
-							return k.wsTickersToNats(ctx)
+							return storage.TickersToStorage(ctx, e.es, e.wsEsTickers)
 						})
 						krakenErrGroup.Go(func() error {
-							return k.wsTradesToNats(ctx)
-						})
-					}
-
-					if k.clickhouse != nil {
-						krakenErrGroup.Go(func() error {
-							return k.wsTickersToClickHouse(ctx)
-						})
-						krakenErrGroup.Go(func() error {
-							return k.wsTradesToClickHouse(ctx)
+							return storage.TradesToStorage(ctx, e.es, e.wsEsTrades)
 						})
 					}
 
-					if k.s3 != nil {
+					if e.influx != nil {
 						krakenErrGroup.Go(func() error {
-							return k.wsTickersToS3(ctx)
+							return storage.TickersToStorage(ctx, e.influx, e.wsInfluxTickers)
 						})
 						krakenErrGroup.Go(func() error {
-							return k.wsTradesToS3(ctx)
+							return storage.TradesToStorage(ctx, e.influx, e.wsInfluxTrades)
+						})
+					}
+
+					if e.nats != nil {
+						krakenErrGroup.Go(func() error {
+							return storage.TickersToStorage(ctx, e.nats, e.wsNatsTickers)
+						})
+						krakenErrGroup.Go(func() error {
+							return storage.TradesToStorage(ctx, e.nats, e.wsNatsTrades)
+						})
+					}
+
+					if e.clickhouse != nil {
+						krakenErrGroup.Go(func() error {
+							return storage.TickersToStorage(ctx, e.clickhouse, e.wsClickHouseTickers)
+						})
+						krakenErrGroup.Go(func() error {
+							return storage.TradesToStorage(ctx, e.clickhouse, e.wsClickHouseTrades)
+						})
+					}
+
+					if e.s3 != nil {
+						krakenErrGroup.Go(func() error {
+							return storage.TickersToStorage(ctx, e.s3, e.wsS3Tickers)
+						})
+						krakenErrGroup.Go(func() error {
+							return storage.TradesToStorage(ctx, e.s3, e.wsS3Trades)
 						})
 					}
 				}
 
-				err = k.subWsChannel(market.ID, info.Channel)
+				err = e.subWsChannel(market.ID, info.Channel)
 				if err != nil {
 					return err
 				}
 				wsCount++
 			case "rest":
 				if restCount == 0 {
-					err = k.connectRest()
+					client, err := connectRest("kraken")
 					if err != nil {
 						return err
 					}
+					e.rest = client
 				}
 
 				var mktCommitName string
@@ -207,7 +208,7 @@ func NewKraken(appCtx context.Context, markets []config.Market, connCfg *config.
 				channel := info.Channel
 				restPingIntSec := info.RESTPingIntSec
 				krakenErrGroup.Go(func() error {
-					return k.processREST(ctx, mktID, mktCommitName, channel, restPingIntSec)
+					return e.processREST(ctx, mktID, mktCommitName, channel, restPingIntSec)
 				})
 
 				restCount++
@@ -222,10 +223,10 @@ func NewKraken(appCtx context.Context, markets []config.Market, connCfg *config.
 	return nil
 }
 
-func (k *kraken) cfgLookup(markets []config.Market) error {
+func (e *kraken) cfgLookup(markets []config.Market) error {
 
 	// Configurations flat map is prepared for easy lookup later in the app.
-	k.cfgMap = make(map[cfgLookupKey]cfgLookupVal)
+	e.cfgMap = make(map[cfgLookupKey]cfgLookupVal)
 	for _, market := range markets {
 		var marketCommitName string
 		if market.CommitName != "" {
@@ -242,80 +243,80 @@ func (k *kraken) cfgLookup(markets []config.Market) error {
 				switch str {
 				case "terminal":
 					val.terStr = true
-					if k.ter == nil {
-						k.ter = storage.GetTerminal()
-						k.wsTerTickers = make(chan []storage.Ticker, 1)
-						k.wsTerTrades = make(chan []storage.Trade, 1)
+					if e.ter == nil {
+						e.ter = storage.GetTerminal()
+						e.wsTerTickers = make(chan []storage.Ticker, 1)
+						e.wsTerTrades = make(chan []storage.Trade, 1)
 					}
 				case "mysql":
 					val.mysqlStr = true
-					if k.mysql == nil {
-						k.mysql = storage.GetMySQL()
-						k.wsMysqlTickers = make(chan []storage.Ticker, 1)
-						k.wsMysqlTrades = make(chan []storage.Trade, 1)
+					if e.mysql == nil {
+						e.mysql = storage.GetMySQL()
+						e.wsMysqlTickers = make(chan []storage.Ticker, 1)
+						e.wsMysqlTrades = make(chan []storage.Trade, 1)
 					}
 				case "elastic_search":
 					val.esStr = true
-					if k.es == nil {
-						k.es = storage.GetElasticSearch()
-						k.wsEsTickers = make(chan []storage.Ticker, 1)
-						k.wsEsTrades = make(chan []storage.Trade, 1)
+					if e.es == nil {
+						e.es = storage.GetElasticSearch()
+						e.wsEsTickers = make(chan []storage.Ticker, 1)
+						e.wsEsTrades = make(chan []storage.Trade, 1)
 					}
 				case "influxdb":
 					val.influxStr = true
-					if k.influx == nil {
-						k.influx = storage.GetInfluxDB()
-						k.wsInfluxTickers = make(chan []storage.Ticker, 1)
-						k.wsInfluxTrades = make(chan []storage.Trade, 1)
+					if e.influx == nil {
+						e.influx = storage.GetInfluxDB()
+						e.wsInfluxTickers = make(chan []storage.Ticker, 1)
+						e.wsInfluxTrades = make(chan []storage.Trade, 1)
 					}
 				case "nats":
 					val.natsStr = true
-					if k.nats == nil {
-						k.nats = storage.GetNATS()
-						k.wsNatsTickers = make(chan []storage.Ticker, 1)
-						k.wsNatsTrades = make(chan []storage.Trade, 1)
+					if e.nats == nil {
+						e.nats = storage.GetNATS()
+						e.wsNatsTickers = make(chan []storage.Ticker, 1)
+						e.wsNatsTrades = make(chan []storage.Trade, 1)
 					}
 				case "clickhouse":
 					val.clickHouseStr = true
-					if k.clickhouse == nil {
-						k.clickhouse = storage.GetClickHouse()
-						k.wsClickHouseTickers = make(chan []storage.Ticker, 1)
-						k.wsClickHouseTrades = make(chan []storage.Trade, 1)
+					if e.clickhouse == nil {
+						e.clickhouse = storage.GetClickHouse()
+						e.wsClickHouseTickers = make(chan []storage.Ticker, 1)
+						e.wsClickHouseTrades = make(chan []storage.Trade, 1)
 					}
 				case "s3":
 					val.s3Str = true
-					if k.s3 == nil {
-						k.s3 = storage.GetS3()
-						k.wsS3Tickers = make(chan []storage.Ticker, 1)
-						k.wsS3Trades = make(chan []storage.Trade, 1)
+					if e.s3 == nil {
+						e.s3 = storage.GetS3()
+						e.wsS3Tickers = make(chan []storage.Ticker, 1)
+						e.wsS3Trades = make(chan []storage.Trade, 1)
 					}
 				}
 			}
 			val.mktCommitName = marketCommitName
-			k.cfgMap[key] = val
+			e.cfgMap[key] = val
 		}
 	}
 	return nil
 }
 
-func (k *kraken) connectWs(ctx context.Context) error {
-	ws, err := connector.NewWebsocket(ctx, &k.connCfg.WS, config.KrakenWebsocketURL)
+func (e *kraken) connectWs(ctx context.Context) error {
+	ws, err := connector.NewWebsocket(ctx, &e.connCfg.WS, config.KrakenWebsocketURL)
 	if err != nil {
 		if !errors.Is(err, ctx.Err()) {
 			logErrStack(err)
 		}
 		return err
 	}
-	k.ws = ws
+	e.ws = ws
 	log.Info().Str("exchange", "kraken").Msg("websocket connected")
 	return nil
 }
 
 // closeWsConnOnError closes websocket connection if there is any error in app context.
 // This will unblock all read and writes on websocket.
-func (k *kraken) closeWsConnOnError(ctx context.Context) error {
+func (e *kraken) closeWsConnOnError(ctx context.Context) error {
 	<-ctx.Done()
-	err := k.ws.Conn.Close()
+	err := e.ws.Conn.Close()
 	if err != nil {
 		return err
 	}
@@ -323,7 +324,7 @@ func (k *kraken) closeWsConnOnError(ctx context.Context) error {
 }
 
 // subWsChannel sends channel subscription requests to the websocket server.
-func (k *kraken) subWsChannel(market string, channel string) error {
+func (e *kraken) subWsChannel(market string, channel string) error {
 	sub := wsSubKraken{
 		Event: "subscribe",
 		Pair:  [1]string{market},
@@ -336,7 +337,7 @@ func (k *kraken) subWsChannel(market string, channel string) error {
 		logErrStack(err)
 		return err
 	}
-	err = k.ws.Write(frame)
+	err = e.ws.Write(frame)
 	if err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			err = errors.New("context canceled")
@@ -349,42 +350,42 @@ func (k *kraken) subWsChannel(market string, channel string) error {
 }
 
 // readWs reads ticker / trade data from websocket channels.
-func (k *kraken) readWs(ctx context.Context) error {
+func (e *kraken) readWs(ctx context.Context) error {
 
 	// To avoid data race, creating a new local lookup map.
-	cfgLookup := make(map[cfgLookupKey]cfgLookupVal, len(k.cfgMap))
-	for k, v := range k.cfgMap {
+	cfgLookup := make(map[cfgLookupKey]cfgLookupVal, len(e.cfgMap))
+	for k, v := range e.cfgMap {
 		cfgLookup[k] = v
 	}
 
 	// See influxTimeVal struct doc for details.
 	itv := influxTimeVal{}
-	if k.influx != nil {
+	if e.influx != nil {
 		itv.TickerMap = make(map[string]int64)
 		itv.TradeMap = make(map[string]int64)
 	}
 
 	cd := commitData{
-		terTickers:        make([]storage.Ticker, 0, k.connCfg.Terminal.TickerCommitBuf),
-		terTrades:         make([]storage.Trade, 0, k.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers:      make([]storage.Ticker, 0, k.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:       make([]storage.Trade, 0, k.connCfg.MySQL.TradeCommitBuf),
-		esTickers:         make([]storage.Ticker, 0, k.connCfg.ES.TickerCommitBuf),
-		esTrades:          make([]storage.Trade, 0, k.connCfg.ES.TradeCommitBuf),
-		influxTickers:     make([]storage.Ticker, 0, k.connCfg.InfluxDB.TickerCommitBuf),
-		influxTrades:      make([]storage.Trade, 0, k.connCfg.InfluxDB.TradeCommitBuf),
-		natsTickers:       make([]storage.Ticker, 0, k.connCfg.NATS.TickerCommitBuf),
-		natsTrades:        make([]storage.Trade, 0, k.connCfg.NATS.TradeCommitBuf),
-		clickHouseTickers: make([]storage.Ticker, 0, k.connCfg.ClickHouse.TickerCommitBuf),
-		clickHouseTrades:  make([]storage.Trade, 0, k.connCfg.ClickHouse.TradeCommitBuf),
-		s3Tickers:         make([]storage.Ticker, 0, k.connCfg.S3.TickerCommitBuf),
-		s3Trades:          make([]storage.Trade, 0, k.connCfg.S3.TradeCommitBuf),
+		terTickers:        make([]storage.Ticker, 0, e.connCfg.Terminal.TickerCommitBuf),
+		terTrades:         make([]storage.Trade, 0, e.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:      make([]storage.Ticker, 0, e.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:       make([]storage.Trade, 0, e.connCfg.MySQL.TradeCommitBuf),
+		esTickers:         make([]storage.Ticker, 0, e.connCfg.ES.TickerCommitBuf),
+		esTrades:          make([]storage.Trade, 0, e.connCfg.ES.TradeCommitBuf),
+		influxTickers:     make([]storage.Ticker, 0, e.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:      make([]storage.Trade, 0, e.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:       make([]storage.Ticker, 0, e.connCfg.NATS.TickerCommitBuf),
+		natsTrades:        make([]storage.Trade, 0, e.connCfg.NATS.TradeCommitBuf),
+		clickHouseTickers: make([]storage.Ticker, 0, e.connCfg.ClickHouse.TickerCommitBuf),
+		clickHouseTrades:  make([]storage.Trade, 0, e.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, e.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, e.connCfg.S3.TradeCommitBuf),
 	}
 
 	for {
 		select {
 		default:
-			frame, err := k.ws.Read()
+			frame, err := e.ws.Read()
 			if err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					err = errors.New("context canceled")
@@ -453,7 +454,7 @@ func (k *kraken) readWs(ctx context.Context) error {
 							continue
 						}
 
-						err := k.processWs(ctx, &wri, &cd, &itv)
+						err := e.processWs(ctx, &wri, &cd, &itv)
 						if err != nil {
 							return err
 						}
@@ -478,7 +479,7 @@ func (k *kraken) readWs(ctx context.Context) error {
 // transforms it to a common ticker / trade store format,
 // buffers the same in memory and
 // then sends it to different storage systems for commit through go channels.
-func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commitData, itv *influxTimeVal) error {
+func (e *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commitData, itv *influxTimeVal) error {
 	switch wr.channel {
 	case "ticker":
 		ticker := storage.Ticker{}
@@ -505,13 +506,13 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 		ticker.Timestamp = time.Now().UTC()
 
 		key := cfgLookupKey{market: ticker.MktID, channel: "ticker"}
-		val := k.cfgMap[key]
+		val := e.cfgMap[key]
 		if val.terStr {
 			cd.terTickersCount++
 			cd.terTickers = append(cd.terTickers, ticker)
-			if cd.terTickersCount == k.connCfg.Terminal.TickerCommitBuf {
+			if cd.terTickersCount == e.connCfg.Terminal.TickerCommitBuf {
 				select {
-				case k.wsTerTickers <- cd.terTickers:
+				case e.wsTerTickers <- cd.terTickers:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -522,9 +523,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 		if val.mysqlStr {
 			cd.mysqlTickersCount++
 			cd.mysqlTickers = append(cd.mysqlTickers, ticker)
-			if cd.mysqlTickersCount == k.connCfg.MySQL.TickerCommitBuf {
+			if cd.mysqlTickersCount == e.connCfg.MySQL.TickerCommitBuf {
 				select {
-				case k.wsMysqlTickers <- cd.mysqlTickers:
+				case e.wsMysqlTickers <- cd.mysqlTickers:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -535,9 +536,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 		if val.esStr {
 			cd.esTickersCount++
 			cd.esTickers = append(cd.esTickers, ticker)
-			if cd.esTickersCount == k.connCfg.ES.TickerCommitBuf {
+			if cd.esTickersCount == e.connCfg.ES.TickerCommitBuf {
 				select {
-				case k.wsEsTickers <- cd.esTickers:
+				case e.wsEsTickers <- cd.esTickers:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -557,9 +558,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 
 			cd.influxTickersCount++
 			cd.influxTickers = append(cd.influxTickers, ticker)
-			if cd.influxTickersCount == k.connCfg.InfluxDB.TickerCommitBuf {
+			if cd.influxTickersCount == e.connCfg.InfluxDB.TickerCommitBuf {
 				select {
-				case k.wsInfluxTickers <- cd.influxTickers:
+				case e.wsInfluxTickers <- cd.influxTickers:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -570,9 +571,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 		if val.natsStr {
 			cd.natsTickersCount++
 			cd.natsTickers = append(cd.natsTickers, ticker)
-			if cd.natsTickersCount == k.connCfg.NATS.TickerCommitBuf {
+			if cd.natsTickersCount == e.connCfg.NATS.TickerCommitBuf {
 				select {
-				case k.wsNatsTickers <- cd.natsTickers:
+				case e.wsNatsTickers <- cd.natsTickers:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -583,9 +584,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 		if val.clickHouseStr {
 			cd.clickHouseTickersCount++
 			cd.clickHouseTickers = append(cd.clickHouseTickers, ticker)
-			if cd.clickHouseTickersCount == k.connCfg.ClickHouse.TickerCommitBuf {
+			if cd.clickHouseTickersCount == e.connCfg.ClickHouse.TickerCommitBuf {
 				select {
-				case k.wsClickHouseTickers <- cd.clickHouseTickers:
+				case e.wsClickHouseTickers <- cd.clickHouseTickers:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -596,9 +597,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 		if val.s3Str {
 			cd.s3TickersCount++
 			cd.s3Tickers = append(cd.s3Tickers, ticker)
-			if cd.s3TickersCount == k.connCfg.S3.TickerCommitBuf {
+			if cd.s3TickersCount == e.connCfg.S3.TickerCommitBuf {
 				select {
-				case k.wsS3Tickers <- cd.s3Tickers:
+				case e.wsS3Tickers <- cd.s3Tickers:
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -667,13 +668,13 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 				}
 
 				key := cfgLookupKey{market: trade.MktID, channel: "trade"}
-				val := k.cfgMap[key]
+				val := e.cfgMap[key]
 				if val.terStr {
 					cd.terTradesCount++
 					cd.terTrades = append(cd.terTrades, trade)
-					if cd.terTradesCount == k.connCfg.Terminal.TradeCommitBuf {
+					if cd.terTradesCount == e.connCfg.Terminal.TradeCommitBuf {
 						select {
-						case k.wsTerTrades <- cd.terTrades:
+						case e.wsTerTrades <- cd.terTrades:
 						case <-ctx.Done():
 							return ctx.Err()
 						}
@@ -684,9 +685,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 				if val.mysqlStr {
 					cd.mysqlTradesCount++
 					cd.mysqlTrades = append(cd.mysqlTrades, trade)
-					if cd.mysqlTradesCount == k.connCfg.MySQL.TradeCommitBuf {
+					if cd.mysqlTradesCount == e.connCfg.MySQL.TradeCommitBuf {
 						select {
-						case k.wsMysqlTrades <- cd.mysqlTrades:
+						case e.wsMysqlTrades <- cd.mysqlTrades:
 						case <-ctx.Done():
 							return ctx.Err()
 						}
@@ -697,9 +698,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 				if val.esStr {
 					cd.esTradesCount++
 					cd.esTrades = append(cd.esTrades, trade)
-					if cd.esTradesCount == k.connCfg.ES.TradeCommitBuf {
+					if cd.esTradesCount == e.connCfg.ES.TradeCommitBuf {
 						select {
-						case k.wsEsTrades <- cd.esTrades:
+						case e.wsEsTrades <- cd.esTrades:
 						case <-ctx.Done():
 							return ctx.Err()
 						}
@@ -719,9 +720,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 
 					cd.influxTradesCount++
 					cd.influxTrades = append(cd.influxTrades, trade)
-					if cd.influxTradesCount == k.connCfg.InfluxDB.TradeCommitBuf {
+					if cd.influxTradesCount == e.connCfg.InfluxDB.TradeCommitBuf {
 						select {
-						case k.wsInfluxTrades <- cd.influxTrades:
+						case e.wsInfluxTrades <- cd.influxTrades:
 						case <-ctx.Done():
 							return ctx.Err()
 						}
@@ -732,9 +733,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 				if val.natsStr {
 					cd.natsTradesCount++
 					cd.natsTrades = append(cd.natsTrades, trade)
-					if cd.natsTradesCount == k.connCfg.NATS.TradeCommitBuf {
+					if cd.natsTradesCount == e.connCfg.NATS.TradeCommitBuf {
 						select {
-						case k.wsNatsTrades <- cd.natsTrades:
+						case e.wsNatsTrades <- cd.natsTrades:
 						case <-ctx.Done():
 							return ctx.Err()
 						}
@@ -745,9 +746,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 				if val.clickHouseStr {
 					cd.clickHouseTradesCount++
 					cd.clickHouseTrades = append(cd.clickHouseTrades, trade)
-					if cd.clickHouseTradesCount == k.connCfg.ClickHouse.TradeCommitBuf {
+					if cd.clickHouseTradesCount == e.connCfg.ClickHouse.TradeCommitBuf {
 						select {
-						case k.wsClickHouseTrades <- cd.clickHouseTrades:
+						case e.wsClickHouseTrades <- cd.clickHouseTrades:
 						case <-ctx.Done():
 							return ctx.Err()
 						}
@@ -758,9 +759,9 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 				if val.s3Str {
 					cd.s3TradesCount++
 					cd.s3Trades = append(cd.s3Trades, trade)
-					if cd.s3TradesCount == k.connCfg.S3.TradeCommitBuf {
+					if cd.s3TradesCount == e.connCfg.S3.TradeCommitBuf {
 						select {
-						case k.wsS3Trades <- cd.s3Trades:
+						case e.wsS3Trades <- cd.s3Trades:
 						case <-ctx.Done():
 							return ctx.Err()
 						}
@@ -777,242 +778,11 @@ func (k *kraken) processWs(ctx context.Context, wr *wsRespInfoKraken, cd *commit
 	return nil
 }
 
-func (k *kraken) wsTickersToTerminal(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsTerTickers:
-			k.ter.CommitTickers(data)
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTradesToTerminal(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsTerTrades:
-			k.ter.CommitTrades(data)
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTickersToMySQL(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsMysqlTickers:
-			err := k.mysql.CommitTickers(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTradesToMySQL(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsMysqlTrades:
-			err := k.mysql.CommitTrades(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTickersToES(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsEsTickers:
-			err := k.es.CommitTickers(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTradesToES(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsEsTrades:
-			err := k.es.CommitTrades(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTickersToInflux(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsInfluxTickers:
-			err := k.influx.CommitTickers(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTradesToInflux(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsInfluxTrades:
-			err := k.influx.CommitTrades(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTickersToNats(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsNatsTickers:
-			err := k.nats.CommitTickers(data)
-			if err != nil {
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTradesToNats(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsNatsTrades:
-			err := k.nats.CommitTrades(data)
-			if err != nil {
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTickersToClickHouse(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsClickHouseTickers:
-			err := k.clickhouse.CommitTickers(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTradesToClickHouse(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsClickHouseTrades:
-			err := k.clickhouse.CommitTrades(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTickersToS3(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsS3Tickers:
-			err := k.s3.CommitTickers(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) wsTradesToS3(ctx context.Context) error {
-	for {
-		select {
-		case data := <-k.wsS3Trades:
-			err := k.s3.CommitTrades(ctx, data)
-			if err != nil {
-				if !errors.Is(err, ctx.Err()) {
-					logErrStack(err)
-				}
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (k *kraken) connectRest() error {
-	rest, err := connector.GetREST()
-	if err != nil {
-		logErrStack(err)
-		return err
-	}
-	k.rest = rest
-	log.Info().Str("exchange", "kraken").Msg("REST connection setup is done")
-	return nil
-}
-
 // processREST queries exchange for ticker / trade data through REST API in configured intervals,
 // transforms it to a common ticker / trade store format,
 // buffers the same in memory and
 // then sends it to different storage systems for commit through go channels.
-func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName string, channel string, interval int) error {
+func (e *kraken) processREST(ctx context.Context, mktID string, mktCommitName string, channel string, interval int) error {
 	var (
 		req       *http.Request
 		q         url.Values
@@ -1028,25 +798,25 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 	)
 
 	cd := commitData{
-		terTickers:        make([]storage.Ticker, 0, k.connCfg.Terminal.TickerCommitBuf),
-		terTrades:         make([]storage.Trade, 0, k.connCfg.Terminal.TradeCommitBuf),
-		mysqlTickers:      make([]storage.Ticker, 0, k.connCfg.MySQL.TickerCommitBuf),
-		mysqlTrades:       make([]storage.Trade, 0, k.connCfg.MySQL.TradeCommitBuf),
-		esTickers:         make([]storage.Ticker, 0, k.connCfg.ES.TickerCommitBuf),
-		esTrades:          make([]storage.Trade, 0, k.connCfg.ES.TradeCommitBuf),
-		influxTickers:     make([]storage.Ticker, 0, k.connCfg.InfluxDB.TickerCommitBuf),
-		influxTrades:      make([]storage.Trade, 0, k.connCfg.InfluxDB.TradeCommitBuf),
-		natsTickers:       make([]storage.Ticker, 0, k.connCfg.NATS.TickerCommitBuf),
-		natsTrades:        make([]storage.Trade, 0, k.connCfg.NATS.TradeCommitBuf),
-		clickHouseTickers: make([]storage.Ticker, 0, k.connCfg.ClickHouse.TickerCommitBuf),
-		clickHouseTrades:  make([]storage.Trade, 0, k.connCfg.ClickHouse.TradeCommitBuf),
-		s3Tickers:         make([]storage.Ticker, 0, k.connCfg.S3.TickerCommitBuf),
-		s3Trades:          make([]storage.Trade, 0, k.connCfg.S3.TradeCommitBuf),
+		terTickers:        make([]storage.Ticker, 0, e.connCfg.Terminal.TickerCommitBuf),
+		terTrades:         make([]storage.Trade, 0, e.connCfg.Terminal.TradeCommitBuf),
+		mysqlTickers:      make([]storage.Ticker, 0, e.connCfg.MySQL.TickerCommitBuf),
+		mysqlTrades:       make([]storage.Trade, 0, e.connCfg.MySQL.TradeCommitBuf),
+		esTickers:         make([]storage.Ticker, 0, e.connCfg.ES.TickerCommitBuf),
+		esTrades:          make([]storage.Trade, 0, e.connCfg.ES.TradeCommitBuf),
+		influxTickers:     make([]storage.Ticker, 0, e.connCfg.InfluxDB.TickerCommitBuf),
+		influxTrades:      make([]storage.Trade, 0, e.connCfg.InfluxDB.TradeCommitBuf),
+		natsTickers:       make([]storage.Ticker, 0, e.connCfg.NATS.TickerCommitBuf),
+		natsTrades:        make([]storage.Trade, 0, e.connCfg.NATS.TradeCommitBuf),
+		clickHouseTickers: make([]storage.Ticker, 0, e.connCfg.ClickHouse.TickerCommitBuf),
+		clickHouseTrades:  make([]storage.Trade, 0, e.connCfg.ClickHouse.TradeCommitBuf),
+		s3Tickers:         make([]storage.Ticker, 0, e.connCfg.S3.TickerCommitBuf),
+		s3Trades:          make([]storage.Trade, 0, e.connCfg.S3.TradeCommitBuf),
 	}
 
 	switch channel {
 	case "ticker":
-		req, err = k.rest.Request(ctx, "GET", config.KrakenRESTBaseURL+"Ticker")
+		req, err = e.rest.Request(ctx, "GET", config.KrakenRESTBaseURL+"Ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -1056,7 +826,7 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 		q = req.URL.Query()
 		q.Add("pair", mktID)
 	case "trade":
-		req, err = k.rest.Request(ctx, "GET", config.KrakenRESTBaseURL+"Trades")
+		req, err = e.rest.Request(ctx, "GET", config.KrakenRESTBaseURL+"Trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -1081,7 +851,7 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 			switch channel {
 			case "ticker":
 				req.URL.RawQuery = q.Encode()
-				resp, err := k.rest.Do(req)
+				resp, err := e.rest.Do(req)
 				if err != nil {
 					if !errors.Is(err, ctx.Err()) {
 						logErrStack(err)
@@ -1130,12 +900,12 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 				}
 
 				key := cfgLookupKey{market: ticker.MktID, channel: "ticker"}
-				val := k.cfgMap[key]
+				val := e.cfgMap[key]
 				if val.terStr {
 					cd.terTickersCount++
 					cd.terTickers = append(cd.terTickers, ticker)
-					if cd.terTickersCount == k.connCfg.Terminal.TickerCommitBuf {
-						k.ter.CommitTickers(cd.terTickers)
+					if cd.terTickersCount == e.connCfg.Terminal.TickerCommitBuf {
+						e.ter.CommitTickers(ctx, cd.terTickers)
 						cd.terTickersCount = 0
 						cd.terTickers = nil
 					}
@@ -1143,8 +913,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 				if val.mysqlStr {
 					cd.mysqlTickersCount++
 					cd.mysqlTickers = append(cd.mysqlTickers, ticker)
-					if cd.mysqlTickersCount == k.connCfg.MySQL.TickerCommitBuf {
-						err := k.mysql.CommitTickers(ctx, cd.mysqlTickers)
+					if cd.mysqlTickersCount == e.connCfg.MySQL.TickerCommitBuf {
+						err := e.mysql.CommitTickers(ctx, cd.mysqlTickers)
 						if err != nil {
 							if !errors.Is(err, ctx.Err()) {
 								logErrStack(err)
@@ -1158,8 +928,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 				if val.esStr {
 					cd.esTickersCount++
 					cd.esTickers = append(cd.esTickers, ticker)
-					if cd.esTickersCount == k.connCfg.ES.TickerCommitBuf {
-						err := k.es.CommitTickers(ctx, cd.esTickers)
+					if cd.esTickersCount == e.connCfg.ES.TickerCommitBuf {
+						err := e.es.CommitTickers(ctx, cd.esTickers)
 						if err != nil {
 							if !errors.Is(err, ctx.Err()) {
 								logErrStack(err)
@@ -1180,8 +950,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 
 					cd.influxTickersCount++
 					cd.influxTickers = append(cd.influxTickers, ticker)
-					if cd.influxTickersCount == k.connCfg.InfluxDB.TickerCommitBuf {
-						err := k.influx.CommitTickers(ctx, cd.influxTickers)
+					if cd.influxTickersCount == e.connCfg.InfluxDB.TickerCommitBuf {
+						err := e.influx.CommitTickers(ctx, cd.influxTickers)
 						if err != nil {
 							if !errors.Is(err, ctx.Err()) {
 								logErrStack(err)
@@ -1195,8 +965,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 				if val.natsStr {
 					cd.natsTickersCount++
 					cd.natsTickers = append(cd.natsTickers, ticker)
-					if cd.natsTickersCount == k.connCfg.NATS.TickerCommitBuf {
-						err := k.nats.CommitTickers(cd.natsTickers)
+					if cd.natsTickersCount == e.connCfg.NATS.TickerCommitBuf {
+						err := e.nats.CommitTickers(ctx, cd.natsTickers)
 						if err != nil {
 							return err
 						}
@@ -1207,8 +977,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 				if val.clickHouseStr {
 					cd.clickHouseTickersCount++
 					cd.clickHouseTickers = append(cd.clickHouseTickers, ticker)
-					if cd.clickHouseTickersCount == k.connCfg.ClickHouse.TickerCommitBuf {
-						err := k.clickhouse.CommitTickers(ctx, cd.clickHouseTickers)
+					if cd.clickHouseTickersCount == e.connCfg.ClickHouse.TickerCommitBuf {
+						err := e.clickhouse.CommitTickers(ctx, cd.clickHouseTickers)
 						if err != nil {
 							return err
 						}
@@ -1219,8 +989,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 				if val.s3Str {
 					cd.s3TickersCount++
 					cd.s3Tickers = append(cd.s3Tickers, ticker)
-					if cd.s3TickersCount == k.connCfg.S3.TickerCommitBuf {
-						err := k.s3.CommitTickers(ctx, cd.s3Tickers)
+					if cd.s3TickersCount == e.connCfg.S3.TickerCommitBuf {
+						err := e.s3.CommitTickers(ctx, cd.s3Tickers)
 						if err != nil {
 							return err
 						}
@@ -1230,7 +1000,7 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 				}
 			case "trade":
 				req.URL.RawQuery = q.Encode()
-				resp, err := k.rest.Do(req)
+				resp, err := e.rest.Do(req)
 				if err != nil {
 					if !errors.Is(err, ctx.Err()) {
 						logErrStack(err)
@@ -1306,12 +1076,12 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 								}
 
 								key := cfgLookupKey{market: trade.MktID, channel: "trade"}
-								val := k.cfgMap[key]
+								val := e.cfgMap[key]
 								if val.terStr {
 									cd.terTradesCount++
 									cd.terTrades = append(cd.terTrades, trade)
-									if cd.terTradesCount == k.connCfg.Terminal.TradeCommitBuf {
-										k.ter.CommitTrades(cd.terTrades)
+									if cd.terTradesCount == e.connCfg.Terminal.TradeCommitBuf {
+										e.ter.CommitTrades(ctx, cd.terTrades)
 										cd.terTradesCount = 0
 										cd.terTrades = nil
 									}
@@ -1319,8 +1089,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 								if val.mysqlStr {
 									cd.mysqlTradesCount++
 									cd.mysqlTrades = append(cd.mysqlTrades, trade)
-									if cd.mysqlTradesCount == k.connCfg.MySQL.TradeCommitBuf {
-										err := k.mysql.CommitTrades(ctx, cd.mysqlTrades)
+									if cd.mysqlTradesCount == e.connCfg.MySQL.TradeCommitBuf {
+										err := e.mysql.CommitTrades(ctx, cd.mysqlTrades)
 										if err != nil {
 											if !errors.Is(err, ctx.Err()) {
 												logErrStack(err)
@@ -1334,8 +1104,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 								if val.esStr {
 									cd.esTradesCount++
 									cd.esTrades = append(cd.esTrades, trade)
-									if cd.esTradesCount == k.connCfg.ES.TradeCommitBuf {
-										err := k.es.CommitTrades(ctx, cd.esTrades)
+									if cd.esTradesCount == e.connCfg.ES.TradeCommitBuf {
+										err := e.es.CommitTrades(ctx, cd.esTrades)
 										if err != nil {
 											if !errors.Is(err, ctx.Err()) {
 												logErrStack(err)
@@ -1356,8 +1126,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 
 									cd.influxTradesCount++
 									cd.influxTrades = append(cd.influxTrades, trade)
-									if cd.influxTradesCount == k.connCfg.InfluxDB.TradeCommitBuf {
-										err := k.influx.CommitTrades(ctx, cd.influxTrades)
+									if cd.influxTradesCount == e.connCfg.InfluxDB.TradeCommitBuf {
+										err := e.influx.CommitTrades(ctx, cd.influxTrades)
 										if err != nil {
 											if !errors.Is(err, ctx.Err()) {
 												logErrStack(err)
@@ -1371,8 +1141,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 								if val.natsStr {
 									cd.natsTradesCount++
 									cd.natsTrades = append(cd.natsTrades, trade)
-									if cd.natsTradesCount == k.connCfg.NATS.TradeCommitBuf {
-										err := k.nats.CommitTrades(cd.natsTrades)
+									if cd.natsTradesCount == e.connCfg.NATS.TradeCommitBuf {
+										err := e.nats.CommitTrades(ctx, cd.natsTrades)
 										if err != nil {
 											return err
 										}
@@ -1383,8 +1153,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 								if val.clickHouseStr {
 									cd.clickHouseTradesCount++
 									cd.clickHouseTrades = append(cd.clickHouseTrades, trade)
-									if cd.clickHouseTradesCount == k.connCfg.ClickHouse.TradeCommitBuf {
-										err := k.clickhouse.CommitTrades(ctx, cd.clickHouseTrades)
+									if cd.clickHouseTradesCount == e.connCfg.ClickHouse.TradeCommitBuf {
+										err := e.clickhouse.CommitTrades(ctx, cd.clickHouseTrades)
 										if err != nil {
 											if !errors.Is(err, ctx.Err()) {
 												logErrStack(err)
@@ -1398,8 +1168,8 @@ func (k *kraken) processREST(ctx context.Context, mktID string, mktCommitName st
 								if val.s3Str {
 									cd.s3TradesCount++
 									cd.s3Trades = append(cd.s3Trades, trade)
-									if cd.s3TradesCount == k.connCfg.S3.TradeCommitBuf {
-										err := k.s3.CommitTrades(ctx, cd.s3Trades)
+									if cd.s3TradesCount == e.connCfg.S3.TradeCommitBuf {
+										err := e.s3.CommitTrades(ctx, cd.s3Trades)
 										if err != nil {
 											if !errors.Is(err, ctx.Err()) {
 												logErrStack(err)
