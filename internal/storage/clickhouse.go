@@ -71,7 +71,7 @@ func GetClickHouse() *ClickHouse {
 }
 
 // CommitTickers batch inserts input ticker data to clickHouse.
-func (c *ClickHouse) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (c *ClickHouse) CommitTickers(_ context.Context, data []Ticker) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func (c *ClickHouse) CommitTickers(appCtx context.Context, data []Ticker) error 
 }
 
 // CommitTrades batch inserts input trade data to clickHouse.
-func (c *ClickHouse) CommitTrades(appCtx context.Context, data []Trade) error {
+func (c *ClickHouse) CommitTrades(_ context.Context, data []Trade) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err

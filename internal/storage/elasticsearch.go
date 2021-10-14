@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	elasticsearch "github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )

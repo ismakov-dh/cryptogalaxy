@@ -21,7 +21,6 @@ import (
 
 // Start will initialize various required systems and then execute the app.
 func Start(mainCtx context.Context, cfg *config.Config) error {
-
 	// Setting up logger.
 	// If the path given in the config for logging ends with .log then create a log file with the same name and
 	// write log messages to it. Otherwise, create a new log file with a timestamp attached to it's name in the given path.
@@ -167,66 +166,68 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 	appErrGroup, appCtx := errgroup.WithContext(mainCtx)
 
 	for _, exch := range cfg.Exchanges {
-		markets := exch.Markets
-		retry := exch.Retry
+		wrapper := exchange.NewWrapper(&exch, &cfg.Connection)
 
-		var initializer func(context.Context, []config.Market, *config.Connection) error
+		var e exchange.Exchange
 		switch exch.Name {
 		case "aax":
-			initializer = exchange.NewAAX
+			e = exchange.NewAAX(wrapper)
 		case "ascendex":
-			initializer = exchange.NewAscendex
+			e = exchange.NewAscendex(wrapper)
 		case "bequant":
-			initializer = exchange.NewBequant
+			e = exchange.NewBequant(wrapper)
 		case "bhex":
-			initializer = exchange.NewHbtc
+			e = exchange.NewHbtc(wrapper)
 		case "binance":
-			initializer = exchange.NewBinance
+			e = exchange.NewBinance(wrapper)
 		case "binance-us":
-			initializer = exchange.NewBinanceUS
+			e = exchange.NewBinance(wrapper)
 		case "bitfinex":
-			initializer = exchange.NewBitfinex
+			e = exchange.NewBitfinex(wrapper)
 		case "bitmart":
-			initializer = exchange.NewBitmart
+			e = exchange.NewBitmart(wrapper)
 		case "bitrue":
-			initializer = exchange.NewBitrue
+			e = exchange.NewBitrue(wrapper)
 		case "bitstamp":
-			initializer = exchange.NewBitstamp
+			e = exchange.NewBitstamp(wrapper)
 		case "btse":
-			initializer = exchange.NewBTSE
+			e = exchange.NewBtse(wrapper)
 		case "bybit":
-			initializer = exchange.NewBybit
+			e = exchange.NewBybit(wrapper)
 		case "coinbase-pro":
-			initializer = exchange.NewCoinbasePro
+			e = exchange.NewCoinbasePro(wrapper)
 		case "digifinex":
-			initializer = exchange.NewDigifinex
+			e = exchange.NewDigifinex(wrapper)
 		case "ftx":
-			initializer = exchange.NewFtx
+			e = exchange.NewFtx(wrapper)
 		case "ftx-us":
-			initializer = exchange.NewFtxUS
+			e = exchange.NewFtx(wrapper)
 		case "gateio":
-			initializer = exchange.NewGateio
+			e = exchange.NewGateio(wrapper)
 		case "gemini":
-			initializer = exchange.NewGemini
+			e = exchange.NewGemini(wrapper)
 		case "hitbtc":
-			initializer = exchange.NewHitBTC
+			e = exchange.NewHitBTC(wrapper)
 		case "huobi":
-			initializer = exchange.NewHuobi
+			e = exchange.NewHuobi(wrapper)
 		case "kraken":
-			initializer = exchange.NewKraken
+			e = exchange.NewKraken(wrapper)
 		case "kucoin":
-			initializer = exchange.NewKucoin
+			e, err = exchange.NewKucoin(appCtx, wrapper)
+			if err != nil {
+				log.Error().Stack().Err(errors.WithStack(err)).Msg("error initializing kucoin")
+				continue
+			}
 		case "mexo":
-			initializer = exchange.NewMexo
+			e = exchange.NewMexo(wrapper)
 		case "okex":
-			initializer = exchange.NewOKEx
+			e = exchange.NewOKEx(wrapper)
 		case "probit":
-			initializer = exchange.NewProbit
-
+			e = exchange.NewProbit(wrapper)
 		}
 
 		appErrGroup.Go(func() error {
-			return exchange.Start(exch.Name, appCtx, markets, &retry, &cfg.Connection, initializer)
+			return exchange.Start(appCtx, wrapper, e, &exch.Retry)
 		})
 	}
 
