@@ -116,6 +116,20 @@ func (e *bequant) processWs(frame []byte) (err error) {
 		return
 	}
 
+	if wr.Channel == "ticker/price/1s" {
+		channel = "ticker"
+		for k := range wr.Tickers {
+			market = k
+			break
+		}
+	} else {
+		channel = "trade"
+		for k := range wr.Trades {
+			market = k
+			break
+		}
+	}
+
 	cfg, _, updateRequired := e.wrapper.getCfgMap(market, channel)
 	if !updateRequired {
 		return

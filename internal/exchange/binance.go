@@ -93,16 +93,30 @@ func (e *binance) processWs(frame []byte) (err error) {
 		return
 	}
 
-	ch := e.wrapper.channelIds[wr.ID]
-	market, channel = ch[0], ch[1]
-
 	if wr.ID != 0 {
-		log.Debug().Str("exchange", "binance").Str("func", "readWs").Str("market", ch[0]).Str("channel", ch[1]).Msg("channel subscribed")
+		ch := e.wrapper.channelIds[wr.ID]
+		market, channel = ch[0], ch[1]
+		log.Debug().
+			Str("exchange", "binance").
+			Str("func", "readWs").
+			Str("market", ch[0]).
+			Str("channel", ch[1]).
+			Msg("channel subscribed")
 		return
 	}
 	if wr.Msg != "" {
-		log.Error().Str("exchange", "binance").Str("func", "readWs").Int("code", wr.Code).Str("msg", wr.Msg).Msg("")
+		log.Error().
+			Str("exchange", "binance").
+			Str("func", "readWs").
+			Int("code", wr.Code).
+			Str("msg", wr.Msg).
+			Msg("")
 		return errors.New("binance websocket error")
+	}
+
+	market, channel = wr.Symbol, wr.Event
+	if wr.Event == "24hrMiniTicker" {
+		channel = "ticker"
 	}
 
 	cfg, _, updateRequired := e.wrapper.getCfgMap(market, channel)
