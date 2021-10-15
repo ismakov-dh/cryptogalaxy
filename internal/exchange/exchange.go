@@ -19,6 +19,7 @@ import (
 type Wrapper struct {
 	name       string
 	config     *config.Exchange
+	markets    []config.Market
 	exchange   Exchange
 	ws         *connector.Websocket
 	rest       *connector.REST
@@ -47,10 +48,11 @@ type Exchange interface {
 	processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error)
 }
 
-func NewWrapper(exchangeConfig *config.Exchange, connCfg *config.Connection) *Wrapper {
+func NewWrapper(exchangeConfig *config.Exchange, markets []config.Market, connCfg *config.Connection) *Wrapper {
 	return &Wrapper{
 		name:    exchangeConfig.Name,
 		config:  exchangeConfig,
+		markets: markets,
 		connCfg: connCfg,
 	}
 }
@@ -107,7 +109,7 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 	w.exchange = exchange
 	errGroup, ctx := errgroup.WithContext(appCtx)
 
-	err := w.cfgLookup(ctx, w.config.Markets)
+	err := w.cfgLookup(ctx, w.markets)
 	if err != nil {
 		return err
 	}
@@ -117,7 +119,7 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 		restCount int
 	)
 
-	for _, market := range w.config.Markets {
+	for _, market := range w.markets {
 		for _, info := range market.Info {
 			if w.ter != nil {
 				w.ter.Start(errGroup)
@@ -463,11 +465,11 @@ func (w *Wrapper) pollRest(ctx context.Context, mktID string, mktCommitName stri
 				resp.Body.Close()
 
 				ticker := storage.Ticker{
-					Exchange: w.name,
-					MktID: mktID,
+					Exchange:      w.name,
+					MktID:         mktID,
 					MktCommitName: mktCommitName,
-					Price: price,
-					Timestamp: time.Now().UTC(),
+					Price:         price,
+					Timestamp:     time.Now().UTC(),
 				}
 
 				if cfg.influxStr {

@@ -67,8 +67,8 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 		clickHouseStr bool
 		s3Str         bool
 	)
-	for _, exch := range cfg.Exchanges {
-		for _, market := range exch.Markets {
+	for _, markets := range cfg.Markets {
+		for _, market := range markets {
 			for _, info := range market.Info {
 				for _, str := range info.Storages {
 					switch str {
@@ -145,16 +145,17 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 							log.Info().Msg("s3 connected")
 						}
 					}
-				}
-				if info.Connector == "rest" {
-					if !restConn {
-						_ = connector.InitREST(&cfg.Connection.REST)
-						restConn = true
-					}
-					if info.RESTPingIntSec < 1 {
-						err = errors.New("rest_ping_interval_sec should be greater than zero")
-						log.Error().Stack().Err(errors.WithStack(err)).Msg("")
-						return err
+
+					if info.Connector == "rest" {
+						if !restConn {
+							_ = connector.InitREST(&cfg.Connection.REST)
+							restConn = true
+						}
+						if info.RESTPingIntSec < 1 {
+							err = errors.New("rest_ping_interval_sec should be greater than zero")
+							log.Error().Stack().Err(errors.WithStack(err)).Msg("")
+							return err
+						}
 					}
 				}
 			}
@@ -165,11 +166,13 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 	// exit the app.
 	appErrGroup, appCtx := errgroup.WithContext(mainCtx)
 
-	for _, exch := range cfg.Exchanges {
-		wrapper := exchange.NewWrapper(&exch, &cfg.Connection)
+	for exch, markets := range cfg.Markets {
+		exchangeConfig := cfg.Exchanges[exch]
+
+		wrapper := exchange.NewWrapper(&exchangeConfig, markets, &cfg.Connection)
 
 		var e exchange.Exchange
-		switch exch.Name {
+		switch exch {
 		case "aax":
 			e = exchange.NewAAX(wrapper)
 		case "ascendex":
@@ -227,7 +230,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 		}
 
 		appErrGroup.Go(func() error {
-			return exchange.Start(appCtx, wrapper, e, &exch.Retry)
+			return exchange.Start(appCtx, wrapper, e, &exchangeConfig.Retry)
 		})
 	}
 

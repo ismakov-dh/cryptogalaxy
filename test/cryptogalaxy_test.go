@@ -63,9 +63,9 @@ func TestCryptogalaxy(t *testing.T) {
 		nOutFile   *os.File
 	)
 	enabledExchanges := make(map[string]bool)
-	for _, exch := range cfg.Exchanges {
-		enabledExchanges[exch.Name] = true
-		for _, market := range exch.Markets {
+	for exch, markets := range cfg.Markets {
+		enabledExchanges[exch] = true
+		for _, market := range markets {
 			for _, info := range market.Info {
 				for _, str := range info.Storages {
 					switch str {
@@ -3044,9 +3044,9 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 	s3Tickers map[string]storage.Ticker, s3Trades map[string]storage.Trade,
 	cfg *config.Config) error {
 
-	for _, exch := range cfg.Exchanges {
-		if exch.Name == exchName {
-			for _, market := range exch.Markets {
+	for exch, markets := range cfg.Markets {
+		if exch == exchName {
+			for _, market := range markets {
 				var marketCommitName string
 				if market.CommitName != "" {
 					marketCommitName = market.CommitName

@@ -1,147 +1,22 @@
 package config
 
-const (
-	//// FtxWebsocketURL is the ftx exchange websocket url.
-	//FtxWebsocketURL = "wss://ftx.com/ws/"
-	//// FtxRESTBaseURL is the ftx exchange base REST url.
-	//FtxRESTBaseURL = "https://ftx.com/api/"
-	//
-	//// CoinbaseProWebsocketURL is the coinbase-pro exchange websocket url.
-	//CoinbaseProWebsocketURL = "wss://ws-feed.pro.coinbase.com/"
-	//// CoinbaseProRESTBaseURL is the coinbase-pro exchange base REST url.
-	//CoinbaseProRESTBaseURL = "https://api.pro.coinbase.com/"
-	//
-	//// BinanceWebsocketURL is the binance exchange websocket url.
-	//BinanceWebsocketURL = "wss://stream.binance.com:9443/ws"
-	//// BinanceRESTBaseURL is the binance exchange base REST url.
-	//BinanceRESTBaseURL = "https://api.binance.com/api/v3/"
-	//
-	//// BitfinexWebsocketURL is the bitfinex exchange websocket url.
-	//BitfinexWebsocketURL = "wss://api-pub.bitfinex.com/ws/2"
-	//// BitfinexRESTBaseURL is the bitfinex exchange base REST url.
-	//BitfinexRESTBaseURL = "https://api-pub.bitfinex.com/v2/"
-	//
-	//// BHEXWebsocketURL is the bhex exchange websocket url.
-	//BHEXWebsocketURL = "wss://wsapi.bhex.com/openapi/quote/ws/v2"
-	//// BHEXRESTBaseURL is the bhex exchange base REST url.
-	//BHEXRESTBaseURL = "https://api.bhex.com/"
-	//
-	//// HuobiWebsocketURL is the huobi exchange websocket url.
-	//HuobiWebsocketURL = "wss://api.huobi.pro/ws"
-	//// HuobiRESTBaseURL is the huobi exchange base REST url.
-	//HuobiRESTBaseURL = "https://api.huobi.pro/"
-	//
-	//// GateioWebsocketURL is the gateio exchange websocket url.
-	//GateioWebsocketURL = "wss://api.gateio.ws/ws/v4/"
-	//// GateioRESTBaseURL is the gateio exchange base REST url.
-	//GateioRESTBaseURL = "https://api.gateio.ws/api/v4/"
-	//
-	//// KucoinRESTBaseURL is the kucoin exchange base REST url.
-	//KucoinRESTBaseURL = "https://api.kucoin.com/api/v1/"
-	//
-	//// BitstampWebsocketURL is the bitstamp exchange websocket url.
-	//BitstampWebsocketURL = "wss://ws.bitstamp.net/"
-	//// BitstampRESTBaseURL is the bitstamp exchange base REST url.
-	//BitstampRESTBaseURL = "https://www.bitstamp.net/api/v2/"
-	//
-	//// BybitWebsocketURL is the bybit exchange websocket url.
-	//BybitWebsocketURL = "wss://stream.bybit.com/realtime_public"
-	//// BybitRESTBaseURL is the bybit exchange base REST url.
-	//BybitRESTBaseURL = "https://api.bybit.com/"
-	//
-	//// ProbitWebsocketURL is the probit exchange websocket url.
-	//ProbitWebsocketURL = "wss://api.probit.com/api/exchange/v1/ws"
-	//// ProbitRESTBaseURL is the probit exchange base REST url.
-	//ProbitRESTBaseURL = "https://api.probit.com/api/exchange/v1/"
-	//
-	//// GeminiWebsocketURL is the gemini exchange websocket url.
-	//GeminiWebsocketURL = "wss://api.gemini.com/v2/marketdata"
-	//// GeminiRESTBaseURL is the gemini exchange base REST url.
-	//GeminiRESTBaseURL = "https://api.gemini.com/v1/"
-	//
-	//// BitmartWebsocketURL is the bitmart exchange websocket url.
-	//BitmartWebsocketURL = "wss://ws-manager-compress.bitmart.com?protocol=1.1"
-	//// BitmartRESTBaseURL is the bitmart exchange base REST url.
-	//BitmartRESTBaseURL = "https://api-cloud.bitmart.com/spot/v1/"
-	//
-	//// DigifinexWebsocketURL is the digifinex exchange websocket url.
-	//DigifinexWebsocketURL = "wss://openapi.digifinex.com/ws/v1/"
-	//// DigifinexRESTBaseURL is the digifinex exchange base REST url.
-	//DigifinexRESTBaseURL = "https://openapi.digifinex.com/v3/"
-	//
-	//// AscendexWebsocketURL is the ascendex exchange websocket url.
-	//AscendexWebsocketURL = "wss://ascendex.com/0/api/pro/v1/stream"
-	//// AscendexRESTBaseURL is the ascendex exchange base REST url.
-	//AscendexRESTBaseURL = "https://ascendex.com/api/pro/v1/"
-	//
-	//// KrakenWebsocketURL is the kraken exchange websocket url.
-	//KrakenWebsocketURL = "wss://ws.kraken.com"
-	//// KrakenRESTBaseURL is the kraken exchange base REST url.
-	//KrakenRESTBaseURL = "https://api.kraken.com/0/public/"
-	//
-	//// BinanceUSWebsocketURL is the binance-us exchange websocket url.
-	//BinanceUSWebsocketURL = "wss://stream.binance.us:9443/ws"
-	//// BinanceUSRESTBaseURL is the binance-us exchange base REST url.
-	//BinanceUSRESTBaseURL = "https://api.binance.us/api/v3/"
-	//
-	//// OKExWebsocketURL is the okex exchange websocket url.
-	//OKExWebsocketURL = "wss://ws.okex.com:8443/ws/v5/public"
-	//// OKExRESTBaseURL is the okex exchange base REST url.
-	//OKExRESTBaseURL = "https://www.okex.com/api/v5/"
-	//
-	//// FtxUSWebsocketURL is the ftx-us exchange websocket url.
-	//FtxUSWebsocketURL = "wss://ftx.us/ws/"
-	//// FtxUSRESTBaseURL is the ftx-us exchange base REST url.
-	//FtxUSRESTBaseURL = "https://ftx.us/api/"
-	//
-	//// HitBTCWebsocketURL is the hitbtc websocket url.
-	//HitBTCWebsocketURL = "wss://api.hitbtc.com/api/3/ws/public"
-	//// HitBTCRESTBaseURL is the hitbtc base REST url.
-	//HitBTCRESTBaseURL = "https://api.hitbtc.com/api/3/public/"
-	//
-	//// AAXWebsocketURL is the aax websocket url.
-	//AAXWebsocketURL = "wss://realtime.aax.com/marketdata/v2/"
-	//// AAXRESTBaseURL is the aax base REST url.
-	//AAXRESTBaseURL = "https://api.aax.com/v2/"
-	//
-	//// BitrueWebsocketURL is the bitrue exchange websocket url.
-	//BitrueWebsocketURL = "wss://ws.bitrue.com/kline-api/ws"
-	//// BitrueRESTBaseURL is the bitrue exchange base REST url.
-	//BitrueRESTBaseURL = "https://www.bitrue.com/api/v1/"
-	//
-	//// BTSEWebsocketURL is the btse exchange websocket url.
-	//BTSEWebsocketURL = "wss://ws.btse.com/ws/spot"
-	//// BTSERESTBaseURL is the btse exchange base REST url.
-	//BTSERESTBaseURL = "https://api.btse.com/spot/api/v3.2/"
-	//
-	//// MexoWebsocketURL is the mexo exchange websocket url.
-	//MexoWebsocketURL = "wss://wsapi.mexo.io/openapi/quote/ws/v1"
-	//// MexoRESTBaseURL is the mexo exchange base REST url.
-	//MexoRESTBaseURL = "https://api.mexo.io/openapi/"
-	//
-	//// BequantWebsocketURL is the bequant exchange websocket url.
-	//BequantWebsocketURL = "wss://api.bequant.io/api/3/ws/public"
-	//// BequantRESTBaseURL is the bequant exchange base REST url.
-	//BequantRESTBaseURL = "https://api.bequant.io/api/3/public/"
-)
-
 // Config contains config values for the app.
 // Struct values are loaded from user defined JSON config file.
 type Config struct {
-	Exchanges  []Exchange `json:"exchanges"`
-	Connection Connection `json:"connection"`
-	Log        Log        `json:"log"`
+	Markets    map[string][]Market `json:"markets"`
+	Exchanges  map[string]Exchange `json:"exchanges"`
+	Connection Connection          `json:"connection"`
+	Log        Log                 `json:"log"`
 }
 
 // Exchange contains config values for different exchanges.
 type Exchange struct {
-	Name               string   `json:"name"`
-	RestUrl            string   `json:"rest_url"`
-	WebsocketUrl       string   `json:"websocket_url"`
-	WebsocketThreshold int      `json:"websocket_threshold"`
-	WebsocketTimeout   int      `json:"websocket_timeout"`
-	Retry              Retry    `json:"retry"`
-	Markets            []Market `json:"markets"`
+	Name               string `json:"name"`
+	RestUrl            string `json:"rest_url"`
+	WebsocketUrl       string `json:"websocket_url"`
+	WebsocketThreshold int    `json:"websocket_threshold"`
+	WebsocketTimeout   int    `json:"websocket_timeout"`
+	Retry              Retry  `json:"retry"`
 }
 
 // Market contains config values for different markets.
