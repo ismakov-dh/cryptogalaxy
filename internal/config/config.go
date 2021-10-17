@@ -11,7 +11,6 @@ type Config struct {
 
 // Exchange contains config values for different exchanges.
 type Exchange struct {
-	Name               string `json:"name"`
 	RestUrl            string `json:"rest_url"`
 	WebsocketUrl       string `json:"websocket_url"`
 	WebsocketThreshold int    `json:"websocket_threshold"`

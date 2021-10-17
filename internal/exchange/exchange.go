@@ -48,9 +48,9 @@ type Exchange interface {
 	processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error)
 }
 
-func NewWrapper(exchangeConfig *config.Exchange, markets []config.Market, connCfg *config.Connection) *Wrapper {
+func NewWrapper(name string, exchangeConfig *config.Exchange, markets []config.Market, connCfg *config.Connection) *Wrapper {
 	return &Wrapper{
-		name:    exchangeConfig.Name,
+		name:    name,
 		config:  exchangeConfig,
 		markets: markets,
 		connCfg: connCfg,

@@ -169,7 +169,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 	for exch, markets := range cfg.Markets {
 		exchangeConfig := cfg.Exchanges[exch]
 
-		wrapper := exchange.NewWrapper(&exchangeConfig, markets, &cfg.Connection)
+		wrapper := exchange.NewWrapper(exch, &exchangeConfig, markets, &cfg.Connection)
 
 		var e exchange.Exchange
 		switch exch {
