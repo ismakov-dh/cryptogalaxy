@@ -166,6 +166,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 	// exit the app.
 	appErrGroup, appCtx := errgroup.WithContext(mainCtx)
 
+LOOP:
 	for exch, markets := range cfg.Markets {
 		exchangeConfig := cfg.Exchanges[exch]
 
@@ -219,7 +220,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 			e, err = exchange.NewKucoin(appCtx, wrapper)
 			if err != nil {
 				log.Error().Stack().Err(errors.WithStack(err)).Msg("error initializing kucoin")
-				continue
+				continue LOOP
 			}
 		case "mexo":
 			e = exchange.NewMexo(wrapper)

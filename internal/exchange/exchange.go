@@ -109,111 +109,116 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 	w.exchange = exchange
 	errGroup, ctx := errgroup.WithContext(appCtx)
 
-	err := w.cfgLookup(ctx, w.markets)
+	err := w.cfgLookup(errGroup, ctx, w.markets)
 	if err != nil {
 		return err
 	}
 
-	var (
-		wsCount   int
-		restCount int
-	)
+	var useWs bool
+	for _, market := range w.markets {
+		for _, info := range market.Info {
+			if info.Connector == "websocket" {
+				useWs = true
+				break
+			}
+		}
+	}
+
+	errGroup.Go(func() error {
+		return w.closeWsOnError(ctx)
+	})
+
+	if useWs {
+		go func() {
+		INFINITE:
+			for {
+				var subsCount int
+
+				ctx, cancel := context.WithCancel(appCtx)
+				errGroup, ctx := errgroup.WithContext(ctx)
+
+				err := w.connectWs(ctx, w.config.WebsocketUrl)
+				if err != nil {
+					logErrStack(err)
+					cancel()
+					continue
+				}
+
+				err = w.exchange.postConnectWs()
+				if err != nil {
+					logErrStack(err)
+					cancel()
+					continue
+				}
+
+				errGroup.Go(func() error {
+					return w.closeWsOnError(ctx)
+				})
+
+				errGroup.Go(func() error {
+					return w.exchange.pingWs(ctx)
+				})
+
+				errGroup.Go(func() error {
+					return w.listenWs(ctx)
+				})
+
+				for _, market := range w.markets {
+					for _, info := range market.Info {
+						if info.Connector == "websocket" {
+							key := cfgLookupKey{market: market.ID, channel: info.Channel}
+							val := w.cfgMap[key]
+							err = w.subscribeWs(market.ID, info.Channel, val.id)
+							if err != nil {
+								logErrStack(err)
+								cancel()
+								continue INFINITE
+							}
+
+							subsCount++
+
+							if w.config.WebsocketThreshold != 0 {
+								if threshold := subsCount % w.config.WebsocketThreshold; threshold == 0 {
+									log.Debug().
+										Str("exchange", w.name).
+										Int("count", threshold).
+										Int("timeout", w.config.WebsocketTimeout).
+										Msg("subscribe threshold reached, waiting")
+									time.Sleep(time.Duration(w.config.WebsocketTimeout) * time.Second)
+								}
+							}
+						}
+					}
+				}
+
+				if err := errGroup.Wait(); err != nil {
+					logErrStack(err)
+					cancel()
+
+					select {
+					case <-time.After(2 * time.Second):
+						log.Info().Str("exchange", w.name).Timestamp().Msg("reconnecting websocket")
+						continue
+					case <-appCtx.Done():
+						return
+					}
+				}
+			}
+		}()
+	}
 
 	for _, market := range w.markets {
 		for _, info := range market.Info {
-			if w.ter != nil {
-				w.ter.Start(errGroup)
-			}
-
-			if w.mysql != nil {
-				w.mysql.Start(errGroup)
-			}
-
-			if w.es != nil {
-				w.es.Start(errGroup)
-			}
-
-			if w.influx != nil {
-				w.influx.Start(errGroup)
-			}
-
-			if w.nats != nil {
-				w.nats.Start(errGroup)
-			}
-
-			if w.clickhouse != nil {
-				w.clickhouse.Start(errGroup)
-			}
-
-			if w.s3 != nil {
-				w.s3.Start(errGroup)
-			}
-
-			switch info.Connector {
-			case "websocket":
-				if wsCount == 0 {
-					err = w.connectWs(ctx, w.config.WebsocketUrl)
-					if err != nil {
-						return err
-					}
-
-					err = w.exchange.postConnectWs()
-					if err != nil {
-						return err
-					}
-
-					errGroup.Go(func() error {
-						return w.closeWsOnError(ctx)
-					})
-
-					errGroup.Go(func() error {
-						return w.exchange.pingWs(ctx)
-					})
-
-					errGroup.Go(func() error {
-						return w.listenWs(ctx)
-					})
-				}
-
-				key := cfgLookupKey{market: market.ID, channel: info.Channel}
-				val := w.cfgMap[key]
-				err = w.subscribeWs(market.ID, info.Channel, val.id)
-				if err != nil {
-					return err
-				}
-				wsCount++
-
-				if w.config.WebsocketThreshold != 0 {
-					if threshold := wsCount % w.config.WebsocketThreshold; threshold == 0 {
-						log.Debug().
-							Str("exchange", w.name).
-							Int("count", threshold).
-							Int("timeout", w.config.WebsocketTimeout).
-							Msg("subscribe threshold reached, waiting")
-						time.Sleep(time.Duration(w.config.WebsocketTimeout) * time.Second)
-					}
-				}
-			case "rest":
-				if restCount == 0 {
+			if info.Connector == "rest" {
+				if w.rest == nil {
 					if err := w.connectRest(); err != nil {
 						return err
 					}
 				}
 
-				var mktCommitName string
-				if market.CommitName != "" {
-					mktCommitName = market.CommitName
-				} else {
-					mktCommitName = market.ID
-				}
-				mktID := market.ID
-				channel := info.Channel
-				restPingIntSec := info.RESTPingIntSec
 				errGroup.Go(func() error {
-					return w.pollRest(ctx, mktID, mktCommitName, channel, restPingIntSec)
+					return w.pollRest(ctx, market.ID, info.Channel, info.RESTPingIntSec)
 				})
-
-				restCount++
 			}
 		}
 	}
@@ -221,7 +226,7 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 	return errGroup.Wait()
 }
 
-func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error {
+func (w *Wrapper) cfgLookup(errGroup *errgroup.Group, ctx context.Context, markets []config.Market) error {
 	var id int
 
 	w.cfgMap = make(map[cfgLookupKey]*cfgLookupVal)
@@ -249,6 +254,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error 
 							w.connCfg.Terminal.TickerCommitBuf,
 							w.connCfg.Terminal.TradeCommitBuf,
 						)
+						w.ter.Start(errGroup)
 					}
 				case "mysql":
 					val.mysqlStr = true
@@ -259,6 +265,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error 
 							w.connCfg.MySQL.TickerCommitBuf,
 							w.connCfg.MySQL.TradeCommitBuf,
 						)
+						w.mysql.Start(errGroup)
 					}
 				case "elastic_search":
 					val.esStr = true
@@ -269,6 +276,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error 
 							w.connCfg.ES.TickerCommitBuf,
 							w.connCfg.ES.TradeCommitBuf,
 						)
+						w.es.Start(errGroup)
 					}
 				case "influxdb":
 					val.influxStr = true
@@ -283,6 +291,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error 
 							TickerMap: make(map[string]int64),
 							TradeMap:  make(map[string]int64),
 						}
+						w.influx.Start(errGroup)
 					}
 				case "nats":
 					val.natsStr = true
@@ -293,6 +302,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error 
 							w.connCfg.NATS.TickerCommitBuf,
 							w.connCfg.NATS.TradeCommitBuf,
 						)
+						w.nats.Start(errGroup)
 					}
 				case "clickhouse":
 					val.clickHouseStr = true
@@ -303,6 +313,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error 
 							w.connCfg.ClickHouse.TickerCommitBuf,
 							w.connCfg.ClickHouse.TradeCommitBuf,
 						)
+						w.clickhouse.Start(errGroup)
 					}
 				case "s3":
 					val.s3Str = true
@@ -313,6 +324,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, markets []config.Market) error 
 							w.connCfg.S3.TickerCommitBuf,
 							w.connCfg.S3.TradeCommitBuf,
 						)
+						w.s3.Start(errGroup)
 					}
 				}
 			}
@@ -424,16 +436,16 @@ func (w *Wrapper) connectRest() (err error) {
 	return
 }
 
-func (w *Wrapper) pollRest(ctx context.Context, mktID string, mktCommitName string, channel string, interval int) error {
+func (w *Wrapper) pollRest(ctx context.Context, market string, channel string, interval int) error {
 	var (
 		req *http.Request
 		err error
 	)
 
-	key := cfgLookupKey{market: mktID, channel: channel}
+	key := cfgLookupKey{market: market, channel: channel}
 	cfg := w.cfgMap[key]
 
-	req, err = w.exchange.buildRestRequest(ctx, mktID, channel)
+	req, err = w.exchange.buildRestRequest(ctx, market, channel)
 	if err != nil {
 		if !errors.Is(err, ctx.Err()) {
 			logErrStack(err)
@@ -458,6 +470,7 @@ func (w *Wrapper) pollRest(ctx context.Context, mktID string, mktCommitName stri
 			case "ticker":
 				price, err := w.exchange.processRestTicker(resp.Body)
 				if err != nil {
+					resp.Body.Close()
 					logErrStack(err)
 					return err
 				}
@@ -466,14 +479,14 @@ func (w *Wrapper) pollRest(ctx context.Context, mktID string, mktCommitName stri
 
 				ticker := storage.Ticker{
 					Exchange:      w.name,
-					MktID:         mktID,
-					MktCommitName: mktCommitName,
+					MktID:         market,
+					MktCommitName: cfg.mktCommitName,
 					Price:         price,
 					Timestamp:     time.Now().UTC(),
 				}
 
 				if cfg.influxStr {
-					ticker.InfluxVal = w.getTickerInfluxTime(mktCommitName)
+					ticker.InfluxVal = w.getTickerInfluxTime(cfg.mktCommitName)
 				}
 
 				if err := w.appendTicker(ticker, cfg); err != nil {
@@ -482,6 +495,7 @@ func (w *Wrapper) pollRest(ctx context.Context, mktID string, mktCommitName stri
 			case "trade":
 				trades, err := w.exchange.processRestTrade(resp.Body)
 				if err != nil {
+					resp.Body.Close()
 					logErrStack(err)
 					return err
 				}
@@ -490,11 +504,11 @@ func (w *Wrapper) pollRest(ctx context.Context, mktID string, mktCommitName stri
 
 				for _, trade := range trades {
 					trade.Exchange = w.name
-					trade.MktID = mktID
-					trade.MktCommitName = mktCommitName
+					trade.MktID = market
+					trade.MktCommitName = cfg.mktCommitName
 
 					if cfg.influxStr {
-						trade.InfluxVal = w.getTradeInfluxTime(mktCommitName)
+						trade.InfluxVal = w.getTradeInfluxTime(cfg.mktCommitName)
 					}
 
 					if err := w.appendTrade(trade, cfg); err != nil {

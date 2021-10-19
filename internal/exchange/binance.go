@@ -97,8 +97,8 @@ func (e *binance) processWs(frame []byte) (err error) {
 		ch := e.wrapper.channelIds[wr.ID]
 		market, channel = ch[0], ch[1]
 		log.Debug().
-			Str("exchange", "binance").
-			Str("func", "readWs").
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
 			Str("market", ch[0]).
 			Str("channel", ch[1]).
 			Msg("channel subscribed")
@@ -106,8 +106,8 @@ func (e *binance) processWs(frame []byte) (err error) {
 	}
 	if wr.Msg != "" {
 		log.Error().
-			Str("exchange", "binance").
-			Str("func", "readWs").
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
 			Int("code", wr.Code).
 			Str("msg", wr.Msg).
 			Msg("")
