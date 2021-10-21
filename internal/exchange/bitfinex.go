@@ -29,6 +29,7 @@ type wsEventRespBitfinex struct {
 	Channel   string `json:"channel"`
 	ChannelID int    `json:"chanId"`
 	Symbol    string `json:"symbol"`
+	Key       string `json:"key"`
 	Code      int    `json:"code"`
 	Msg       string `json:"msg"`
 	Version   int    `json:"version"`
@@ -50,11 +51,15 @@ func (e *bitfinex) getWsSubscribeMessage(market string, channel string, _ int) (
 	}
 
 	market = "t" + strings.ToUpper(market)
+	if channel == "candles" {
+		market = "trade:1m:" + market
+	}
 
 	frame, err = jsoniter.Marshal(map[string]string{
 		"event":   "subscribe",
 		"channel": channel,
 		"symbol":  market,
+		"key":     market,
 	})
 	if err != nil {
 		logErrStack(err)
@@ -88,22 +93,30 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 		switch wr.Event {
 		case "hb":
 		case "subscribed":
-			market = wr.Symbol[1:]
-			if wr.Channel == "trades" {
-				channel = "trade"
+			s := strings.Split(wr.Key, ":")
+			if len(s) == 3 {
+				market = s[2][1:]
+				channel = "candle"
+			} else {
+				market = wr.Symbol[1:]
+				if wr.Channel == "trades" {
+					channel = "trade"
+				} else {
+					channel = "ticker"
+				}
 			}
 
 			e.wrapper.channelIds[wr.ChannelID] = [2]string{market, channel}
 
 			log.Debug().
-				Str("exchange", "bitfinex").
+				Str("exchange", e.wrapper.name).
 				Str("func", "processWs").
 				Str("market", market).
 				Str("channel", channel).
 				Msg("channel subscribed")
 		case "error":
 			log.Error().
-				Str("exchange", "bitfinex").
+				Str("exchange", e.wrapper.name).
 				Str("func", "processWs").
 				Int("code", wr.Code).
 				Str("msg", wr.Msg).
@@ -113,14 +126,14 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 		case "info":
 			if wr.Code != 0 {
 				log.Info().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Int("code", wr.Code).
 					Str("msg", wr.Msg).
 					Msg("info received")
 			} else if wr.Version != 0 {
 				log.Info().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Int("version", wr.Version).
 					Int("platform-status", wr.Platform.Status).
@@ -141,7 +154,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 			market, channel = ch[0], ch[1]
 		} else {
 			log.Error().
-				Str("exchange", "bitfinex").
+				Str("exchange", e.wrapper.name).
 				Str("func", "processWs").
 				Interface("channel_id", wr[0]).
 				Msg("")
@@ -158,7 +171,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				wri = wsData
 			} else {
 				log.Error().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Interface("data", wr[2]).
 					Msg("")
@@ -166,7 +179,10 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 		case []interface{}:
-			if channel != "ticker" {
+			if channel != "ticker" && channel != "candle" {
+				return
+			}
+			if len(data) > 10 {
 				return
 			}
 			wri = data
@@ -190,7 +206,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				ticker.Price = price
 			} else {
 				log.Error().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Interface("price", wri[6]).
 					Msg("")
@@ -214,7 +230,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				trade.TradeID = strconv.FormatFloat(tradeID, 'f', 0, 64)
 			} else {
 				log.Error().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Interface("trade id", wri[0]).
 					Msg("")
@@ -231,7 +247,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				trade.Size = math.Abs(size)
 			} else {
 				log.Error().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Interface("size", wri[2]).
 					Msg("")
@@ -243,7 +259,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				trade.Price = price
 			} else {
 				log.Error().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Interface("price", wri[3]).
 					Msg("")
@@ -255,7 +271,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				trade.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
 			} else {
 				log.Error().
-					Str("exchange", "bitfinex").
+					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
 					Interface("timestamp", wri[1]).
 					Msg("")
@@ -268,6 +284,86 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 			}
 
 			err = e.wrapper.appendTrade(trade, cfg)
+		case "candle":
+			candle := storage.Candle{
+				Exchange:      e.wrapper.name,
+				MktID:         market,
+				MktCommitName: cfg.mktCommitName,
+			}
+
+			if timestamp, ok := wri[0].(float64); ok {
+				candle.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
+			} else {
+				log.Error().
+					Str("exchange", e.wrapper.name).
+					Str("func", "processWs").
+					Interface("timestamp", wri[0]).
+					Msg("")
+				err = errors.New("cannot convert candle data field timestamp to float")
+				return
+			}
+
+			if open, ok := wri[1].(float64); ok {
+				candle.Open = open
+			} else {
+				log.Error().
+					Str("exchange", e.wrapper.name).
+					Str("func", "processWs").
+					Interface("open", wri[1]).
+					Msg("")
+				err = errors.New("cannot convert candle data field open to float")
+				return
+			}
+
+			if _close, ok := wri[2].(float64); ok {
+				candle.Close = _close
+			} else {
+				log.Error().
+					Str("exchange", e.wrapper.name).
+					Str("func", "processWs").
+					Interface("close", wri[2]).
+					Msg("")
+				err = errors.New("cannot convert candle data field close to float")
+				return
+			}
+
+			if high, ok := wri[3].(float64); ok {
+				candle.High = high
+			} else {
+				log.Error().
+					Str("exchange", e.wrapper.name).
+					Str("func", "processWs").
+					Interface("high", wri[3]).
+					Msg("")
+				err = errors.New("cannot convert candle data field high to float")
+				return
+			}
+
+			if low, ok := wri[4].(float64); ok {
+				candle.Low = low
+			} else {
+				log.Error().
+					Str("exchange", e.wrapper.name).
+					Str("func", "processWs").
+					Interface("high", wri[4]).
+					Msg("")
+				err = errors.New("cannot convert candle data field low to float")
+				return
+			}
+
+			if volume, ok := wri[5].(float64); ok {
+				candle.Volume = volume
+			} else {
+				log.Error().
+					Str("exchange", e.wrapper.name).
+					Str("func", "processWs").
+					Interface("volume", wri[5]).
+					Msg("")
+				err = errors.New("cannot convert candle data field volume to float")
+				return
+			}
+
+			err = e.wrapper.appendCandle(candle, cfg)
 		}
 	}
 	return
@@ -313,7 +409,7 @@ func (e *bitfinex) processRestTicker(body io.ReadCloser) (price float64, err err
 	price, ok = rr[6].(float64)
 	if !ok {
 		log.Error().
-			Str("exchange", "bitfinex").
+			Str("exchange", e.wrapper.name).
 			Str("func", "processREST").
 			Interface("price", rr[6]).
 			Msg("")
@@ -337,7 +433,7 @@ func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		tradeID, ok := r[0].(float64)
 		if !ok {
 			log.Error().
-				Str("exchange", "bitfinex").
+				Str("exchange", e.wrapper.name).
 				Str("func", "processREST").
 				Interface("trade id", r[0]).
 				Msg("")
@@ -347,7 +443,7 @@ func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		size, ok := r[2].(float64)
 		if !ok {
 			log.Error().
-				Str("exchange", "bitfinex").
+				Str("exchange", e.wrapper.name).
 				Str("func", "processREST").
 				Interface("size", r[2]).
 				Msg("")
@@ -364,7 +460,7 @@ func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		price, ok := r[3].(float64)
 		if !ok {
 			log.Error().
-				Str("exchange", "bitfinex").
+				Str("exchange", e.wrapper.name).
 				Str("func", "processREST").
 				Interface("price", r[3]).
 				Msg("")
@@ -374,7 +470,7 @@ func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		timestamp, ok := r[1].(float64)
 		if !ok {
 			log.Error().
-				Str("exchange", "bitfinex").
+				Str("exchange", e.wrapper.name).
 				Str("func", "processREST").
 				Interface("timestamp", r[1]).
 				Msg("")
