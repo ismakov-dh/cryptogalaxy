@@ -285,6 +285,14 @@ func (e *okex) processWs(frame []byte) (err error) {
 			return
 		}
 
+		var t int64
+		t, err = strconv.ParseInt(candles[0][0], 10, 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+		candle.Timestamp = time.Unix(0, t*int64(time.Millisecond)).UTC()
+
 		if cfg.influxStr {
 			candle.InfluxVal = e.wrapper.getCandleInfluxTime(cfg.mktCommitName)
 		}
