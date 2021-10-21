@@ -33,6 +33,7 @@ type InfluxTimeVal struct {
 	// are excluding that scenario.
 	TickerMap map[string]int64
 	TradeMap  map[string]int64
+	CandleMap map[string]int64
 }
 
 var influxdb InfluxDB
@@ -129,3 +130,5 @@ func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 	}
 	return nil
 }
+
+func (i *InfluxDB) CommitCandles(_ context.Context, _ []Candle) error { return nil }

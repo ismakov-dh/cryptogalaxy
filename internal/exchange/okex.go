@@ -84,6 +84,8 @@ func (e *okex) getWsSubscribeMessage(market string, channel string, _ int) (fram
 		channel = "tickers"
 	case "trade":
 		channel = "trades"
+	case "candle":
+		channel = "candle1m"
 	}
 	channels := make([]wsSubChanOkex, 1)
 	channels[0].Channel = channel

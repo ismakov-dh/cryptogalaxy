@@ -8,6 +8,7 @@ import (
 type Store interface {
 	CommitTrades(context.Context, []Trade) error
 	CommitTickers(context.Context, []Ticker) error
+	CommitCandles(context.Context, []Candle) error
 }
 
 // Ticker represents final form of market ticker info received from exchange
@@ -31,6 +32,19 @@ type Trade struct {
 	Side          string
 	Size          float64
 	Price         float64
+	Timestamp     time.Time
+	InfluxVal     int64 `json:",omitempty"`
+}
+
+type Candle struct {
+	Exchange      string
+	MktID         string
+	MktCommitName string
+	Open          float64
+	High          float64
+	Low           float64
+	Close         float64
+	Volume        float64
 	Timestamp     time.Time
 	InfluxVal     int64 `json:",omitempty"`
 }

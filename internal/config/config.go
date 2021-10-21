@@ -67,10 +67,15 @@ type REST struct {
 	MaxIdleConnsPerHost int `json:"max_idle_conns_per_host"`
 }
 
+type Buffs struct {
+	TickerCommitBuf int `json:"ticker_commit_buffer"`
+	TradeCommitBuf  int `json:"trade_commit_buf"`
+	CandleCommitBuf int `json:"candle_commit_buf"`
+}
+
 // Terminal contains config values for terminal display.
 type Terminal struct {
-	TickerCommitBuf int `json:"ticker_commit_buffer"`
-	TradeCommitBuf  int `json:"trade_commit_buffer"`
+	Buffs
 }
 
 // MySQL contains config values for mysql.
@@ -83,8 +88,7 @@ type MySQL struct {
 	ConnMaxLifetimeSec int    `json:"conn_max_lifetime_sec"`
 	MaxOpenConns       int    `json:"max_open_conns"`
 	MaxIdleConns       int    `json:"max_idle_conns"`
-	TickerCommitBuf    int    `json:"ticker_commit_buffer"`
-	TradeCommitBuf     int    `json:"trade_commit_buffer"`
+	Buffs
 }
 
 // ES contains config values for elastic search.
@@ -96,8 +100,7 @@ type ES struct {
 	ReqTimeoutSec       int      `json:"request_timeout_sec"`
 	MaxIdleConns        int      `json:"max_idle_conns"`
 	MaxIdleConnsPerHost int      `json:"max_idle_conns_per_host"`
-	TickerCommitBuf     int      `json:"ticker_commit_buffer"`
-	TradeCommitBuf      int      `json:"trade_commit_buffer"`
+	Buffs
 }
 
 // InfluxDB contains config values for influxdb.
@@ -108,8 +111,7 @@ type InfluxDB struct {
 	URL             string `json:"URL"`
 	ReqTimeoutSec   int    `json:"request_timeout_sec"`
 	MaxIdleConns    int    `json:"max_idle_conns"`
-	TickerCommitBuf int    `json:"ticker_commit_buffer"`
-	TradeCommitBuf  int    `json:"trade_commit_buffer"`
+	Buffs
 }
 
 // NATS contains config values for nats.
@@ -119,8 +121,7 @@ type NATS struct {
 	Password        string   `json:"password"`
 	SubjectBaseName string   `json:"subject_base_name"`
 	ReqTimeoutSec   int      `json:"request_timeout_sec"`
-	TickerCommitBuf int      `json:"ticker_commit_buffer"`
-	TradeCommitBuf  int      `json:"trade_commit_buffer"`
+	Buffs
 }
 
 // ClickHouse contains config values for clickhouse.
@@ -132,8 +133,7 @@ type ClickHouse struct {
 	ReqTimeoutSec   int      `json:"request_timeout_sec"`
 	AltHosts        []string `json:"alt_hosts"`
 	Compression     bool     `json:"compression"`
-	TickerCommitBuf int      `json:"ticker_commit_buffer"`
-	TradeCommitBuf  int      `json:"trade_commit_buffer"`
+	Buffs
 }
 
 // S3 contains config values for s3.
@@ -146,8 +146,7 @@ type S3 struct {
 	ReqTimeoutSec       int    `json:"request_timeout_sec"`
 	MaxIdleConns        int    `json:"max_idle_conns"`
 	MaxIdleConnsPerHost int    `json:"max_idle_conns_per_host"`
-	TickerCommitBuf     int    `json:"ticker_commit_buffer"`
-	TradeCommitBuf      int    `json:"trade_commit_buffer"`
+	Buffs
 }
 
 // Log contains config values for logging.

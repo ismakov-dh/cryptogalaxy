@@ -84,7 +84,12 @@ func (c *ClickHouse) CommitTickers(_ context.Context, data []Ticker) error {
 
 	for i := range data {
 		ticker := data[i]
-		_, err := stmt.Exec(ticker.Exchange, ticker.MktCommitName, ticker.Price, ticker.Timestamp.Format(clickHouseTimestamp))
+		_, err := stmt.Exec(
+			ticker.Exchange,
+			ticker.MktCommitName,
+			ticker.Price,
+			ticker.Timestamp.Format(clickHouseTimestamp),
+		)
 		if err != nil {
 			return err
 		}
@@ -101,7 +106,10 @@ func (c *ClickHouse) CommitTrades(_ context.Context, data []Trade) error {
 	if err != nil {
 		return err
 	}
-	stmt, err := tx.Prepare("INSERT INTO trade (exchange, market, trade_id, side, size, price, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare(`
+INSERT INTO trade (exchange, market, trade_id, side, size, price, timestamp)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+`)
 	if err != nil {
 		return err
 	}
@@ -109,7 +117,50 @@ func (c *ClickHouse) CommitTrades(_ context.Context, data []Trade) error {
 
 	for i := range data {
 		trade := data[i]
-		_, err := stmt.Exec(trade.Exchange, trade.MktCommitName, trade.TradeID, trade.Side, trade.Size, trade.Price, trade.Timestamp.Format(clickHouseTimestamp))
+		_, err := stmt.Exec(
+			trade.Exchange,
+			trade.MktCommitName,
+			trade.TradeID, trade.Side,
+			trade.Size,
+			trade.Price,
+			trade.Timestamp.Format(clickHouseTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ClickHouse) CommitCandles(_ context.Context, data []Candle) error {
+	tx, err := c.DB.Begin()
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(`
+INSERT INTO candle (exchange, market, open, high, low, close, volume, timestamp)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for i := range data {
+		candle := data[i]
+		_, err := stmt.Exec(
+			candle.Exchange,
+			candle.MktCommitName,
+			candle.Open,
+			candle.High,
+			candle.Low,
+			candle.Close,
+			candle.Volume,
+			candle.Timestamp.Format(clickHouseTimestamp),
+		)
 		if err != nil {
 			return err
 		}

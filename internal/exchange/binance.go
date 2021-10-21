@@ -26,22 +26,35 @@ type wsSubBinance struct {
 }
 
 type wsRespBinance struct {
-	Event         string `json:"e"`
-	Symbol        string `json:"s"`
-	TradeID       uint64 `json:"t"`
-	Maker         bool   `json:"m"`
-	Qty           string `json:"q"`
-	TickerPrice   string `json:"c"`
-	TradePrice    string `json:"p"`
-	TickerTime    int64  `json:"E"`
-	TradeTime     int64  `json:"T"`
-	Code          int    `json:"code"`
-	Msg           string `json:"msg"`
-	ID            int    `json:"id"`
+	Event       string             `json:"e"`
+	Symbol      string             `json:"s"`
+	TradeID     uint64             `json:"t"`
+	Maker       bool               `json:"m"`
+	Qty         string             `json:"q"`
+	TickerPrice string             `json:"c"`
+	TradePrice  string             `json:"p"`
+	TickerTime  int64              `json:"E"`
+	TradeTime   int64              `json:"T"`
+	Code        int                `json:"code"`
+	Msg         string             `json:"msg"`
+	ID          int                `json:"id"`
+	Candle      *candleRespBinance `json:"k,omitempty"`
 
 	// This field value is not used but still need to present
 	// because otherwise json decoder does case-insensitive match with "m" and "M".
 	IsBestMatch bool `json:"M"`
+}
+
+type candleRespBinance struct {
+	StartTime int64  `json:"t"`
+	EndTime   int64  `json:"T"`
+	Open      string `json:"o"`
+	Close     string `json:"c"`
+	High      string `json:"h"`
+	Low       string `json:"l"`
+	Volume    string `json:"v"`
+
+	LastTradeId int64 `json:"L"`
 }
 
 type restRespBinance struct {
@@ -65,6 +78,12 @@ func (e *binance) readWs() ([]byte, error) {
 }
 
 func (e *binance) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
+	switch channel {
+	case "ticker":
+		channel = "miniTicker"
+	case "candle":
+		channel = "kline_1m"
+	}
 	if channel == "ticker" {
 		channel = "miniTicker"
 	}
@@ -115,8 +134,11 @@ func (e *binance) processWs(frame []byte) (err error) {
 	}
 
 	market, channel = wr.Symbol, wr.Event
-	if wr.Event == "24hrMiniTicker" {
+	switch wr.Event {
+	case "24hrMiniTicker":
 		channel = "ticker"
+	case "kline":
+		channel = "candle"
 	}
 
 	cfg, _, updateRequired := e.wrapper.getCfgMap(market, channel)
@@ -176,6 +198,49 @@ func (e *binance) processWs(frame []byte) (err error) {
 		}
 
 		err = e.wrapper.appendTrade(trade, cfg)
+	case "candle":
+		candle := storage.Candle{
+			Exchange:      e.wrapper.name,
+			MktID:         market,
+			MktCommitName: cfg.mktCommitName,
+			Timestamp: time.Unix(0, wr.Candle.StartTime*int64(time.Millisecond)).UTC(),
+		}
+
+		candle.Open, err = strconv.ParseFloat(wr.Candle.Open, 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.High, err = strconv.ParseFloat(wr.Candle.High, 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.Low, err = strconv.ParseFloat(wr.Candle.Low, 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.Close, err = strconv.ParseFloat(wr.Candle.Close, 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.Volume, err = strconv.ParseFloat(wr.Candle.Volume, 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		if cfg.influxStr {
+			candle.InfluxVal = e.wrapper.getCandleInfluxTime(cfg.mktCommitName)
+		}
+
+		err = e.wrapper.appendCandle(candle, cfg)
 	}
 
 	return

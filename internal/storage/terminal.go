@@ -36,7 +36,15 @@ func GetTerminal() *Terminal {
 func (t *Terminal) CommitTickers(_ context.Context, data []Ticker) (err error) {
 	for i := range data {
 		ticker := data[i]
-		fmt.Fprintf(t.out, "%-15s%-15s%-15s%20f%20s\n\n", "Ticker", ticker.Exchange, ticker.MktCommitName, ticker.Price, ticker.Timestamp.Local().Format(TerminalTimestamp))
+		_, err = fmt.Fprintf(
+			t.out,
+			"%-15s%-15s%-15s%20f%20s\n\n",
+			"Ticker",
+			ticker.Exchange,
+			ticker.MktCommitName,
+			ticker.Price,
+			ticker.Timestamp.Local().Format(TerminalTimestamp),
+		)
 	}
 	return
 }
@@ -45,7 +53,37 @@ func (t *Terminal) CommitTickers(_ context.Context, data []Ticker) (err error) {
 func (t *Terminal) CommitTrades(_ context.Context, data []Trade) (err error) {
 	for i := range data {
 		trade := data[i]
-		fmt.Fprintf(t.out, "%-15s%-15s%-5s%20f%20f%20s\n\n", "Trade", trade.Exchange, trade.MktCommitName, trade.Size, trade.Price, trade.Timestamp.Local().Format(TerminalTimestamp))
+		_, err = fmt.Fprintf(
+			t.out,
+			"%-15s%-15s%-5s%20f%20f%20s\n\n",
+			"Trade",
+			trade.Exchange,
+			trade.MktCommitName,
+			trade.Size,
+			trade.Price,
+			trade.Timestamp.Local().Format(TerminalTimestamp),
+		)
 	}
+	return
+}
+
+func (t *Terminal) CommitCandles(_ context.Context, data []Candle) (err error) {
+	for i := range data {
+		candle := data[i]
+		_, err = fmt.Fprintf(
+			t.out,
+			"%-15s%-15s%-5s%20f%20f%20f%20f%20f%20s\n\n",
+			"Candle",
+			candle.Exchange,
+			candle.MktCommitName,
+			candle.Open,
+			candle.High,
+			candle.Low,
+			candle.Close,
+			candle.Volume,
+			candle.Timestamp.Local().Format(TerminalTimestamp),
+		)
+	}
+
 	return
 }

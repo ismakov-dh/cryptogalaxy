@@ -35,8 +35,12 @@ type respHuobi struct {
 }
 
 type respTickHuobi struct {
-	TickerPrice float64         `json:"close"`
-	TradeData   []respDataHuobi `json:"data"`
+	Open      float64         `json:"open"`
+	High      float64         `json:"high"`
+	Low       float64         `json:"low"`
+	Close     float64         `json:"close"`
+	Volume    float64         `json:"amount"`
+	TradeData []respDataHuobi `json:"data"`
 }
 
 type respDataHuobi struct {
@@ -80,6 +84,8 @@ func (e *huobi) getWsSubscribeMessage(market string, channel string, _ int) (fra
 		channel = "market." + market + ".detail"
 	case "trade":
 		channel = "market." + market + ".trade.detail"
+	case "candle":
+		channel = "market." + market + ".kline.1min"
 	}
 	frame, err = jsoniter.Marshal(map[string]string{
 		"sub": channel,
@@ -111,8 +117,13 @@ func (e *huobi) processWs(frame []byte) (err error) {
 	if wr.Status == "ok" && wr.SubChannel != "" {
 		s := strings.Split(wr.SubChannel, ".")
 		c := "ticker"
-		if s[2] == "trade" {
-			c = "trade"
+		switch s[2] {
+		case "trade":
+			channel = "trade"
+		case "kline":
+			channel = "candle"
+		default:
+			channel = "ticker"
 		}
 		log.Debug().Str("exchange", "huobi").Str("func", "readWs").Str("market", s[1]).Str("channel", c).Msg("channel subscribed")
 		return
@@ -121,9 +132,12 @@ func (e *huobi) processWs(frame []byte) (err error) {
 	if wr.Channel != "" {
 		s := strings.Split(wr.Channel, ".")
 		market = s[1]
-		if s[2] == "trade" {
+		switch s[2] {
+		case "trade":
 			channel = "trade"
-		} else {
+		case "kline":
+			channel = "candle"
+		default:
 			channel = "ticker"
 		}
 	}
@@ -139,7 +153,7 @@ func (e *huobi) processWs(frame []byte) (err error) {
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
-			Price:         wr.Tick.TickerPrice,
+			Price:         wr.Tick.Close,
 			Timestamp:     time.Unix(0, wr.Time*int64(time.Millisecond)).UTC(),
 		}
 
@@ -172,6 +186,24 @@ func (e *huobi) processWs(frame []byte) (err error) {
 				continue
 			}
 		}
+	case "candle":
+		candle := storage.Candle{
+			Exchange:      e.wrapper.name,
+			MktID:         market,
+			MktCommitName: cfg.mktCommitName,
+			Open:          wr.Tick.Open,
+			High:          wr.Tick.High,
+			Low:           wr.Tick.Low,
+			Close:         wr.Tick.Close,
+			Volume:        wr.Tick.Volume,
+			Timestamp:     time.Unix(0, wr.Time*int64(time.Millisecond)).UTC(),
+		}
+
+		if cfg.influxStr {
+			candle.InfluxVal = e.wrapper.getCandleInfluxTime(cfg.mktCommitName)
+		}
+
+		err = e.wrapper.appendCandle(candle, cfg)
 	}
 
 	return
@@ -218,7 +250,7 @@ func (e *huobi) processRestTicker(body io.ReadCloser) (price float64, err error)
 		return
 	}
 
-	price = rr.Tick.TickerPrice
+	price = rr.Tick.Close
 
 	return
 }

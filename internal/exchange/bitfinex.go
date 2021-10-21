@@ -42,9 +42,13 @@ func NewBitfinex(wrapper *Wrapper) *bitfinex {
 }
 
 func (e *bitfinex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
-	if channel == "trade" {
+	switch channel {
+	case "trade":
 		channel = "trades"
+	case "candle":
+		channel = "candles"
 	}
+
 	market = "t" + strings.ToUpper(market)
 
 	frame, err = jsoniter.Marshal(map[string]string{
@@ -93,14 +97,14 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 
 			log.Debug().
 				Str("exchange", "bitfinex").
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", market).
 				Str("channel", channel).
 				Msg("channel subscribed")
 		case "error":
 			log.Error().
 				Str("exchange", "bitfinex").
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Int("code", wr.Code).
 				Str("msg", wr.Msg).
 				Msg("")
@@ -110,14 +114,14 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 			if wr.Code != 0 {
 				log.Info().
 					Str("exchange", "bitfinex").
-					Str("func", "readWs").
+					Str("func", "processWs").
 					Int("code", wr.Code).
 					Str("msg", wr.Msg).
 					Msg("info received")
 			} else if wr.Version != 0 {
 				log.Info().
 					Str("exchange", "bitfinex").
-					Str("func", "readWs").
+					Str("func", "processWs").
 					Int("version", wr.Version).
 					Int("platform-status", wr.Platform.Status).
 					Msg("info received")
@@ -135,37 +139,37 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 			ch := e.wrapper.channelIds[int(chanID)]
 
 			market, channel = ch[0], ch[1]
-
-			switch data := wr[1].(type) {
-			case string:
-				if data != "te" {
-					return
-				}
-				if wsData, ok := wr[2].([]interface{}); ok {
-					wri = wsData
-				} else {
-					log.Error().
-						Str("exchange", "bitfinex").
-						Str("func", "readWs").
-						Interface("data", wr[2]).
-						Msg("")
-					err = errors.New("cannot convert frame data to []interface{}")
-					return
-				}
-			case []interface{}:
-				if channel != "ticker" {
-					return
-				}
-				wri = data
-			}
 		} else {
 			log.Error().
 				Str("exchange", "bitfinex").
-				Str("func", "readWs").
-				Interface("channel id", wr[0]).
+				Str("func", "processWs").
+				Interface("channel_id", wr[0]).
 				Msg("")
 			err = errors.New("cannot convert frame data field channel id to float")
 			return
+		}
+
+		switch data := wr[1].(type) {
+		case string:
+			if data != "te" {
+				return
+			}
+			if wsData, ok := wr[2].([]interface{}); ok {
+				wri = wsData
+			} else {
+				log.Error().
+					Str("exchange", "bitfinex").
+					Str("func", "processWs").
+					Interface("data", wr[2]).
+					Msg("")
+				err = errors.New("cannot convert frame data to []interface{}")
+				return
+			}
+		case []interface{}:
+			if channel != "ticker" {
+				return
+			}
+			wri = data
 		}
 
 		cfg, _, updateRequired := e.wrapper.getCfgMap(market, channel)
