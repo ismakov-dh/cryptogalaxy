@@ -12,17 +12,17 @@ type Storage struct {
 	ctx           context.Context
 	store         storage.Store
 	tickers       []storage.Ticker
+	tickersStream chan []storage.Ticker
 	tickersCount  int
 	tickersBuffer int
-	tickersStream chan []storage.Ticker
 	trades        []storage.Trade
+	tradesStream  chan []storage.Trade
 	tradesCount   int
 	tradesBuffer  int
-	tradesStream  chan []storage.Trade
 	candles       []storage.Candle
+	candlesStream chan []storage.Candle
 	candlesCount  int
 	candlesBuffer int
-	candlesStream chan []storage.Candle
 }
 
 func NewStorage(ctx context.Context, store storage.Store, tickersBuffer int, tradesBuffer int, candlesBuffer int) *Storage {
@@ -39,9 +39,9 @@ func NewStorage(ctx context.Context, store storage.Store, tickersBuffer int, tra
 }
 
 func (s *Storage) Start(errGroup *errgroup.Group) {
-	errGroup.Go(func() error { return s.tradesToStore() })
-	errGroup.Go(func() error { return s.tickersToStore() })
-	errGroup.Go(func() error { return s.candlesToStore() })
+	errGroup.Go(s.tickersToStore)
+	errGroup.Go(s.tradesToStore)
+	errGroup.Go(s.candlesToStore)
 }
 
 func (s *Storage) AppendTicker(ticker storage.Ticker) {
@@ -75,12 +75,12 @@ func (s *Storage) AppendTrade(trade storage.Trade) {
 func (s *Storage) AppendCandle(candle storage.Candle) {
 	s.candlesCount++
 	s.candles = append(s.candles, candle)
-	if s.tradesCount == s.tradesBuffer {
+	if s.candlesCount == s.candlesBuffer {
 		candles := s.candles
 		s.candlesStream <- candles
 
-		s.tradesCount = 0
-		s.trades = nil
+		s.candlesCount = 0
+		s.candles = nil
 	}
 
 	return

@@ -30,12 +30,15 @@ type wsSubChanOkex struct {
 }
 
 type respOkex struct {
-	Event string         `json:"event"`
-	Arg   wsSubChanOkex  `json:"arg"`
-	Data  []respDataOkex `json:"data"`
-	Code  string         `json:"code"`
-	Msg   string         `json:"msg"`
+	Event string              `json:"event"`
+	Arg   wsSubChanOkex       `json:"arg"`
+	Data  jsoniter.RawMessage `json:"data"`
+	Code  string              `json:"code"`
+	Msg   string              `json:"msg"`
+	//Data  []respDataOkex `json:"data"`
 }
+
+type candleDataOkex [][]string
 
 type respDataOkex struct {
 	TradeID     string `json:"tradeId"`
@@ -110,10 +113,20 @@ func (e *okex) processWs(frame []byte) (err error) {
 	err = jsoniter.Unmarshal(frame, &wr)
 	if err != nil {
 		if string(frame) == "pong" {
-			return
+			return nil
 		}
 		logErrStack(err)
 		return
+	}
+
+	market = wr.Arg.InstID
+	switch wr.Arg.Channel {
+	case "tickers":
+		channel = "ticker"
+	case "candle1m":
+		channel = "candle"
+	default:
+		channel = "trade"
 	}
 
 	switch wr.Event {
@@ -130,15 +143,15 @@ func (e *okex) processWs(frame []byte) (err error) {
 			log.Debug().
 				Str("exchange", "okex").
 				Str("func", "readWs").
-				Str("market", wr.Arg.InstID).
-				Str("channel", "ticker").
+				Str("market", market).
+				Str("channel", channel).
 				Msg("channel subscribed")
 		} else {
 			log.Debug().
 				Str("exchange", "okex").
 				Str("func", "readWs").
-				Str("market", wr.Arg.InstID).
-				Str("channel", "trade").
+				Str("market", market).
+				Str("channel", channel).
 				Msg("channel subscribed")
 		}
 		return
@@ -148,32 +161,32 @@ func (e *okex) processWs(frame []byte) (err error) {
 		return
 	}
 
-	if wr.Arg.Channel == "tickers" {
-		channel = "ticker"
-	} else {
-		channel = "trade"
-	}
-
 	cfg, _, updateRequired := e.wrapper.getCfgMap(market, channel)
 	if !updateRequired {
 		return
 	}
 
-	switch wr.Arg.Channel {
+	switch channel {
 	case "ticker":
+		var data []respDataOkex
+
+		if err := jsoniter.Unmarshal(wr.Data, &data); err != nil {
+			return err
+		}
+
 		ticker := storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
 		}
 
-		ticker.Price, err = strconv.ParseFloat(wr.Data[0].TickerPrice, 64)
+		ticker.Price, err = strconv.ParseFloat(data[0].TickerPrice, 64)
 		if err != nil {
 			logErrStack(err)
 			return err
 		}
 
-		t, err := strconv.ParseInt(wr.Data[0].Timestamp, 10, 0)
+		t, err := strconv.ParseInt(data[0].Timestamp, 10, 0)
 		if err != nil {
 			logErrStack(err)
 			return err
@@ -186,29 +199,35 @@ func (e *okex) processWs(frame []byte) (err error) {
 
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
+		var data []respDataOkex
+
+		if err := jsoniter.Unmarshal(wr.Data, &data); err != nil {
+			return err
+		}
+
 		var err error
-		for _, data := range wr.Data {
+		for _, t := range data {
 			trade := storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
-				TradeID: data.TradeID,
-				Side: data.Side,
+				TradeID:       t.TradeID,
+				Side:          t.Side,
 			}
 
-			trade.Size, err = strconv.ParseFloat(data.Size, 64)
+			trade.Size, err = strconv.ParseFloat(t.Size, 64)
 			if err != nil {
 				logErrStack(err)
 				continue
 			}
 
-			trade.Price, err = strconv.ParseFloat(data.TradePrice, 64)
+			trade.Price, err = strconv.ParseFloat(t.TradePrice, 64)
 			if err != nil {
 				logErrStack(err)
 				continue
 			}
 
-			t, err := strconv.ParseInt(data.Timestamp, 10, 0)
+			t, err := strconv.ParseInt(t.Timestamp, 10, 0)
 			if err != nil {
 				logErrStack(err)
 				continue
@@ -223,6 +242,54 @@ func (e *okex) processWs(frame []byte) (err error) {
 				logErrStack(err)
 			}
 		}
+	case "candle":
+		var candles [][]string
+
+		if err := jsoniter.Unmarshal(wr.Data, &candles); err != nil {
+			return err
+		}
+
+		candle := storage.Candle{
+			Exchange: e.wrapper.name,
+			MktID: market,
+			MktCommitName: cfg.mktCommitName,
+		}
+
+		candle.Open, err = strconv.ParseFloat(candles[0][1], 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.High, err = strconv.ParseFloat(candles[0][2], 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.Low, err = strconv.ParseFloat(candles[0][3], 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.Close, err = strconv.ParseFloat(candles[0][4], 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		candle.Volume, err = strconv.ParseFloat(candles[0][5], 64)
+		if err != nil {
+			logErrStack(err)
+			return
+		}
+
+		if cfg.influxStr {
+			candle.InfluxVal = e.wrapper.getCandleInfluxTime(cfg.mktCommitName)
+		}
+
+		err = e.wrapper.appendCandle(candle, cfg)
 	}
 
 	return
@@ -268,7 +335,13 @@ func (e *okex) processRestTicker(body io.ReadCloser) (price float64, err error) 
 		return
 	}
 
-	price, err = strconv.ParseFloat(rr.Data[0].TickerPrice, 64)
+	var data []respDataOkex
+
+	if err = jsoniter.Unmarshal(rr.Data, data); err != nil {
+		return
+	}
+
+	price, err = strconv.ParseFloat(data[0].TickerPrice, 64)
 	if err != nil {
 		logErrStack(err)
 	}
@@ -283,13 +356,19 @@ func (e *okex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 		return
 	}
 
-	for i := range rr.Data {
+	var data []respDataOkex
+
+	if err = jsoniter.Unmarshal(rr.Data, data); err != nil {
+		return
+	}
+
+	for i := range data {
 		var err error
-		r := rr.Data[i]
+		r := data[i]
 
 		trade := storage.Trade{
-			TradeID:       r.TradeID,
-			Side:          r.Side,
+			TradeID: r.TradeID,
+			Side:    r.Side,
 		}
 
 		trade.Size, err = strconv.ParseFloat(r.Size, 64)

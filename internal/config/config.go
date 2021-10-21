@@ -69,8 +69,8 @@ type REST struct {
 
 type Buffs struct {
 	TickerCommitBuf int `json:"ticker_commit_buffer"`
-	TradeCommitBuf  int `json:"trade_commit_buf"`
-	CandleCommitBuf int `json:"candle_commit_buf"`
+	TradeCommitBuf  int `json:"trade_commit_buffer"`
+	CandleCommitBuf int `json:"candle_commit_buffer"`
 }
 
 // Terminal contains config values for terminal display.
