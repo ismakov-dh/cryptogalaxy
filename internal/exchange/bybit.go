@@ -205,11 +205,11 @@ func (e *bybit) processWs(frame []byte) (err error) {
 		var err error
 		for _, data := range dataResp {
 			trade := storage.Trade{
-				Exchange: e.wrapper.name,
-				MktID: market,
+				Exchange:      e.wrapper.name,
+				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
-				TradeID: data.TradeID,
-				Size: data.Size,
+				TradeID:       data.TradeID,
+				Size:          data.Size,
 			}
 
 			if data.Side == "Buy" {
@@ -308,9 +308,9 @@ func (e *bybit) processRestTrade(body io.ReadCloser) (trades []storage.Trade, er
 		r := rr.Result[i]
 
 		trade := storage.Trade{
-			Size:          r.Size,
-			Price:         r.TradePrice,
-			Timestamp:     r.Time,
+			Size:      r.Size,
+			Price:     r.TradePrice,
+			Timestamp: r.Time,
 		}
 		if r.Side == "Buy" {
 			trade.Side = "buy"

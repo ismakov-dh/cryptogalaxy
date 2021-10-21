@@ -256,9 +256,9 @@ func (e *ftx) processRestTicker(body io.ReadCloser) (price float64, err error) {
 		logErrStack(err)
 		return
 	}
-	
+
 	price = rr.Result.Price
-	
+
 	return
 }
 
@@ -268,17 +268,17 @@ func (e *ftx) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err 
 		logErrStack(err)
 		return
 	}
-	
+
 	for i := range rr.Result {
 		var err error
 		r := rr.Result[i]
 
 		trade := storage.Trade{
-			Side:          r.Side,
-			Size:          r.Size,
-			Price:         r.Price,
+			Side:  r.Side,
+			Size:  r.Size,
+			Price: r.Price,
 		}
-		
+
 		trade.Timestamp, err = time.Parse(time.RFC3339Nano, r.Time)
 		if err != nil {
 			logErrStack(err)
@@ -287,6 +287,6 @@ func (e *ftx) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err 
 
 		trades = append(trades, trade)
 	}
-	
+
 	return
 }

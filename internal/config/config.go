@@ -105,12 +105,12 @@ type ES struct {
 
 // InfluxDB contains config values for influxdb.
 type InfluxDB struct {
-	Organization    string `josn:"organization"`
-	Bucket          string `json:"bucket"`
-	Token           string `json:"token"`
-	URL             string `json:"URL"`
-	ReqTimeoutSec   int    `json:"request_timeout_sec"`
-	MaxIdleConns    int    `json:"max_idle_conns"`
+	Organization  string `josn:"organization"`
+	Bucket        string `json:"bucket"`
+	Token         string `json:"token"`
+	URL           string `json:"URL"`
+	ReqTimeoutSec int    `json:"request_timeout_sec"`
+	MaxIdleConns  int    `json:"max_idle_conns"`
 	Buffs
 }
 
@@ -126,13 +126,13 @@ type NATS struct {
 
 // ClickHouse contains config values for clickhouse.
 type ClickHouse struct {
-	User            string   `josn:"user"`
-	Password        string   `json:"password"`
-	URL             string   `json:"URL"`
-	Schema          string   `json:"schema"`
-	ReqTimeoutSec   int      `json:"request_timeout_sec"`
-	AltHosts        []string `json:"alt_hosts"`
-	Compression     bool     `json:"compression"`
+	User          string   `josn:"user"`
+	Password      string   `json:"password"`
+	URL           string   `json:"URL"`
+	Schema        string   `json:"schema"`
+	ReqTimeoutSec int      `json:"request_timeout_sec"`
+	AltHosts      []string `json:"alt_hosts"`
+	Compression   bool     `json:"compression"`
 	Buffs
 }
 

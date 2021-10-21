@@ -250,8 +250,8 @@ func (e *okex) processWs(frame []byte) (err error) {
 		}
 
 		candle := storage.Candle{
-			Exchange: e.wrapper.name,
-			MktID: market,
+			Exchange:      e.wrapper.name,
+			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
 		}
 

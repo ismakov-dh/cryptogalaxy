@@ -382,11 +382,11 @@ func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		}
 
 		trade := storage.Trade{
-			TradeID:       strconv.FormatFloat(tradeID, 'f', 0, 64),
-			Side:          side,
-			Size:          size,
-			Price:         price,
-			Timestamp:     time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC(),
+			TradeID:   strconv.FormatFloat(tradeID, 'f', 0, 64),
+			Side:      side,
+			Size:      size,
+			Price:     price,
+			Timestamp: time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC(),
 		}
 
 		trades = append(trades, trade)

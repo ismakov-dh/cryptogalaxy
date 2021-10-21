@@ -271,13 +271,13 @@ func (e *mexo) processRestTicker(body io.ReadCloser) (price float64, err error) 
 	if err != nil {
 		logErrStack(err)
 	}
-	
+
 	return
 }
 
 func (e *mexo) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
 	var rr []restRespMexo
-	
+
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
 		return
@@ -286,7 +286,7 @@ func (e *mexo) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 	for i := range rr {
 		var err error
 		r := rr[i]
-		
+
 		trade := storage.Trade{
 			Timestamp: time.Unix(0, r.Time*int64(time.Millisecond)).UTC(),
 		}
@@ -307,9 +307,9 @@ func (e *mexo) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 			logErrStack(err)
 			continue
 		}
-		
+
 		trades = append(trades, trade)
 	}
-	
+
 	return
 }

@@ -31,11 +31,11 @@ type wsSubParamsBitrue struct {
 }
 
 type wsRespBitrue struct {
-	Channel       string           `json:"channel"`
-	EventRep      string           `json:"event_rep"`
-	Status        string           `json:"status"`
-	Tick          wsRespDataBitrue `json:"tick"`
-	PingID        uint64           `json:"ping"`
+	Channel  string           `json:"channel"`
+	EventRep string           `json:"event_rep"`
+	Status   string           `json:"status"`
+	Tick     wsRespDataBitrue `json:"tick"`
+	PingID   uint64           `json:"ping"`
 }
 
 type wsRespDataBitrue struct {
@@ -243,8 +243,8 @@ func (e *bitrue) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		r := rr[i]
 
 		trade := storage.Trade{
-			TradeID:       strconv.FormatUint(r.TradeID, 10),
-			Timestamp:     time.Unix(0, r.Time*int64(time.Millisecond)).UTC(),
+			TradeID:   strconv.FormatUint(r.TradeID, 10),
+			Timestamp: time.Unix(0, r.Time*int64(time.Millisecond)).UTC(),
 		}
 
 		if r.Maker {

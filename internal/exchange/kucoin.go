@@ -31,10 +31,10 @@ type wsSubKucoin struct {
 }
 
 type respKucoin struct {
-	ID            string         `json:"id"`
-	Topic         string         `json:"topic"`
-	Data          respDataKucoin `json:"data"`
-	Type          string         `json:"type"`
+	ID    string         `json:"id"`
+	Topic string         `json:"topic"`
+	Data  respDataKucoin `json:"data"`
+	Type  string         `json:"type"`
 }
 
 type restRespKucoin struct {

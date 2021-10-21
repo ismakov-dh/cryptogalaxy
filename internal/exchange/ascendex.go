@@ -21,13 +21,13 @@ type ascendex struct {
 }
 
 type wsRespAscendex struct {
-	Type          string              `json:"m"`
-	Channel       string              `json:"ch"`
-	TickerSymbol  string              `json:"s"`
-	TradeSymbol   string              `json:"symbol"`
-	Data          jsoniter.RawMessage `json:"data"`
-	Code          int                 `json:"code"`
-	Error         string              `json:"err"`
+	Type         string              `json:"m"`
+	Channel      string              `json:"ch"`
+	TickerSymbol string              `json:"s"`
+	TradeSymbol  string              `json:"symbol"`
+	Data         jsoniter.RawMessage `json:"data"`
+	Code         int                 `json:"code"`
+	Error        string              `json:"err"`
 }
 
 type wsTickerRespDataAscendex struct {
@@ -157,7 +157,6 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 			return
 		}
 
-
 		ticker.Timestamp = time.Unix(0, data.Timestamp*int64(time.Millisecond)).UTC()
 
 		ticker.Price, err = strconv.ParseFloat(data.Last, 64)
@@ -254,7 +253,7 @@ func (e *ascendex) buildRestRequest(ctx context.Context, mktID string, channel s
 
 func (e *ascendex) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespAscendex{}
-	
+
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
 		return
@@ -270,7 +269,7 @@ func (e *ascendex) processRestTicker(body io.ReadCloser) (price float64, err err
 
 func (e *ascendex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
 	rr := restRespAscendex{}
-	
+
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
 		return
@@ -279,12 +278,12 @@ func (e *ascendex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 	for i := range rr.Data.Data {
 		var err error
 		r := rr.Data.Data[i]
-		
+
 		trade := storage.Trade{
-			TradeID:       strconv.FormatUint(r.TradeID, 10),
-			Timestamp:     time.Unix(0, r.Timestamp*int64(time.Millisecond)).UTC(),
+			TradeID:   strconv.FormatUint(r.TradeID, 10),
+			Timestamp: time.Unix(0, r.Timestamp*int64(time.Millisecond)).UTC(),
 		}
-		
+
 		if r.Maker {
 			trade.Side = "buy"
 		} else {
@@ -302,9 +301,9 @@ func (e *ascendex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 			logErrStack(err)
 			continue
 		}
-		
+
 		trades = append(trades, trade)
 	}
-	
+
 	return
 }

@@ -273,9 +273,9 @@ func (e *hitBTC) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		r := data[i]
 
 		trade := storage.Trade{
-			TradeID:       strconv.FormatUint(r.TradeID, 10),
-			Side:          r.Side,
-			Timestamp:     r.Timestamp,
+			TradeID:   strconv.FormatUint(r.TradeID, 10),
+			Side:      r.Side,
+			Timestamp: r.Timestamp,
 		}
 
 		trade.Size, err = strconv.ParseFloat(r.Qty, 64)

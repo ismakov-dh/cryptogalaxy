@@ -230,7 +230,7 @@ func (e *bitstamp) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		r := rr[i]
 
 		trade := storage.Trade{
-			TradeID:       r.TradeID,
+			TradeID: r.TradeID,
 		}
 
 		if r.Type == "0" {

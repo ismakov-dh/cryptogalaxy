@@ -21,12 +21,12 @@ type aax struct {
 }
 
 type respAAX struct {
-	Event         string `json:"e"`
-	TradeID       string `json:"i"`
-	Size          string `json:"q"`
-	TickerPrice   string `json:"c"`
-	TradePrice    string `json:"p"`
-	Timestamp     int64  `json:"t"`
+	Event       string `json:"e"`
+	TradeID     string `json:"i"`
+	Size        string `json:"q"`
+	TickerPrice string `json:"c"`
+	TradePrice  string `json:"p"`
+	Timestamp   int64  `json:"t"`
 }
 
 type restTradeRespAAX struct {

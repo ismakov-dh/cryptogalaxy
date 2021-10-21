@@ -203,7 +203,7 @@ func (e *binance) processWs(frame []byte) (err error) {
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
-			Timestamp: time.Unix(0, wr.Candle.StartTime*int64(time.Millisecond)).UTC(),
+			Timestamp:     time.Unix(0, wr.Candle.StartTime*int64(time.Millisecond)).UTC(),
 		}
 
 		candle.Open, err = strconv.ParseFloat(wr.Candle.Open, 64)
