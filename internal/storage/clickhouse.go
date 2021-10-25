@@ -135,7 +135,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 	return nil
 }
 
-func (c *ClickHouse) CommitCandles(_ context.Context, data []Candle) error {
+func (c *ClickHouse) CommitCandles(_ context.Context, data map[CandleKey]Candle) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -149,8 +149,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 	}
 	defer stmt.Close()
 
-	for i := range data {
-		candle := data[i]
+	for _, candle := range data {
 		_, err := stmt.Exec(
 			candle.Exchange,
 			candle.MktCommitName,

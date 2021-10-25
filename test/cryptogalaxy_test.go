@@ -2765,7 +2765,7 @@ func readInfluxDB(exchName string, influxTickers map[string]storage.Ticker, infl
 	} else {
 		ctx = context.Background()
 	}
-	result, err := influx.QuerryAPI.Query(ctx, `
+	result, err := influx.QueryAPI.Query(ctx, `
 	                         from(bucket: "`+influx.Cfg.Bucket+`")
                              |> range(start: -1h)
                              |> filter(fn: (r) =>
@@ -2805,7 +2805,7 @@ func readInfluxDB(exchName string, influxTickers map[string]storage.Ticker, infl
 	} else {
 		ctx = context.Background()
 	}
-	result, err = influx.QuerryAPI.Query(ctx, `
+	result, err = influx.QueryAPI.Query(ctx, `
 	                         from(bucket: "`+influx.Cfg.Bucket+`")
                              |> range(start: -1h)
                              |> filter(fn: (r) =>

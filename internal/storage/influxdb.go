@@ -16,7 +16,7 @@ import (
 type InfluxDB struct {
 	WriteAPI  api.WriteAPIBlocking
 	DeleteAPI api.DeleteAPI
-	QuerryAPI api.QueryAPI
+	QueryAPI  api.QueryAPI
 	Cfg       *config.InfluxDB
 }
 
@@ -69,7 +69,7 @@ func InitInfluxDB(cfg *config.InfluxDB) (*InfluxDB, error) {
 		influxdb = InfluxDB{
 			WriteAPI:  writeAPI,
 			DeleteAPI: deleteAPI,
-			QuerryAPI: queryAPI,
+			QueryAPI:  queryAPI,
 			Cfg:       cfg,
 		}
 	}
@@ -89,7 +89,15 @@ func (i *InfluxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 		// See influxTimeVal (exchange.go) struct doc for details.
 		// Microsecond time precision is removed before adding custom nanosecond and then
 		// again converted back to nanosecond precision.
-		sb.WriteString(fmt.Sprintf("ticker,exchange=%v,market=%v price=%v %v\n", ticker.Exchange, ticker.MktCommitName, ticker.Price, ((ticker.Timestamp.UnixNano()/1e6)*1e6)+ticker.InfluxVal))
+		sb.WriteString(
+			fmt.Sprintf(
+				"ticker,exchange=%v,market=%v price=%v %v\n",
+				ticker.Exchange,
+				ticker.MktCommitName,
+				ticker.Price,
+				((ticker.Timestamp.UnixNano()/1e6)*1e6)+ticker.InfluxVal,
+			),
+		)
 	}
 	var ctx context.Context
 	if i.Cfg.ReqTimeoutSec > 0 {
@@ -114,7 +122,18 @@ func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 		// See influxTimeVal (exchange.go) struct doc for details.
 		// Microsecond time precision is removed before adding custom nanosecond and then
 		// again converted back to nanosecond precision.
-		sb.WriteString(fmt.Sprintf("trade,exchange=%v,market=%v,side=%v trade_id=\"%v\",size=%v,price=%v %v\n", trade.Exchange, trade.MktCommitName, trade.Side, trade.TradeID, trade.Size, trade.Price, ((trade.Timestamp.UnixNano()/1e6)*1e6)+trade.InfluxVal))
+		sb.WriteString(
+			fmt.Sprintf(
+				"trade,exchange=%v,market=%v,side=%v trade_id=\"%v\",size=%v,price=%v %v\n",
+				trade.Exchange,
+				trade.MktCommitName,
+				trade.Side,
+				trade.TradeID,
+				trade.Size,
+				trade.Price,
+				((trade.Timestamp.UnixNano()/1e6)*1e6)+trade.InfluxVal,
+			),
+		)
 	}
 	var ctx context.Context
 	if i.Cfg.ReqTimeoutSec > 0 {
@@ -131,4 +150,4 @@ func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (i *InfluxDB) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (i *InfluxDB) CommitCandles(_ context.Context, _ map[CandleKey]Candle) error { return nil }

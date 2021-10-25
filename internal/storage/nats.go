@@ -97,4 +97,4 @@ func (n *NATS) CommitTrades(_ context.Context, data []Trade) error {
 	return nil
 }
 
-func (n *NATS) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (n *NATS) CommitCandles(_ context.Context, _ map[CandleKey]Candle) error { return nil }

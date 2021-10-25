@@ -113,4 +113,4 @@ func (m *MySQL) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (m *MySQL) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (m *MySQL) CommitCandles(_ context.Context, _ map[CandleKey]Candle) error { return nil }

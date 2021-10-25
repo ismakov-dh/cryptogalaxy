@@ -118,4 +118,4 @@ func (s *S3) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (s *S3) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (s *S3) CommitCandles(_ context.Context, _ map[CandleKey]Candle) error { return nil }

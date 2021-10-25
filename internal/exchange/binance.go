@@ -54,7 +54,8 @@ type candleRespBinance struct {
 	Low       string `json:"l"`
 	Volume    string `json:"v"`
 
-	LastTradeId int64 `json:"L"`
+	TakerBuyBaseAssetVolume string `json:"V"`
+	LastTradeId             int64  `json:"L"`
 }
 
 type restRespBinance struct {

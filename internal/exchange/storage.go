@@ -6,35 +6,44 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+	"time"
 )
 
 type Storage struct {
-	ctx           context.Context
-	store         storage.Store
-	tickers       []storage.Ticker
-	tickersStream chan []storage.Ticker
-	tickersCount  int
-	tickersBuffer int
-	trades        []storage.Trade
-	tradesStream  chan []storage.Trade
-	tradesCount   int
-	tradesBuffer  int
-	candles       []storage.Candle
-	candlesStream chan []storage.Candle
-	candlesCount  int
-	candlesBuffer int
+	ctx                       context.Context
+	store                     storage.Store
+	tickers                   []storage.Ticker
+	trades                    []storage.Trade
+	candles                   map[storage.CandleKey]storage.Candle
+	candlesStream             chan map[storage.CandleKey]storage.Candle
+	tickersStream             chan []storage.Ticker
+	tradesStream              chan []storage.Trade
+	tickersCount              int
+	tickersBuffer             int
+	tradesCount               int
+	tradesBuffer              int
+	candlesCount              int
+	candlesBuffer             int
+	candlesPreBuffer          map[storage.CandleKey]storage.Candle
+	candlesPreBufferedCount   int
+	candlesPreBufferThreshold int
 }
 
-func NewStorage(ctx context.Context, store storage.Store, tickersBuffer int, tradesBuffer int, candlesBuffer int) *Storage {
+func NewStorage(ctx context.Context, store storage.Store, tickersBuf int, tradesBuf int, candlesBuf int) *Storage {
 	return &Storage{
-		ctx:           ctx,
-		store:         store,
-		tickersBuffer: tickersBuffer,
-		tickersStream: make(chan []storage.Ticker, 1),
-		tradesBuffer:  tradesBuffer,
-		tradesStream:  make(chan []storage.Trade, 1),
-		candlesBuffer: candlesBuffer,
-		candlesStream: make(chan []storage.Candle, 1),
+		ctx:                       ctx,
+		store:                     store,
+		tickers:                   make([]storage.Ticker, 0, tickersBuf),
+		tickersStream:             make(chan []storage.Ticker, 1),
+		tickersBuffer:             tickersBuf,
+		trades:                    make([]storage.Trade, 0, tradesBuf),
+		tradesStream:              make(chan []storage.Trade, 1),
+		tradesBuffer:              tradesBuf,
+		candles:                   make(map[storage.CandleKey]storage.Candle, candlesBuf),
+		candlesStream:             make(chan map[storage.CandleKey]storage.Candle, 1),
+		candlesBuffer:             candlesBuf,
+		candlesPreBuffer:          make(map[storage.CandleKey]storage.Candle, 2),
+		candlesPreBufferThreshold: 2,
 	}
 }
 
@@ -52,7 +61,7 @@ func (s *Storage) AppendTicker(ticker storage.Ticker) {
 		s.tickersStream <- tickers
 
 		s.tickersCount = 0
-		s.tickers = nil
+		s.tickers = make([]storage.Ticker, 0, s.tickersBuffer)
 	}
 
 	return
@@ -66,21 +75,47 @@ func (s *Storage) AppendTrade(trade storage.Trade) {
 		s.tradesStream <- trades
 
 		s.tradesCount = 0
-		s.trades = nil
+		s.trades = make([]storage.Trade, 0, s.tradesBuffer)
 	}
 
 	return
 }
 
 func (s *Storage) AppendCandle(candle storage.Candle) {
-	s.candlesCount++
-	s.candles = append(s.candles, candle)
-	if s.candlesCount == s.candlesBuffer {
+	candle.Timestamp = candle.Timestamp.Truncate(time.Minute)
+	key := storage.CandleKey{Market: candle.MktID, Timestamp: candle.Timestamp}
+
+	_, ok := s.candles[key]
+	if ok {
+		s.candles[key] = candle
+	} else {
+		_, ok := s.candlesPreBuffer[key]
+		if !ok {
+			s.candlesPreBufferedCount++
+
+			if s.candlesPreBufferedCount > s.candlesPreBufferThreshold {
+				key := storage.CandleKey{
+					Market:    candle.MktID,
+					Timestamp: candle.Timestamp.Add(time.Duration(s.candlesPreBufferThreshold) * -time.Minute),
+				}
+
+				s.candlesCount++
+				s.candles[key] = s.candlesPreBuffer[key]
+
+				s.candlesPreBufferedCount--
+				delete(s.candlesPreBuffer, key)
+			}
+		}
+
+		s.candlesPreBuffer[key] = candle
+	}
+
+	if s.candlesCount >= s.candlesBuffer {
 		candles := s.candles
 		s.candlesStream <- candles
 
 		s.candlesCount = 0
-		s.candles = nil
+		s.candles = make(map[storage.CandleKey]storage.Candle, s.candlesBuffer)
 	}
 
 	return
