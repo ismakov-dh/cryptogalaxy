@@ -236,10 +236,14 @@ func (w *Wrapper) cfgLookup(errGroup *errgroup.Group, ctx context.Context, marke
 		}
 
 		for _, info := range market.Info {
-			key := cfgLookupKey{market: market.ID, channel: info.Channel}
-			val := &cfgLookupVal{}
-			val.connector = info.Connector
-			val.wsConsiderIntSec = info.WsConsiderIntSec
+			key := cfgLookupKey{
+				market:  market.ID,
+				channel: info.Channel,
+			}
+			val := &cfgLookupVal{
+				connector:        info.Connector,
+				wsConsiderIntSec: info.WsConsiderIntSec,
+			}
 			for _, str := range info.Storages {
 				switch str {
 				case "terminal":

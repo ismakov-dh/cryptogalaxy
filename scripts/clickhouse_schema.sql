@@ -18,3 +18,16 @@ CREATE TABLE trade
     `timestamp` DateTime64(3, 'UTC')
 ) ENGINE = MergeTree()
 ORDER BY (exchange, market, side, timestamp);
+
+CREATE TABLE candle
+(
+    `exchange` String,
+    `market` String,
+    `open` Float64,
+    `high` Float64,
+    `low` Float64,
+    `close` Float64,
+    `volume` Float64,
+    `timestamp` DateTime64(3, 'UTC')
+) ENGINE = MergeTree()
+ORDER BY (exchange, market, timestamp)

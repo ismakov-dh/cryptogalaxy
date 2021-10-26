@@ -47,16 +47,21 @@ func InitInfluxDB(cfg *config.InfluxDB) (*InfluxDB, error) {
 			Timeout:   time.Duration(cfg.ReqTimeoutSec) * time.Second,
 			Transport: t,
 		}
-		client := influxdb2.NewClientWithOptions(cfg.URL, cfg.Token,
-			influxdb2.DefaultOptions().SetHTTPClient(httpClient).
-				SetUseGZip(true))
+		client := influxdb2.NewClientWithOptions(
+			cfg.URL,
+			cfg.Token,
+			influxdb2.DefaultOptions().SetHTTPClient(httpClient).SetUseGZip(true),
+		)
 		writeAPI := client.WriteAPIBlocking(cfg.Organization, cfg.Bucket)
 		deleteAPI := client.DeleteAPI()
 		queryAPI := client.QueryAPI(cfg.Organization)
 
 		var ctx context.Context
 		if cfg.ReqTimeoutSec > 0 {
-			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.ReqTimeoutSec)*time.Second)
+			timeoutCtx, cancel := context.WithTimeout(
+				context.Background(),
+				time.Duration(cfg.ReqTimeoutSec)*time.Second,
+			)
 			ctx = timeoutCtx
 			defer cancel()
 		} else {

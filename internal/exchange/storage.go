@@ -15,9 +15,9 @@ type Storage struct {
 	tickers                   []storage.Ticker
 	trades                    []storage.Trade
 	candles                   map[storage.CandleKey]storage.Candle
-	candlesStream             chan map[storage.CandleKey]storage.Candle
 	tickersStream             chan []storage.Ticker
 	tradesStream              chan []storage.Trade
+	candlesStream             chan map[storage.CandleKey]storage.Candle
 	tickersCount              int
 	tickersBuffer             int
 	tradesCount               int
@@ -34,13 +34,13 @@ func NewStorage(ctx context.Context, store storage.Store, tickersBuf int, trades
 		ctx:                       ctx,
 		store:                     store,
 		tickers:                   make([]storage.Ticker, 0, tickersBuf),
-		tickersStream:             make(chan []storage.Ticker, 1),
-		tickersBuffer:             tickersBuf,
 		trades:                    make([]storage.Trade, 0, tradesBuf),
-		tradesStream:              make(chan []storage.Trade, 1),
-		tradesBuffer:              tradesBuf,
 		candles:                   make(map[storage.CandleKey]storage.Candle, candlesBuf),
+		tickersStream:             make(chan []storage.Ticker, 1),
+		tradesStream:              make(chan []storage.Trade, 1),
 		candlesStream:             make(chan map[storage.CandleKey]storage.Candle, 1),
+		tickersBuffer:             tickersBuf,
+		tradesBuffer:              tradesBuf,
 		candlesBuffer:             candlesBuf,
 		candlesPreBuffer:          make(map[storage.CandleKey]storage.Candle, 2),
 		candlesPreBufferThreshold: 2,
@@ -110,7 +110,7 @@ func (s *Storage) AppendCandle(candle storage.Candle) {
 		s.candlesPreBuffer[key] = candle
 	}
 
-	if s.candlesCount >= s.candlesBuffer {
+	if s.candlesCount == s.candlesBuffer {
 		candles := s.candles
 		s.candlesStream <- candles
 
