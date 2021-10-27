@@ -14,19 +14,41 @@ type Storage struct {
 	store                     storage.Store
 	tickers                   []storage.Ticker
 	trades                    []storage.Trade
-	candles                   map[storage.CandleKey]storage.Candle
+	candles                   map[string]*candlesBuffer
 	tickersStream             chan []storage.Ticker
 	tradesStream              chan []storage.Trade
-	candlesStream             chan map[storage.CandleKey]storage.Candle
+	candlesStream             chan []storage.Candle
 	tickersCount              int
 	tickersBuffer             int
 	tradesCount               int
 	tradesBuffer              int
-	candlesCount              int
 	candlesBuffer             int
-	candlesPreBuffer          map[storage.CandleKey]storage.Candle
-	candlesPreBufferedCount   int
 	candlesPreBufferThreshold int
+}
+
+type candlesBuffer struct {
+	buffer           []storage.Candle
+	count            int
+	preBuffered      []storage.Candle
+	preBufferedIdxs  map[time.Time]int
+	preBufferedCount int
+}
+
+func (s *Storage) getCandleBuffer(market string) *candlesBuffer {
+	buf, ok := s.candles[market]
+	if !ok {
+		buf = s.newCandleBuffer()
+		s.candles[market] = buf
+	}
+
+	return buf
+}
+
+func (s *Storage) newCandleBuffer() *candlesBuffer {
+	return &candlesBuffer{
+		buffer:          make([]storage.Candle, 0, s.candlesBuffer),
+		preBufferedIdxs: make(map[time.Time]int),
+	}
 }
 
 func NewStorage(ctx context.Context, store storage.Store, tickersBuf int, tradesBuf int, candlesBuf int) *Storage {
@@ -35,14 +57,13 @@ func NewStorage(ctx context.Context, store storage.Store, tickersBuf int, trades
 		store:                     store,
 		tickers:                   make([]storage.Ticker, 0, tickersBuf),
 		trades:                    make([]storage.Trade, 0, tradesBuf),
-		candles:                   make(map[storage.CandleKey]storage.Candle, candlesBuf),
+		candles:                   make(map[string]*candlesBuffer),
 		tickersStream:             make(chan []storage.Ticker, 1),
 		tradesStream:              make(chan []storage.Trade, 1),
-		candlesStream:             make(chan map[storage.CandleKey]storage.Candle, 1),
+		candlesStream:             make(chan []storage.Candle, 1),
 		tickersBuffer:             tickersBuf,
 		tradesBuffer:              tradesBuf,
 		candlesBuffer:             candlesBuf,
-		candlesPreBuffer:          make(map[storage.CandleKey]storage.Candle, 2),
 		candlesPreBufferThreshold: 2,
 	}
 }
@@ -54,8 +75,8 @@ func (s *Storage) Start(errGroup *errgroup.Group) {
 }
 
 func (s *Storage) AppendTicker(ticker storage.Ticker) {
+	s.tickers[s.tickersCount] = ticker
 	s.tickersCount++
-	s.tickers = append(s.tickers, ticker)
 	if s.tickersCount == s.tickersBuffer {
 		tickers := s.tickers
 		s.tickersStream <- tickers
@@ -68,8 +89,8 @@ func (s *Storage) AppendTicker(ticker storage.Ticker) {
 }
 
 func (s *Storage) AppendTrade(trade storage.Trade) {
+	s.trades[s.tradesCount] = trade
 	s.tradesCount++
-	s.trades = append(s.trades, trade)
 	if s.tradesCount == s.tradesBuffer {
 		trades := s.trades
 		s.tradesStream <- trades
@@ -83,42 +104,70 @@ func (s *Storage) AppendTrade(trade storage.Trade) {
 
 func (s *Storage) AppendCandle(candle storage.Candle) {
 	candle.Timestamp = candle.Timestamp.Truncate(time.Minute)
-	key := storage.CandleKey{Market: candle.MktID, Timestamp: candle.Timestamp}
+	market, timestamp := candle.MktID, candle.Timestamp
 
-	_, ok := s.candles[key]
-	if ok {
-		s.candles[key] = candle
-	} else {
-		_, ok := s.candlesPreBuffer[key]
-		if !ok {
-			s.candlesPreBufferedCount++
+	buf := s.getCandleBuffer(market)
 
-			if s.candlesPreBufferedCount > s.candlesPreBufferThreshold {
-				key := storage.CandleKey{
-					Market:    candle.MktID,
-					Timestamp: candle.Timestamp.Add(time.Duration(s.candlesPreBufferThreshold) * -time.Minute),
-				}
+	idx, ok := buf.preBufferedIdxs[timestamp]
+	if !ok {
+		if buf.preBufferedCount != 0 {
+			lastCandle := buf.preBuffered[buf.preBufferedCount-1]
+			gap := candle.Timestamp.Sub(lastCandle.Timestamp)
 
-				s.candlesCount++
-				s.candles[key] = s.candlesPreBuffer[key]
+			for i := 1; i < int(gap/time.Minute); i++ {
+				ts := lastCandle.Timestamp.Add(time.Duration(i) * time.Minute)
 
-				s.candlesPreBufferedCount--
-				delete(s.candlesPreBuffer, key)
+				buf.preBuffered = append(
+					buf.preBuffered,
+					storage.Candle{
+						Exchange:      lastCandle.Exchange,
+						MktID:         lastCandle.MktID,
+						MktCommitName: lastCandle.MktCommitName,
+						Open:          lastCandle.Close,
+						High:          lastCandle.Close,
+						Low:           lastCandle.Close,
+						Close:         lastCandle.Close,
+						Volume:        0,
+						Timestamp:     ts,
+					},
+				)
+				buf.preBufferedIdxs[ts] = buf.preBufferedCount
+				buf.preBufferedCount++
 			}
 		}
 
-		s.candlesPreBuffer[key] = candle
+		buf.preBuffered = append(buf.preBuffered, candle)
+		buf.preBufferedIdxs[timestamp] = buf.preBufferedCount
+		buf.preBufferedCount++
+	} else {
+		buf.preBuffered[idx] = candle
 	}
 
-	if s.candlesCount == s.candlesBuffer {
-		candles := s.candles
+	if buf.preBufferedCount > 2 {
+		count := buf.preBufferedCount - 2
+		candles := buf.preBuffered[:count]
+		buf.preBuffered = buf.preBuffered[count:]
+
+		buf.preBufferedCount = 2
+		buf.count += count
+
+		for _, c := range candles {
+			buf.buffer = append(buf.buffer, c)
+			delete(buf.preBufferedIdxs, c.Timestamp)
+		}
+
+		for key := range buf.preBufferedIdxs {
+			buf.preBufferedIdxs[key] -= count
+		}
+	}
+
+	if buf.count >= s.candlesBuffer {
+		candles := buf.buffer
 		s.candlesStream <- candles
 
-		s.candlesCount = 0
-		s.candles = make(map[storage.CandleKey]storage.Candle, s.candlesBuffer)
+		buf.count = 0
+		buf.buffer = make([]storage.Candle, 0, s.candlesBuffer)
 	}
-
-	return
 }
 
 func (s *Storage) tradesToStore() error {

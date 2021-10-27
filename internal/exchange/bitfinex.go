@@ -28,6 +28,7 @@ type wsEventRespBitfinex struct {
 	Event     string `json:"event"`
 	Channel   string `json:"channel"`
 	ChannelID int    `json:"chanId"`
+	SubId     string `json:"subId"`
 	Symbol    string `json:"symbol"`
 	Key       string `json:"key"`
 	Code      int    `json:"code"`
@@ -43,23 +44,25 @@ func NewBitfinex(wrapper *Wrapper) *bitfinex {
 }
 
 func (e *bitfinex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+	ch := channel
 	switch channel {
 	case "trade":
-		channel = "trades"
+		ch = "trades"
 	case "candle":
-		channel = "candles"
+		ch = "candles"
 	}
 
-	market = "t" + strings.ToUpper(market)
-	if channel == "candles" {
-		market = "trade:1m:" + market
+	mkt := "t" + strings.ToUpper(market)
+	if ch == "candles" {
+		mkt = "trade:1m:" + mkt
 	}
 
 	frame, err = jsoniter.Marshal(map[string]string{
 		"event":   "subscribe",
-		"channel": channel,
-		"symbol":  market,
-		"key":     market,
+		"channel": ch,
+		"symbol":  mkt,
+		"key":     mkt,
+		"subId":   channel + ":" + market,
 	})
 	if err != nil {
 		logErrStack(err)
@@ -93,18 +96,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 		switch wr.Event {
 		case "hb":
 		case "subscribed":
-			s := strings.Split(wr.Key, ":")
-			if len(s) == 3 {
-				market = s[2][1:]
-				channel = "candle"
-			} else {
-				market = wr.Symbol[1:]
-				if wr.Channel == "trades" {
-					channel = "trade"
-				} else {
-					channel = "ticker"
-				}
-			}
+			s := strings.Split(wr.SubId, ":")
+			market, channel = s[1], s[0]
 
 			e.wrapper.channelIds[wr.ChannelID] = [2]string{market, channel}
 
@@ -148,11 +141,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 			return
 		}
 
-		if chanID, ok := wr[0].(float64); ok {
-			ch := e.wrapper.channelIds[int(chanID)]
-
-			market, channel = ch[0], ch[1]
-		} else {
+		chanID, ok := wr[0].(float64)
+		if !ok {
 			log.Error().
 				Str("exchange", e.wrapper.name).
 				Str("func", "processWs").
@@ -162,14 +152,17 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 			return
 		}
 
+		ch := e.wrapper.channelIds[int(chanID)]
+
+		market, channel = ch[0], ch[1]
+
 		switch data := wr[1].(type) {
 		case string:
 			if data != "te" {
 				return
 			}
-			if wsData, ok := wr[2].([]interface{}); ok {
-				wri = wsData
-			} else {
+			wsData, ok := wr[2].([]interface{})
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -178,14 +171,22 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				err = errors.New("cannot convert frame data to []interface{}")
 				return
 			}
+
+			wri = wsData
+
 		case []interface{}:
 			if channel != "ticker" && channel != "candle" {
 				return
 			}
-			if len(data) > 10 {
+			if len(data) > 1 && len(data) < 2 {
 				return
 			}
-			wri = data
+			cData, ok := data[1].([]interface{})
+			if ok {
+				wri = cData
+			} else {
+				wri = data
+			}
 		}
 
 		cfg, _, updateRequired := e.wrapper.getCfgMap(market, channel)
@@ -202,9 +203,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				Timestamp:     time.Now().UTC(),
 			}
 
-			if price, ok := wri[6].(float64); ok {
-				ticker.Price = price
-			} else {
+			ticker.Price, ok = wri[6].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -226,9 +226,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				MktCommitName: cfg.mktCommitName,
 			}
 
-			if tradeID, ok := wri[0].(float64); ok {
-				trade.TradeID = strconv.FormatFloat(tradeID, 'f', 0, 64)
-			} else {
+			tradeID, ok := wri[0].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -238,14 +237,10 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if size, ok := wri[2].(float64); ok {
-				if size > 0 {
-					trade.Side = "buy"
-				} else {
-					trade.Side = "sell"
-				}
-				trade.Size = math.Abs(size)
-			} else {
+			trade.TradeID = strconv.FormatFloat(tradeID, 'f', 0, 64)
+
+			size, ok := wri[2].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -255,9 +250,15 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if price, ok := wri[3].(float64); ok {
-				trade.Price = price
+			if size > 0 {
+				trade.Side = "buy"
 			} else {
+				trade.Side = "sell"
+			}
+			trade.Size = math.Abs(size)
+
+			trade.Price, ok = wri[3].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -267,9 +268,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if timestamp, ok := wri[1].(float64); ok {
-				trade.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
-			} else {
+			timestamp, ok := wri[1].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -278,6 +278,9 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				err = errors.New("cannot convert trade data field timestamp to float")
 				return
 			}
+
+			trade.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
+
 
 			if cfg.influxStr {
 				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
@@ -291,9 +294,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				MktCommitName: cfg.mktCommitName,
 			}
 
-			if timestamp, ok := wri[0].(float64); ok {
-				candle.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
-			} else {
+			timestamp, ok := wri[0].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -303,9 +305,11 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if open, ok := wri[1].(float64); ok {
-				candle.Open = open
-			} else {
+			candle.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
+
+
+			candle.Open, ok = wri[1].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -315,9 +319,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if _close, ok := wri[2].(float64); ok {
-				candle.Close = _close
-			} else {
+			candle.Close, ok = wri[2].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -327,9 +330,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if high, ok := wri[3].(float64); ok {
-				candle.High = high
-			} else {
+			candle.High, ok = wri[3].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -339,9 +341,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if low, ok := wri[4].(float64); ok {
-				candle.Low = low
-			} else {
+			candle.Low, ok = wri[4].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").
@@ -351,9 +352,8 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if volume, ok := wri[5].(float64); ok {
-				candle.Volume = volume
-			} else {
+			candle.Volume, ok = wri[5].(float64)
+			if !ok {
 				log.Error().
 					Str("exchange", e.wrapper.name).
 					Str("func", "processWs").

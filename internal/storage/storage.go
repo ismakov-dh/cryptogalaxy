@@ -8,7 +8,7 @@ import (
 type Store interface {
 	CommitTrades(context.Context, []Trade) error
 	CommitTickers(context.Context, []Ticker) error
-	CommitCandles(context.Context, map[CandleKey]Candle) error
+	CommitCandles(context.Context, []Candle) error
 }
 
 // Ticker represents final form of market ticker info received from exchange

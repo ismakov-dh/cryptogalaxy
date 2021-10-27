@@ -67,7 +67,7 @@ func (t *Terminal) CommitTrades(_ context.Context, data []Trade) (err error) {
 	return
 }
 
-func (t *Terminal) CommitCandles(_ context.Context, data map[CandleKey]Candle) (err error) {
+func (t *Terminal) CommitCandles(_ context.Context, data []Candle) (err error) {
 	for _, candle := range data {
 		_, err = fmt.Fprintf(
 			t.out,

@@ -155,4 +155,4 @@ func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (i *InfluxDB) CommitCandles(_ context.Context, _ map[CandleKey]Candle) error { return nil }
+func (i *InfluxDB) CommitCandles(_ context.Context, _ []Candle) error { return nil }

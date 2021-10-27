@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
-
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
+	"strings"
 )
 
 // ClickHouse is for connecting and inserting data to ClickHouse.
@@ -135,7 +134,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 	return nil
 }
 
-func (c *ClickHouse) CommitCandles(_ context.Context, data map[CandleKey]Candle) error {
+func (c *ClickHouse) CommitCandles(_ context.Context, data []Candle) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
