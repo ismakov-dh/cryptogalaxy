@@ -3,7 +3,7 @@ module github.com/milkywaybrain/cryptogalaxy
 go 1.17
 
 require (
-	github.com/ClickHouse/clickhouse-go v1.4.8
+	github.com/ClickHouse/clickhouse-go v1.5.1
 	github.com/aws/aws-sdk-go-v2 v1.9.1
 	github.com/aws/aws-sdk-go-v2/config v1.8.2
 	github.com/aws/aws-sdk-go-v2/credentials v1.4.2

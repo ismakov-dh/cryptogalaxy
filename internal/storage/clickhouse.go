@@ -46,8 +46,7 @@ func InitClickHouse(cfg *config.ClickHouse) (*ClickHouse, error) {
 				}
 			}
 		}
-		db, err := sql.Open("clickhouse",
-			dataSourceName.String())
+		db, err := sql.Open("clickhouse", dataSourceName.String())
 		if err != nil {
 			return nil, err
 		}
