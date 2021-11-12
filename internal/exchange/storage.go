@@ -215,11 +215,6 @@ func (s *Storage) candlesToStore() error {
 				}
 				return err
 			}
-			log.Info().
-				Str("exchange", data[0].Exchange).
-				Str("market", data[0].MktID).
-				Timestamp().
-				Msg("committed candles")
 		case <-s.ctx.Done():
 			return s.ctx.Err()
 		}

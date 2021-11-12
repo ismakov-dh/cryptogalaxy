@@ -30,4 +30,4 @@ CREATE TABLE candle
     `volume` Float64,
     `timestamp` DateTime64(3, 'UTC')
 ) ENGINE = MergeTree()
-ORDER BY (exchange, market, timestamp)
+ORDER BY (exchange, market, timestamp);
