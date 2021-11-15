@@ -112,7 +112,7 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 	}
 
 	if wr.Error != "" {
-		log.Error().Str("exchange", "ascendex").Str("func", "readWs").Int("code", wr.Code).Str("msg", wr.Error).Msg("")
+		log.Error().Str("exchange", "ascendex").Str("func", "processWs").Int("code", wr.Code).Str("msg", wr.Error).Msg("")
 		err = errors.New("ascendex websocket error")
 		return
 	}
@@ -126,7 +126,7 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 		} else {
 			channel = "trade"
 		}
-		log.Debug().Str("exchange", "ascendex").Str("func", "readWs").Str("market", ch[1]).Str("channel", channel).Msg("channel subscribed")
+		log.Debug().Str("exchange", "ascendex").Str("func", "processWs").Str("market", ch[1]).Str("channel", channel).Msg("channel subscribed")
 		return
 	case "bar":
 		channel = "ticker"

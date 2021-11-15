@@ -117,7 +117,12 @@ func (e *bitmart) processWs(frame []byte) (err error) {
 	}
 
 	if wr.ErrCode != "" {
-		log.Error().Str("exchange", "bitmart").Str("func", "readWs").Str("code", wr.ErrCode).Str("msg", wr.ErrMsg).Msg("")
+		log.Error().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Str("code", wr.ErrCode).
+			Str("msg", wr.ErrMsg).
+			Msg("")
 		err = errors.New("bitmart websocket error")
 		return
 	}

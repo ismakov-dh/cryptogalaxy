@@ -109,9 +109,19 @@ func (e *bequant) processWs(frame []byte) (err error) {
 
 	if wr.Result.Channel != "" {
 		if wr.Result.Channel == "ticker/price/1s" {
-			log.Debug().Str("exchange", "bequant").Str("func", "readWs").Str("market", ch[0]).Str("channel", "ticker").Msg("channel subscribed")
+			log.Debug().
+				Str("exchange", e.wrapper.name).
+				Str("func", "processWs").
+				Str("market", ch[0]).
+				Str("channel", "ticker").
+				Msg("channel subscribed")
 		} else {
-			log.Debug().Str("exchange", "bequant").Str("func", "readWs").Str("market", ch[0]).Str("channel", "trade").Msg("channel subscribed")
+			log.Debug().
+				Str("exchange", e.wrapper.name).
+				Str("func", "processWs").
+				Str("market", ch[0]).
+				Str("channel", "trade").
+				Msg("channel subscribed")
 		}
 		return
 	}

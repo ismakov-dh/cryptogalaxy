@@ -133,7 +133,12 @@ func (e *bitrue) processWs(frame []byte) (err error) {
 	}
 
 	if wr.EventRep == "subed" {
-		log.Debug().Str("exchange", "bitrue").Str("func", "readWs").Str("market", market).Str("channel", channel).Msg("channel subscribed")
+		log.Debug().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Str("market", market).
+			Str("channel", channel).
+			Msg("channel subscribed")
 		return
 	}
 

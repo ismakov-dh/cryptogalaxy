@@ -131,7 +131,7 @@ func (e *bybit) processWs(frame []byte) (err error) {
 			}
 			log.Debug().
 				Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", market).
 				Str("channel", channel).
 				Msg("channel subscribed")

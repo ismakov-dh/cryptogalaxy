@@ -86,12 +86,22 @@ func (e *btse) processWs(frame []byte) (err error) {
 		// There is only one channel provided for both ticker and trade data.
 		cfg, ok, _ := e.wrapper.getCfgMap(market, "ticker")
 		if ok && cfg.connector == "websocket" {
-			log.Debug().Str("exchange", "btse").Str("func", "readWs").Str("market", market).Str("channel", "ticker").Msg("channel subscribed")
+			log.Debug().
+				Str("exchange", e.wrapper.name).
+				Str("func", "processWs").
+				Str("market", market).
+				Str("channel", "ticker").
+				Msg("channel subscribed")
 		}
 
 		cfg, ok, _ = e.wrapper.getCfgMap(market, "trade")
 		if ok && cfg.connector == "websocket" {
-			log.Debug().Str("exchange", "btse").Str("func", "readWs").Str("market", market).Str("channel", "trade").Msg("channel subscribed")
+			log.Debug().
+				Str("exchange", e.wrapper.name).
+				Str("func", "processWs").
+				Str("market", market).
+				Str("channel", "trade").
+				Msg("channel subscribed")
 		}
 
 		return

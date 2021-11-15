@@ -99,7 +99,7 @@ func (e *gateio) processWs(frame []byte) (err error) {
 	if wr.ID != 0 {
 		if wr.Result.Status == "success" {
 			log.Debug().Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", e.wrapper.channelIds[wr.ID][0]).
 				Str("channel", e.wrapper.channelIds[wr.ID][1]).
 				Msg("channel subscribed")
@@ -115,7 +115,7 @@ func (e *gateio) processWs(frame []byte) (err error) {
 			}
 			log.Error().
 				Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Int("code", wsSubErr.Code).
 				Str("msg", wsSubErr.Message).
 				Msg("")

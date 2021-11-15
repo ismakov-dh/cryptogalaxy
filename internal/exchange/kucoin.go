@@ -205,8 +205,8 @@ func (e *kucoin) processWs(frame []byte) (err error) {
 		}
 		ch := e.wrapper.channelIds[id]
 		log.Debug().
-			Str("exchange", "kucoin").
-			Str("func", "readWs").
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
 			Str("market", ch[0]).
 			Str("channel", ch[1]).
 			Msg("channel subscribed")
@@ -279,7 +279,11 @@ func (e *kucoin) processWs(frame []byte) (err error) {
 				}
 				trade.Timestamp = time.Unix(0, timestamp*int64(time.Nanosecond)).UTC()
 			} else {
-				log.Error().Str("exchange", "kucoin").Str("func", "processWs").Interface("time", wr.Data.Time).Msg("")
+				log.Error().
+					Str("exchange", e.wrapper.name).
+					Str("func", "processWs").
+					Interface("time", wr.Data.Time).
+					Msg("")
 				err = errors.New("cannot convert trade data field time to string")
 				return
 			}

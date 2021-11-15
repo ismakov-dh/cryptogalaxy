@@ -125,7 +125,12 @@ func (e *huobi) processWs(frame []byte) (err error) {
 		default:
 			channel = "ticker"
 		}
-		log.Debug().Str("exchange", "huobi").Str("func", "readWs").Str("market", s[1]).Str("channel", c).Msg("channel subscribed")
+		log.Debug().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Str("market", s[1]).
+			Str("channel", c).
+			Msg("channel subscribed")
 		return
 	}
 

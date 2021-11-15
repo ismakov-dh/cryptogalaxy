@@ -82,7 +82,7 @@ func (e *probit) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	log.Debug().Str("exchange", "probit").
-		Str("func", "readWs").
+		Str("func", "processWs").
 		Msg("unlike other exchanges probit does not send channel subscribed success message")
 
 	wr := wsRespProbit{}
@@ -94,8 +94,8 @@ func (e *probit) processWs(frame []byte) (err error) {
 
 	if wr.Status != "ok" {
 		log.Error().
-			Str("exchange", "probit").
-			Str("func", "readWs").
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
 			Str("msg", wr.Status).
 			Msg("")
 		return errors.New("probit websocket error")

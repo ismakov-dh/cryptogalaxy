@@ -99,7 +99,7 @@ func (e *kraken) processWs(frame []byte) (err error) {
 		if wr.ErrMsg != "" {
 			log.Error().
 				Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("msg", wr.ErrMsg).
 				Msg("")
 			return errors.New("kraken websocket error")
@@ -108,7 +108,7 @@ func (e *kraken) processWs(frame []byte) (err error) {
 		if wr.Status == "subscribed" {
 			log.Debug().
 				Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", wr.Pair).
 				Str("channel", wr.Sub.Name).
 				Msg("channel subscribed")

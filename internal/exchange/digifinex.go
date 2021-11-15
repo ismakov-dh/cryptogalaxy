@@ -129,7 +129,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 	if wr.Error.Message != "" {
 		log.Error().
 			Str("exchange", e.wrapper.name).
-			Str("func", "readWs").
+			Str("func", "processWs").
 			Int("code", wr.Error.Code).
 			Str("msg", wr.Error.Message).
 			Msg("")
@@ -142,7 +142,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 		} else {
 			log.Debug().
 				Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", e.wrapper.channelIds[wr.ID][0]).
 				Str("channel", e.wrapper.channelIds[wr.ID][1]).
 				Msg("channel subscribed")
@@ -225,7 +225,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 							} else {
 								log.Error().
 									Str("exchange", e.wrapper.name).
-									Str("func", "readWs").
+									Str("func", "processWs").
 									Interface("trade id", data).
 									Msg("cannot convert frame data field trade id to float64")
 								break
@@ -236,7 +236,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 							} else {
 								log.Error().
 									Str("exchange", e.wrapper.name).
-									Str("func", "readWs").
+									Str("func", "processWs").
 									Interface("side", data).
 									Msg("cannot convert frame data field side to string")
 								break
@@ -252,7 +252,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 							} else {
 								log.Error().
 									Str("exchange", e.wrapper.name).
-									Str("func", "readWs").
+									Str("func", "processWs").
 									Interface("size", data).
 									Msg("cannot convert frame data field size to float64")
 								break
@@ -268,7 +268,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 							} else {
 								log.Error().
 									Str("exchange", e.wrapper.name).
-									Str("func", "readWs").
+									Str("func", "processWs").
 									Interface("price", data).
 									Msg("cannot convert frame data field price to float64")
 								break
@@ -280,7 +280,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 							} else {
 								log.Error().
 									Str("exchange", e.wrapper.name).
-									Str("func", "readWs").
+									Str("func", "processWs").
 									Interface("timestamp", data).
 									Msg("cannot convert frame data field timestamp to float64")
 								break
@@ -297,7 +297,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 						} else {
 							log.Error().
 								Str("exchange", e.wrapper.name).
-								Str("func", "readWs").
+								Str("func", "processWs").
 								Interface("trades", data).
 								Msg("")
 							return errors.New("cannot convert frame data field trade to map[string]interface{}")
@@ -306,7 +306,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 				default:
 					log.Error().
 						Str("exchange", e.wrapper.name).
-						Str("func", "readWs").
+						Str("func", "processWs").
 						Interface("trades", data[1]).
 						Msg("")
 					return errors.New("cannot convert frame data field trade to array")
@@ -314,7 +314,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 			} else {
 				log.Error().
 					Str("exchange", e.wrapper.name).
-					Str("func", "readWs").
+					Str("func", "processWs").
 					Interface("symbol", data[2]).
 					Msg("")
 				return errors.New("cannot convert frame data field symbol to string")
@@ -322,7 +322,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 		} else {
 			log.Error().
 				Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Interface("snapshot", data[0]).
 				Msg("")
 			return errors.New("cannot convert frame data field snapshot to bool")

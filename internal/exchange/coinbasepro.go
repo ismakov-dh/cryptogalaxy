@@ -91,15 +91,29 @@ func (e *coinbasePro) processWs(frame []byte) (err error) {
 
 	switch wr.Type {
 	case "error":
-		log.Error().Str("exchange", "coinbase-pro").Str("func", "readWs").Str("msg", wr.Message).Msg("")
+		log.Error().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Str("msg", wr.Message).
+			Msg("")
 		return errors.New("coinbase-pro websocket error")
 	case "subscriptions":
 		for _, channel := range wr.Channels {
 			for _, market := range channel.ProductIds {
 				if channel.Name == "matches" {
-					log.Debug().Str("exchange", "coinbase-pro").Str("func", "readWs").Str("market", market).Str("channel", "trade").Msg("channel subscribed (this message may be duplicate as server sends list of all subscriptions on each channel subscribe)")
+					log.Debug().
+						Str("exchange", e.wrapper.name).
+						Str("func", "processWs").
+						Str("market", market).
+						Str("channel", "trade").
+						Msg("channel subscribed")
 				} else {
-					log.Debug().Str("exchange", "coinbase-pro").Str("func", "readWs").Str("market", market).Str("channel", channel.Name).Msg("channel subscribed (this message may be duplicate as server sends list of all subscriptions on each channel subscribe)")
+					log.Debug().
+						Str("exchange", e.wrapper.name).
+						Str("func", "processWs").
+						Str("market", market).
+						Str("channel", channel.Name).
+						Msg("channel subscribed")
 				}
 			}
 		}

@@ -83,7 +83,7 @@ func (e *gemini) processWs(frame []byte) (err error) {
 	var market string
 	log.Debug().
 		Str("exchange", e.wrapper.name).
-		Str("func", "readWs").
+		Str("func", "processWs").
 		Msg("unlike other exchanges gemini does not send channel subscribed success message")
 
 	wr := wsRespGemini{}

@@ -133,7 +133,7 @@ func (e *okex) processWs(frame []byte) (err error) {
 	case "error":
 		log.Error().
 			Str("exchange", "okex").
-			Str("func", "readWs").
+			Str("func", "processWs").
 			Str("code", wr.Code).
 			Str("msg", wr.Msg).
 			Msg("")
@@ -142,14 +142,14 @@ func (e *okex) processWs(frame []byte) (err error) {
 		if wr.Arg.Channel == "tickers" {
 			log.Debug().
 				Str("exchange", "okex").
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", market).
 				Str("channel", channel).
 				Msg("channel subscribed")
 		} else {
 			log.Debug().
 				Str("exchange", "okex").
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", market).
 				Str("channel", channel).
 				Msg("channel subscribed")

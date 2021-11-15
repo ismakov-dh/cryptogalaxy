@@ -112,10 +112,10 @@ func (e *hitBTC) processWs(frame []byte) (err error) {
 		for _, sub := range wr.Result.Subs {
 			log.Debug().
 				Str("exchange", e.wrapper.name).
-				Str("func", "readWs").
+				Str("func", "processWs").
 				Str("market", sub).
 				Str("channel", wr.Result.Channel).
-				Msg("channel subscribed (this message may be duplicate as server sends list of all subscriptions on each channel subscribe)")
+				Msg("channel subscribed")
 		}
 		return
 	}
