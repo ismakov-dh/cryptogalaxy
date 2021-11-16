@@ -64,7 +64,7 @@ func InitClickHouse(cfg *config.ClickHouse) (Store, error) {
 }
 
 // CommitTickers batch inserts input ticker data to clickHouse.
-func (c *clickhouse) CommitTickers(_ context.Context, data []Ticker) error {
+func (c *clickhouse) CommitTickers(_ context.Context, data []*Ticker) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func (c *clickhouse) CommitTickers(_ context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to clickHouse.
-func (c *clickhouse) CommitTrades(_ context.Context, data []Trade) error {
+func (c *clickhouse) CommitTrades(_ context.Context, data []*Trade) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -128,7 +128,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 	return nil
 }
 
-func (c *clickhouse) CommitCandles(_ context.Context, data []Candle) error {
+func (c *clickhouse) CommitCandles(_ context.Context, data []*Candle) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err

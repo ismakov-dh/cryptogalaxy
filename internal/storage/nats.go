@@ -48,7 +48,7 @@ func InitNATS(cfg *config.NATS) (Store, error) {
 }
 
 // CommitTickers batch inserts input ticker data to nats.
-func (n *nats) CommitTickers(_ context.Context, data []Ticker) error {
+func (n *nats) CommitTickers(_ context.Context, data []*Ticker) error {
 	for i := range data {
 		ticker := data[i]
 
@@ -69,7 +69,7 @@ func (n *nats) CommitTickers(_ context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to nats.
-func (n *nats) CommitTrades(_ context.Context, data []Trade) error {
+func (n *nats) CommitTrades(_ context.Context, data []*Trade) error {
 	for i := range data {
 		trade := data[i]
 
@@ -89,4 +89,4 @@ func (n *nats) CommitTrades(_ context.Context, data []Trade) error {
 	return nil
 }
 
-func (n *nats) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (n *nats) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

@@ -26,7 +26,7 @@ func InitTerminal(out io.Writer) Store {
 }
 
 // CommitTickers batch outputs input ticker data to terminal.
-func (t *terminal) CommitTickers(_ context.Context, data []Ticker) (err error) {
+func (t *terminal) CommitTickers(_ context.Context, data []*Ticker) (err error) {
 	for i := range data {
 		ticker := data[i]
 		_, err = fmt.Fprintf(
@@ -43,7 +43,7 @@ func (t *terminal) CommitTickers(_ context.Context, data []Ticker) (err error) {
 }
 
 // CommitTrades batch outputs input trade data to terminal.
-func (t *terminal) CommitTrades(_ context.Context, data []Trade) (err error) {
+func (t *terminal) CommitTrades(_ context.Context, data []*Trade) (err error) {
 	for i := range data {
 		trade := data[i]
 		_, err = fmt.Fprintf(
@@ -60,7 +60,7 @@ func (t *terminal) CommitTrades(_ context.Context, data []Trade) (err error) {
 	return
 }
 
-func (t *terminal) CommitCandles(_ context.Context, data []Candle) (err error) {
+func (t *terminal) CommitCandles(_ context.Context, data []*Candle) (err error) {
 	for _, candle := range data {
 		_, err = fmt.Fprintf(
 			t.out,

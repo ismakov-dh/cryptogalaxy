@@ -106,7 +106,7 @@ func InitInfluxDB(cfg *config.InfluxDB) (Store, error) {
 }
 
 // CommitTickers batch inserts input ticker data to influxdb.
-func (i *influxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (i *influxDB) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var sb strings.Builder
 	for i := range data {
 		ticker := data[i]
@@ -139,7 +139,7 @@ func (i *influxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to influxdb.
-func (i *influxDB) CommitTrades(appCtx context.Context, data []Trade) error {
+func (i *influxDB) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var sb strings.Builder
 	for i := range data {
 		trade := data[i]
@@ -174,4 +174,4 @@ func (i *influxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (i *influxDB) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (i *influxDB) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

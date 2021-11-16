@@ -72,7 +72,7 @@ func InitElasticSearch(cfg *config.ES) (Store, error) {
 }
 
 // CommitTickers batch inserts input ticker data to elastic search.
-func (e *elasticSearch) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (e *elasticSearch) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var buf bytes.Buffer
 	for i := range data {
 		ticker := data[i]
@@ -118,7 +118,7 @@ func (e *elasticSearch) CommitTickers(appCtx context.Context, data []Ticker) err
 }
 
 // CommitTrades batch inserts input trade data to elastic search.
-func (e *elasticSearch) CommitTrades(appCtx context.Context, data []Trade) error {
+func (e *elasticSearch) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var buf bytes.Buffer
 	for i := range data {
 		trade := data[i]
@@ -166,4 +166,4 @@ func (e *elasticSearch) CommitTrades(appCtx context.Context, data []Trade) error
 	return nil
 }
 
-func (e *elasticSearch) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (e *elasticSearch) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

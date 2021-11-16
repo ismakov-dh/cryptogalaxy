@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type kucoin struct {
+type Kucoin struct {
 	wrapper      *Wrapper
 	wsPingIntSec uint64
 }
@@ -61,10 +61,10 @@ type wsConnectRespKucoin struct {
 	} `json:"data"`
 }
 
-func NewKucoin(ctx context.Context, wrapper *Wrapper) (e *kucoin, error error) {
+func NewKucoin(ctx context.Context, wrapper *Wrapper) (e *Kucoin, err error) {
 	cfg := wrapper.exchangeCfg()
 
-	resp, err := http.Post(cfg.RestUrl+"bullet-public", "", nil)
+	resp, err := http.Post(cfg.RestURL+"bullet-public", "", nil)
 	if err != nil {
 		if !errors.Is(err, ctx.Err()) {
 			logErrStack(err)
@@ -88,15 +88,15 @@ func NewKucoin(ctx context.Context, wrapper *Wrapper) (e *kucoin, error error) {
 		return
 	}
 
-	e = &kucoin{wrapper: wrapper}
+	e = &Kucoin{wrapper: wrapper}
 	e.wsPingIntSec = uint64(r.Data.Instanceservers[0].PingintervalMilli) / 1000
 
-	cfg.WebsocketUrl = r.Data.Instanceservers[0].Endpoint + "?token=" + r.Data.Token
+	cfg.WebsocketURL = r.Data.Instanceservers[0].Endpoint + "?token=" + r.Data.Token
 
 	return e, err
 }
 
-func (e *kucoin) postConnectWs() error {
+func (e *Kucoin) postConnectWs() error {
 	frame, err := e.wrapper.ws.Read()
 	if err != nil {
 		if errors.Is(err, net.ErrClosed) {
@@ -122,14 +122,14 @@ func (e *kucoin) postConnectWs() error {
 
 	if wr.Type == "welcome" {
 
-		log.Info().Str("exchange", "kucoin").Msg("websocket connected")
+		log.Info().Str("exchange", e.wrapper.name).Msg("websocket connected")
 	} else {
 		return errors.New("not able to connect websocket server")
 	}
 	return nil
 }
 
-func (e *kucoin) pingWs(ctx context.Context) error {
+func (e *Kucoin) pingWs(ctx context.Context) error {
 	interval := e.wsPingIntSec * 90 / 100
 	tick := time.NewTicker(time.Duration(interval) * time.Second)
 	defer tick.Stop()
@@ -159,11 +159,11 @@ func (e *kucoin) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *kucoin) readWs() ([]byte, error) {
+func (e *Kucoin) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *kucoin) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
+func (e *Kucoin) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
 	switch channel {
 	case "ticker":
 		channel = "/market/ticker:" + market
@@ -185,7 +185,7 @@ func (e *kucoin) getWsSubscribeMessage(market string, channel string, id int) (f
 	return
 }
 
-func (e *kucoin) processWs(frame []byte) (err error) {
+func (e *Kucoin) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := respKucoin{}
@@ -233,7 +233,7 @@ func (e *kucoin) processWs(frame []byte) (err error) {
 
 		switch market {
 		case "ticker":
-			ticker := storage.Ticker{
+			ticker := &storage.Ticker{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -246,9 +246,9 @@ func (e *kucoin) processWs(frame []byte) (err error) {
 				return
 			}
 
-			err = e.wrapper.appendTicker(ticker, cfg)
+			e.wrapper.appendTicker(ticker, cfg)
 		case "trade":
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -286,19 +286,19 @@ func (e *kucoin) processWs(frame []byte) (err error) {
 				return
 			}
 
-			err = e.wrapper.appendTrade(trade, cfg)
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *kucoin) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Kucoin) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/orderbook/level1")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"market/orderbook/level1")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -308,7 +308,7 @@ func (e *kucoin) buildRestRequest(ctx context.Context, mktID string, channel str
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/histories")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"market/histories")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -324,7 +324,7 @@ func (e *kucoin) buildRestRequest(ctx context.Context, mktID string, channel str
 	return
 }
 
-func (e *kucoin) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Kucoin) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := respKucoin{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -340,7 +340,7 @@ func (e *kucoin) processRestTicker(body io.ReadCloser) (price float64, err error
 	return
 }
 
-func (e *kucoin) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Kucoin) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := restRespKucoin{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -352,7 +352,7 @@ func (e *kucoin) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		var err error
 		r := rr.Data[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Side: r.Side,
 		}
 
@@ -370,7 +370,7 @@ func (e *kucoin) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 
 		t, ok := r.Time.(float64)
 		if !ok {
-			log.Error().Str("exchange", "kucoin").Str("func", "processREST").Interface("time", r.Time).Msg("error converting time")
+			log.Error().Str("exchange", e.wrapper.name).Str("func", "processREST").Interface("time", r.Time).Msg("error converting time")
 			continue
 		}
 		trade.Timestamp = time.Unix(0, int64(t)*int64(time.Nanosecond)).UTC()
@@ -378,5 +378,5 @@ func (e *kucoin) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

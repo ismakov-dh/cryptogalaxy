@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type ascendex struct {
+type Ascendex struct {
 	wrapper *Wrapper
 }
 
@@ -52,13 +52,13 @@ type tradeRespDataAscendex struct {
 	Timestamp int64  `json:"ts"`
 }
 
-func NewAscendex(wrapper *Wrapper) *ascendex {
-	return &ascendex{wrapper: wrapper}
+func NewAscendex(wrapper *Wrapper) *Ascendex {
+	return &Ascendex{wrapper: wrapper}
 }
 
-func (e *ascendex) postConnectWs() error { return nil }
+func (e *Ascendex) postConnectWs() error { return nil }
 
-func (e *ascendex) pingWs(ctx context.Context) error {
+func (e *Ascendex) pingWs(ctx context.Context) error {
 	tick := time.NewTicker(13 * time.Second)
 	defer tick.Stop()
 	for {
@@ -79,11 +79,11 @@ func (e *ascendex) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *ascendex) readWs() ([]byte, error) {
+func (e *Ascendex) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *ascendex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Ascendex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "ticker" {
 		channel = "bar:1:" + market
 	} else {
@@ -100,7 +100,7 @@ func (e *ascendex) getWsSubscribeMessage(market string, channel string, _ int) (
 	return
 }
 
-func (e *ascendex) processWs(frame []byte) (err error) {
+func (e *Ascendex) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := wsRespAscendex{}
@@ -112,7 +112,12 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 	}
 
 	if wr.Error != "" {
-		log.Error().Str("exchange", "ascendex").Str("func", "processWs").Int("code", wr.Code).Str("msg", wr.Error).Msg("")
+		log.Error().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Int("code", wr.Code).
+			Str("msg", wr.Error).
+			Msg("")
 		err = errors.New("ascendex websocket error")
 		return
 	}
@@ -126,7 +131,12 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 		} else {
 			channel = "trade"
 		}
-		log.Debug().Str("exchange", "ascendex").Str("func", "processWs").Str("market", ch[1]).Str("channel", channel).Msg("channel subscribed")
+		log.Debug().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Str("market", ch[1]).
+			Str("channel", channel).
+			Msg("channel subscribed")
 		return
 	case "bar":
 		channel = "ticker"
@@ -144,7 +154,7 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 
 	switch channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -165,7 +175,7 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var dataResp []tradeRespDataAscendex
 		if err = jsoniter.Unmarshal(wr.Data, &dataResp); err != nil {
@@ -175,7 +185,7 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 
 		var err error
 		for _, data := range dataResp {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -201,22 +211,19 @@ func (e *ascendex) processWs(frame []byte) (err error) {
 				continue
 			}
 
-			err = e.wrapper.appendTrade(trade, cfg)
-			if err != nil {
-				logErrStack(err)
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *ascendex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Ascendex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -226,7 +233,7 @@ func (e *ascendex) buildRestRequest(ctx context.Context, mktID string, channel s
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -243,7 +250,7 @@ func (e *ascendex) buildRestRequest(ctx context.Context, mktID string, channel s
 	return
 }
 
-func (e *ascendex) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Ascendex) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespAscendex{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -259,7 +266,7 @@ func (e *ascendex) processRestTicker(body io.ReadCloser) (price float64, err err
 	return
 }
 
-func (e *ascendex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Ascendex) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := restRespAscendex{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -271,7 +278,7 @@ func (e *ascendex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		var err error
 		r := rr.Data.Data[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatUint(r.TradeID, 10),
 			Timestamp: time.Unix(0, r.Timestamp*int64(time.Millisecond)).UTC(),
 		}
@@ -297,5 +304,5 @@ func (e *ascendex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

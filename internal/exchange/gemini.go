@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type gemini struct {
+type Gemini struct {
 	wrapper *Wrapper
 }
 
@@ -49,20 +49,20 @@ type restRespGemini struct {
 	TickerPrice string `json:"last"`
 }
 
-func NewGemini(wrapper *Wrapper) *gemini {
-	return &gemini{wrapper: wrapper}
+func NewGemini(wrapper *Wrapper) *Gemini {
+	return &Gemini{wrapper: wrapper}
 }
 
-func (e *gemini) postConnectWs() error { return nil }
+func (e *Gemini) postConnectWs() error { return nil }
 
-func (e *gemini) pingWs(_ context.Context) error { return nil }
+func (e *Gemini) pingWs(_ context.Context) error { return nil }
 
-func (e *gemini) readWs() (frame []byte, err error) {
+func (e *Gemini) readWs() (frame []byte, err error) {
 	return e.wrapper.ws.Read()
 }
 
 // subWsChannel sends channel subscription requests to the websocket server.
-func (e *gemini) getWsSubscribeMessage(market string, _ string, _ int) (frame []byte, err error) {
+func (e *Gemini) getWsSubscribeMessage(market string, _ string, _ int) (frame []byte, err error) {
 	channels := make([]wsSubSubGemini, 1)
 	channels[0].Name = "l2"
 	channels[0].Symbols = [1]string{market}
@@ -79,7 +79,7 @@ func (e *gemini) getWsSubscribeMessage(market string, _ string, _ int) (frame []
 	return
 }
 
-func (e *gemini) processWs(frame []byte) (err error) {
+func (e *Gemini) processWs(frame []byte) (err error) {
 	var market string
 	log.Debug().
 		Str("exchange", e.wrapper.name).
@@ -102,7 +102,7 @@ func (e *gemini) processWs(frame []byte) (err error) {
 			return
 		}
 		if ok {
-			ticker := storage.Ticker{
+			ticker := &storage.Ticker{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -118,7 +118,7 @@ func (e *gemini) processWs(frame []byte) (err error) {
 				return
 			}
 
-			err = e.wrapper.appendTicker(ticker, cfg)
+			e.wrapper.appendTicker(ticker, cfg)
 		}
 
 		cfg, ok, updateRequired = e.wrapper.getCfgMap(market, "trade")
@@ -126,7 +126,7 @@ func (e *gemini) processWs(frame []byte) (err error) {
 			return
 		}
 		if ok {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -147,20 +147,20 @@ func (e *gemini) processWs(frame []byte) (err error) {
 				return
 			}
 
-			err = e.wrapper.appendTrade(trade, cfg)
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *gemini) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Gemini) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restURL = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"pubticker/"+mktID)
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"pubticker/"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -168,7 +168,7 @@ func (e *gemini) buildRestRequest(ctx context.Context, mktID string, channel str
 			return
 		}
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"trades/"+mktID)
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"trades/"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -184,7 +184,7 @@ func (e *gemini) buildRestRequest(ctx context.Context, mktID string, channel str
 	return
 }
 
-func (e *gemini) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Gemini) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespGemini{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -199,7 +199,7 @@ func (e *gemini) processRestTicker(body io.ReadCloser) (price float64, err error
 	return
 }
 
-func (e *gemini) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Gemini) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []restRespGemini
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -211,7 +211,7 @@ func (e *gemini) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatUint(r.TradeID, 10),
 			Side:      r.Type,
 			Timestamp: time.Unix(0, r.Timestamp*int64(time.Millisecond)).UTC(),
@@ -232,5 +232,5 @@ func (e *gemini) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

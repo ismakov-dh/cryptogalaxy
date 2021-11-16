@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type mexo struct {
+type Mexo struct {
 	wrapper *Wrapper
 }
 
@@ -55,13 +55,13 @@ type restRespMexo struct {
 	Time  int64  `json:"time"`
 }
 
-func NewMexo(wrapper *Wrapper) *mexo {
-	return &mexo{wrapper: wrapper}
+func NewMexo(wrapper *Wrapper) *Mexo {
+	return &Mexo{wrapper: wrapper}
 }
 
-func (e *mexo) postConnectWs() error { return nil }
+func (e *Mexo) postConnectWs() error { return nil }
 
-func (e *mexo) pingWs(ctx context.Context) error {
+func (e *Mexo) pingWs(ctx context.Context) error {
 	tick := time.NewTicker(1 * time.Minute)
 	defer tick.Stop()
 	for {
@@ -89,11 +89,11 @@ func (e *mexo) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *mexo) readWs() ([]byte, error) {
+func (e *Mexo) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *mexo) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Mexo) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "ticker" {
 		channel = "realtimes"
 	}
@@ -112,7 +112,7 @@ func (e *mexo) getWsSubscribeMessage(market string, channel string, _ int) (fram
 	return
 }
 
-func (e *mexo) processWs(frame []byte) (err error) {
+func (e *Mexo) processWs(frame []byte) (err error) {
 	var market, channel string
 	log.Debug().
 		Str("exchange", e.wrapper.name).
@@ -149,7 +149,7 @@ func (e *mexo) processWs(frame []byte) (err error) {
 
 	switch channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -162,11 +162,11 @@ func (e *mexo) processWs(frame []byte) (err error) {
 			return err
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var err error
 		for _, data := range wr.Data {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -211,18 +211,16 @@ func (e *mexo) processWs(frame []byte) (err error) {
 				continue
 			}
 
-			if err = e.wrapper.appendTrade(trade, cfg); err != nil {
-				logErrStack(err)
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *mexo) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Mexo) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -253,7 +251,7 @@ func (e *mexo) buildRestRequest(ctx context.Context, mktID string, channel strin
 	return
 }
 
-func (e *mexo) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Mexo) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespMexo{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -267,7 +265,7 @@ func (e *mexo) processRestTicker(body io.ReadCloser) (price float64, err error) 
 	return
 }
 
-func (e *mexo) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Mexo) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []restRespMexo
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -279,7 +277,7 @@ func (e *mexo) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Timestamp: time.Unix(0, r.Time*int64(time.Millisecond)).UTC(),
 		}
 		if r.Maker {
@@ -303,5 +301,5 @@ func (e *mexo) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

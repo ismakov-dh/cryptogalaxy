@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type gateio struct {
+type GateIO struct {
 	wrapper *Wrapper
 }
 
@@ -51,19 +51,19 @@ type respGateio struct {
 	Status       string      `json:"status"`
 }
 
-func NewGateio(wrapper *Wrapper) *gateio {
-	return &gateio{wrapper: wrapper}
+func NewGateio(wrapper *Wrapper) *GateIO {
+	return &GateIO{wrapper: wrapper}
 }
 
-func (e *gateio) postConnectWs() error { return nil }
+func (e *GateIO) postConnectWs() error { return nil }
 
-func (e *gateio) pingWs(_ context.Context) error { return nil }
+func (e *GateIO) pingWs(_ context.Context) error { return nil }
 
-func (e *gateio) readWs() ([]byte, error) {
+func (e *GateIO) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *gateio) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
+func (e *GateIO) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
 	switch channel {
 	case "ticker":
 		channel = "spot.tickers"
@@ -86,7 +86,7 @@ func (e *gateio) getWsSubscribeMessage(market string, channel string, id int) (f
 	return
 }
 
-func (e *gateio) processWs(frame []byte) (err error) {
+func (e *GateIO) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := wsRespGateio{}
@@ -104,23 +104,23 @@ func (e *gateio) processWs(frame []byte) (err error) {
 				Str("channel", e.wrapper.channelIds[wr.ID][1]).
 				Msg("channel subscribed")
 			return
-		} else {
-			wsSubErr, ok := wr.Error.(wsSubErrGateio)
-			if !ok {
-				log.Error().Str("exchange", e.wrapper.name).
-					Str("func", "processWs").
-					Interface("error", wr.Error).
-					Msg("")
-				return errors.New("cannot convert ws resp error to error field")
-			}
-			log.Error().
-				Str("exchange", e.wrapper.name).
-				Str("func", "processWs").
-				Int("code", wsSubErr.Code).
-				Str("msg", wsSubErr.Message).
-				Msg("")
-			return errors.New("gateio websocket error")
 		}
+
+		wsSubErr, ok := wr.Error.(wsSubErrGateio)
+		if !ok {
+			log.Error().Str("exchange", e.wrapper.name).
+				Str("func", "processWs").
+				Interface("error", wr.Error).
+				Msg("")
+			return errors.New("cannot convert ws resp error to error field")
+		}
+		log.Error().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Int("code", wsSubErr.Code).
+			Str("msg", wsSubErr.Message).
+			Msg("")
+		return errors.New("GateIO websocket error")
 	}
 
 	if wr.Channel == "spot.tickers" {
@@ -137,7 +137,7 @@ func (e *gateio) processWs(frame []byte) (err error) {
 
 	switch channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -150,9 +150,9 @@ func (e *gateio) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -192,15 +192,15 @@ func (e *gateio) processWs(frame []byte) (err error) {
 		intPart, _ := math.Modf(timeFloat)
 		trade.Timestamp = time.Unix(0, int64(intPart)*int64(time.Millisecond)).UTC()
 
-		err = e.wrapper.appendTrade(trade, cfg)
+		e.wrapper.appendTrade(trade, cfg)
 	}
 
-	return
+	return err
 }
 
-func (e *gateio) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *GateIO) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -228,10 +228,10 @@ func (e *gateio) buildRestRequest(ctx context.Context, mktID string, channel str
 
 	req.URL.RawQuery = q.Encode()
 
-	return
+	return req, err
 }
 
-func (e *gateio) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *GateIO) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	var r []respGateio
 
 	if err = jsoniter.NewDecoder(body).Decode(&r); err != nil {
@@ -250,7 +250,7 @@ func (e *gateio) processRestTicker(body io.ReadCloser) (price float64, err error
 	return
 }
 
-func (e *gateio) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *GateIO) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []respGateio
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -262,7 +262,7 @@ func (e *gateio) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Side: r.Side,
 		}
 
@@ -302,5 +302,5 @@ func (e *gateio) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

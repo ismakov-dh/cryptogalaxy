@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type bitrue struct {
+type Bitrue struct {
 	wrapper *Wrapper
 }
 
@@ -59,11 +59,11 @@ type restRespBitrue struct {
 	Time    int64  `json:"time"`
 }
 
-func NewBitrue(wrapper *Wrapper) *bitrue {
-	return &bitrue{wrapper: wrapper}
+func NewBitrue(wrapper *Wrapper) *Bitrue {
+	return &Bitrue{wrapper: wrapper}
 }
 
-func (e *bitrue) pongWs(pingID uint64) error {
+func (e *Bitrue) pongWs(pingID uint64) error {
 	frame, err := jsoniter.Marshal(map[string]uint64{"pong": pingID})
 	if err != nil {
 		logErrStack(err)
@@ -81,15 +81,15 @@ func (e *bitrue) pongWs(pingID uint64) error {
 	return nil
 }
 
-func (e *bitrue) postConnectWs() error { return nil }
+func (e *Bitrue) postConnectWs() error { return nil }
 
-func (e *bitrue) pingWs(_ context.Context) error { return nil }
+func (e *Bitrue) pingWs(_ context.Context) error { return nil }
 
-func (e *bitrue) readWs() ([]byte, error) {
+func (e *Bitrue) readWs() ([]byte, error) {
 	return e.wrapper.ws.ReadTextOrGzipBinary()
 }
 
-func (e *bitrue) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Bitrue) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "trade" {
 		channel = "trade_ticker"
 	}
@@ -108,7 +108,7 @@ func (e *bitrue) getWsSubscribeMessage(market string, channel string, _ int) (fr
 	return
 }
 
-func (e *bitrue) processWs(frame []byte) (err error) {
+func (e *Bitrue) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := wsRespBitrue{}
@@ -149,7 +149,7 @@ func (e *bitrue) processWs(frame []byte) (err error) {
 
 	switch wr.Channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -157,10 +157,10 @@ func (e *bitrue) processWs(frame []byte) (err error) {
 			Timestamp:     time.Now().UTC(),
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		for _, data := range wr.Tick.Trade {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -176,19 +176,19 @@ func (e *bitrue) processWs(frame []byte) (err error) {
 				trade.Side = "sell"
 			}
 
-			err = e.wrapper.appendTrade(trade, cfg)
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *bitrue) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Bitrue) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker/price")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"ticker/price")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -198,7 +198,7 @@ func (e *bitrue) buildRestRequest(ctx context.Context, mktID string, channel str
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -215,7 +215,7 @@ func (e *bitrue) buildRestRequest(ctx context.Context, mktID string, channel str
 	return
 }
 
-func (e *bitrue) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Bitrue) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespBitrue{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -230,7 +230,7 @@ func (e *bitrue) processRestTicker(body io.ReadCloser) (price float64, err error
 	return
 }
 
-func (e *bitrue) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Bitrue) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []restRespBitrue
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -241,7 +241,7 @@ func (e *bitrue) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatUint(r.TradeID, 10),
 			Timestamp: time.Unix(0, r.Time*int64(time.Millisecond)).UTC(),
 		}
@@ -267,5 +267,5 @@ func (e *bitrue) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

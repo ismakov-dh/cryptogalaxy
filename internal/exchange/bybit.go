@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type bybit struct {
+type Bybit struct {
 	wrapper *Wrapper
 }
 
@@ -58,13 +58,13 @@ type restRespDataBybit struct {
 	Time        time.Time `json:"time"`
 }
 
-func NewBybit(wrapper *Wrapper) *bybit {
-	return &bybit{wrapper: wrapper}
+func NewBybit(wrapper *Wrapper) *Bybit {
+	return &Bybit{wrapper: wrapper}
 }
 
-func (e *bybit) postConnectWs() error { return nil }
+func (e *Bybit) postConnectWs() error { return nil }
 
-func (e *bybit) pingWs(ctx context.Context) error {
+func (e *Bybit) pingWs(ctx context.Context) error {
 	tick := time.NewTicker(54 * time.Second)
 	defer tick.Stop()
 	for {
@@ -85,11 +85,11 @@ func (e *bybit) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *bybit) readWs() ([]byte, error) {
+func (e *Bybit) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *bybit) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Bybit) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "ticker" {
 		channel = "instrument_info.100ms." + market
 	} else {
@@ -108,7 +108,7 @@ func (e *bybit) getWsSubscribeMessage(market string, channel string, _ int) (fra
 	return
 }
 
-func (e *bybit) processWs(frame []byte) (err error) {
+func (e *Bybit) processWs(frame []byte) (err error) {
 	var market, channel string
 	wr := wsRespBybit{}
 
@@ -170,7 +170,7 @@ func (e *bybit) processWs(frame []byte) (err error) {
 			return
 		}
 
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -189,7 +189,7 @@ func (e *bybit) processWs(frame []byte) (err error) {
 		}
 		ticker.Price = price / 10000
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var dataResp []wsRespDataBybit
 
@@ -200,7 +200,7 @@ func (e *bybit) processWs(frame []byte) (err error) {
 
 		var err error
 		for _, data := range dataResp {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -228,18 +228,16 @@ func (e *bybit) processWs(frame []byte) (err error) {
 			}
 			trade.Timestamp = time.Unix(0, timestamp*int64(time.Millisecond)).UTC()
 
-			if err = e.wrapper.appendTrade(trade, cfg); err != nil {
-				logErrStack(err)
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *bybit) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Bybit) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -267,10 +265,10 @@ func (e *bybit) buildRestRequest(ctx context.Context, mktID string, channel stri
 
 	req.URL.RawQuery = q.Encode()
 
-	return
+	return req, err
 }
 
-func (e *bybit) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Bybit) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespBybit{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -288,7 +286,7 @@ func (e *bybit) processRestTicker(body io.ReadCloser) (price float64, err error)
 	return
 }
 
-func (e *bybit) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Bybit) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := restRespBybit{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -299,7 +297,7 @@ func (e *bybit) processRestTrade(body io.ReadCloser) (trades []storage.Trade, er
 	for i := range rr.Result {
 		r := rr.Result[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Size:      r.Size,
 			Price:     r.TradePrice,
 			Timestamp: r.Time,

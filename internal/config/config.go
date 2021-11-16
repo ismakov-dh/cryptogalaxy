@@ -12,8 +12,8 @@ type Config struct {
 
 // Exchange contains config values for different exchanges.
 type Exchange struct {
-	RestUrl            string `json:"rest_url"`
-	WebsocketUrl       string `json:"websocket_url"`
+	RestURL            string `json:"rest_url"`
+	WebsocketURL       string `json:"websocket_url"`
 	WebsocketThreshold int    `json:"websocket_threshold"`
 	WebsocketTimeout   int    `json:"websocket_timeout"`
 	Retry              Retry  `json:"retry"`
@@ -28,10 +28,10 @@ type Market struct {
 
 // Info contains config values for different market channels.
 type Info struct {
-	Channel          string         `json:"channel"`
-	Connector        string         `json:"connector"`
-	WsConsiderIntSec int            `json:"websocket_consider_interval_sec"`
-	RESTPingIntSec   int            `json:"rest_ping_interval_sec"`
+	Channel          string   `json:"channel"`
+	Connector        string   `json:"connector"`
+	WsConsiderIntSec int      `json:"websocket_consider_interval_sec"`
+	RESTPingIntSec   int      `json:"rest_ping_interval_sec"`
 	Storages         []string `json:"storages"`
 }
 

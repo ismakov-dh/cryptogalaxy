@@ -16,12 +16,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type huobi struct {
+type Huobi struct {
 	wrapper *Wrapper
 }
 
-func NewHuobi(wrapper *Wrapper) *huobi {
-	return &huobi{wrapper: wrapper}
+func NewHuobi(wrapper *Wrapper) *Huobi {
+	return &Huobi{wrapper: wrapper}
 }
 
 type respHuobi struct {
@@ -52,7 +52,7 @@ type respDataHuobi struct {
 	Time        int64   `json:"ts"`
 }
 
-func (e *huobi) pongWs(pingID uint64) error {
+func (e *Huobi) pongWs(pingID uint64) error {
 	frame, err := jsoniter.Marshal(map[string]uint64{"pong": pingID})
 	if err != nil {
 		logErrStack(err)
@@ -70,15 +70,15 @@ func (e *huobi) pongWs(pingID uint64) error {
 	return nil
 }
 
-func (e *huobi) postConnectWs() (err error) { return }
+func (e *Huobi) postConnectWs() (err error) { return }
 
-func (e *huobi) pingWs(_ context.Context) (err error) { return }
+func (e *Huobi) pingWs(_ context.Context) (err error) { return }
 
-func (e *huobi) readWs() ([]byte, error) {
+func (e *Huobi) readWs() ([]byte, error) {
 	return e.wrapper.ws.ReadTextOrGzipBinary()
 }
 
-func (e *huobi) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Huobi) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	switch channel {
 	case "ticker":
 		channel = "market." + market + ".detail"
@@ -98,7 +98,7 @@ func (e *huobi) getWsSubscribeMessage(market string, channel string, _ int) (fra
 	return
 }
 
-func (e *huobi) processWs(frame []byte) (err error) {
+func (e *Huobi) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := respHuobi{}
@@ -154,7 +154,7 @@ func (e *huobi) processWs(frame []byte) (err error) {
 
 	switch channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -162,11 +162,10 @@ func (e *huobi) processWs(frame []byte) (err error) {
 			Timestamp:     time.Unix(0, wr.Time*int64(time.Millisecond)).UTC(),
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
-		var err error
 		for _, data := range wr.Tick.TradeData {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -177,14 +176,10 @@ func (e *huobi) processWs(frame []byte) (err error) {
 				Timestamp:     time.Unix(0, data.Time*int64(time.Millisecond)).UTC(),
 			}
 
-			err = e.wrapper.appendTrade(trade, cfg)
-			if err != nil {
-				logErrStack(err)
-				continue
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	case "candle":
-		candle := storage.Candle{
+		candle := &storage.Candle{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -196,18 +191,18 @@ func (e *huobi) processWs(frame []byte) (err error) {
 			Timestamp:     time.Unix(0, wr.Time*int64(time.Millisecond)).UTC(),
 		}
 
-		err = e.wrapper.appendCandle(candle, cfg)
+		e.wrapper.appendCandle(candle, cfg)
 	}
 
 	return
 }
 
-func (e *huobi) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Huobi) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/detail/merged")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"market/detail/merged")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -218,7 +213,7 @@ func (e *huobi) buildRestRequest(ctx context.Context, mktID string, channel stri
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/history/trade")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"market/history/trade")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -235,7 +230,7 @@ func (e *huobi) buildRestRequest(ctx context.Context, mktID string, channel stri
 	return
 }
 
-func (e *huobi) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Huobi) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := respHuobi{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -248,7 +243,7 @@ func (e *huobi) processRestTicker(body io.ReadCloser) (price float64, err error)
 	return
 }
 
-func (e *huobi) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Huobi) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := respHuobi{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -261,7 +256,7 @@ func (e *huobi) processRestTrade(body io.ReadCloser) (trades []storage.Trade, er
 		for j := range d.TradeData {
 			r := d.TradeData[j]
 
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				TradeID:   strconv.FormatUint(r.RESTTradeID, 10),
 				Side:      r.Direction,
 				Size:      r.Amount,

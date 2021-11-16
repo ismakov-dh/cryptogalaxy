@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type digifinex struct {
+type Digifinex struct {
 	wrapper *Wrapper
 }
 
@@ -59,13 +59,13 @@ type restRespDataDetailDigifinex struct {
 	Date        int64   `json:"date"`
 }
 
-func NewDigifinex(wrapper *Wrapper) *digifinex {
-	return &digifinex{wrapper: wrapper}
+func NewDigifinex(wrapper *Wrapper) *Digifinex {
+	return &Digifinex{wrapper: wrapper}
 }
 
-func (e *digifinex) postConnectWs() error { return nil }
+func (e *Digifinex) postConnectWs() error { return nil }
 
-func (e *digifinex) pingWs(ctx context.Context) error {
+func (e *Digifinex) pingWs(ctx context.Context) error {
 	tick := time.NewTicker(25 * time.Second)
 	defer tick.Stop()
 	for {
@@ -95,11 +95,11 @@ func (e *digifinex) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *digifinex) readWs() ([]byte, error) {
+func (e *Digifinex) readWs() ([]byte, error) {
 	return e.wrapper.ws.ReadTextOrZlibBinary()
 }
 
-func (e *digifinex) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
+func (e *Digifinex) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
 	if channel == "trade" {
 		channel = "trades"
 	}
@@ -117,7 +117,7 @@ func (e *digifinex) getWsSubscribeMessage(market string, channel string, id int)
 	return
 }
 
-func (e *digifinex) processWs(frame []byte) (err error) {
+func (e *Digifinex) processWs(frame []byte) (err error) {
 	wr := wsRespDigifinex{}
 
 	err = jsoniter.Unmarshal(frame, &wr)
@@ -165,7 +165,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			ticker := storage.Ticker{
+			ticker := &storage.Ticker{
 				Exchange:      e.wrapper.name,
 				MktID:         r.Symbol,
 				MktCommitName: cfg.mktCommitName,
@@ -178,11 +178,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			err = e.wrapper.appendTicker(ticker, cfg)
-			if err != nil {
-				logErrStack(err)
-				return
-			}
+			e.wrapper.appendTicker(ticker, cfg)
 		}
 	} else {
 		wr.Method = "trade"
@@ -210,7 +206,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 				case []interface{}:
 					for _, data := range trades {
 						if detail, ok := data.(map[string]interface{}); ok {
-							trade := storage.Trade{
+							trade := &storage.Trade{
 								Exchange:      e.wrapper.name,
 								MktID:         symbol,
 								MktCommitName: cfg.mktCommitName,
@@ -282,10 +278,7 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 								break
 							}
 
-							if err := e.wrapper.appendTrade(trade, cfg); err != nil {
-								logErrStack(err)
-							}
-
+							e.wrapper.appendTrade(trade, cfg)
 						} else {
 							log.Error().
 								Str("exchange", e.wrapper.name).
@@ -321,15 +314,15 @@ func (e *digifinex) processWs(frame []byte) (err error) {
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *digifinex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Digifinex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -339,7 +332,7 @@ func (e *digifinex) buildRestRequest(ctx context.Context, mktID string, channel 
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -356,7 +349,7 @@ func (e *digifinex) buildRestRequest(ctx context.Context, mktID string, channel 
 	return
 }
 
-func (e *digifinex) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Digifinex) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespDigifinex{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -369,7 +362,7 @@ func (e *digifinex) processRestTicker(body io.ReadCloser) (price float64, err er
 	return
 }
 
-func (e *digifinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Digifinex) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := restRespDigifinex{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -379,7 +372,7 @@ func (e *digifinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade
 	for i := range rr.Trades {
 		r := rr.Trades[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:  e.wrapper.name,
 			TradeID:   strconv.FormatUint(r.TradeID, 10),
 			Side:      r.Type,

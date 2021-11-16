@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type btse struct {
+type BTSE struct {
 	wrapper *Wrapper
 }
 
@@ -41,20 +41,20 @@ type respDataBTSE struct {
 	Timestamp   int64   `json:"timestamp"`
 }
 
-func NewBtse(wrapper *Wrapper) *btse {
-	return &btse{wrapper: wrapper}
+func NewBtse(wrapper *Wrapper) *BTSE {
+	return &BTSE{wrapper: wrapper}
 }
 
-func (e *btse) postConnectWs() error { return nil }
+func (e *BTSE) postConnectWs() error { return nil }
 
-func (e *btse) pingWs(_ context.Context) error { return nil }
+func (e *BTSE) pingWs(_ context.Context) error { return nil }
 
-func (e *btse) readWs() (frame []byte, err error) {
+func (e *BTSE) readWs() (frame []byte, err error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *btse) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
-	channel = "tradeHistoryApi:" + market
+func (e *BTSE) getWsSubscribeMessage(market string, _ string, _ int) (frame []byte, err error) {
+	channel := "tradeHistoryApi:" + market
 	sub := wsSubBTSE{
 		Op:   "subscribe",
 		Args: [1]string{channel},
@@ -68,7 +68,7 @@ func (e *btse) getWsSubscribeMessage(market string, channel string, _ int) (fram
 	return
 }
 
-func (e *btse) processWs(frame []byte) (err error) {
+func (e *BTSE) processWs(frame []byte) (err error) {
 	var market string
 
 	wr := wsRespBTSE{}
@@ -120,7 +120,7 @@ func (e *btse) processWs(frame []byte) (err error) {
 	// Ticker.
 	cfg, ok, updateRequired := e.wrapper.getCfgMap(market, "ticker")
 	if ok && cfg.connector == "websocket" && updateRequired {
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -128,14 +128,13 @@ func (e *btse) processWs(frame []byte) (err error) {
 			Timestamp:     time.Unix(0, wr.Data[0].Timestamp*int64(time.Millisecond)).UTC(),
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	}
 
 	cfg, ok, updateRequired = e.wrapper.getCfgMap(market, "trade")
 	if ok && cfg.connector == "websocket" && updateRequired {
-		var err error
 		for _, data := range wr.Data {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -151,22 +150,19 @@ func (e *btse) processWs(frame []byte) (err error) {
 				trade.Side = "sell"
 			}
 
-			err = e.wrapper.appendTrade(trade, cfg)
-			if err != nil {
-				logErrStack(err)
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *btse) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *BTSE) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"price")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"price")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -176,7 +172,7 @@ func (e *btse) buildRestRequest(ctx context.Context, mktID string, channel strin
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -193,7 +189,7 @@ func (e *btse) buildRestRequest(ctx context.Context, mktID string, channel strin
 	return
 }
 
-func (e *btse) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *BTSE) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	var rr []respDataBTSE
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -206,7 +202,7 @@ func (e *btse) processRestTicker(body io.ReadCloser) (price float64, err error) 
 	return
 }
 
-func (e *btse) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *BTSE) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []respDataBTSE
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -217,7 +213,7 @@ func (e *btse) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 	for i := range rr {
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatUint(r.RESTTradeID, 10),
 			Size:      r.Size,
 			Price:     r.TradePrice,

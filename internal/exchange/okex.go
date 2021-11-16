@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type okex struct {
+type Okex struct {
 	wrapper *Wrapper
 }
 
@@ -35,10 +35,7 @@ type respOkex struct {
 	Data  jsoniter.RawMessage `json:"data"`
 	Code  string              `json:"code"`
 	Msg   string              `json:"msg"`
-	//Data  []respDataOkex `json:"data"`
 }
-
-type candleDataOkex [][]string
 
 type respDataOkex struct {
 	TradeID     string `json:"tradeId"`
@@ -49,13 +46,13 @@ type respDataOkex struct {
 	Timestamp   string `json:"ts"`
 }
 
-func NewOKEx(wrapper *Wrapper) *okex {
-	return &okex{wrapper: wrapper}
+func NewOKEx(wrapper *Wrapper) *Okex {
+	return &Okex{wrapper: wrapper}
 }
 
-func (e *okex) postConnectWs() error { return nil }
+func (e *Okex) postConnectWs() error { return nil }
 
-func (e *okex) pingWs(ctx context.Context) error {
+func (e *Okex) pingWs(ctx context.Context) error {
 	tick := time.NewTicker(27 * time.Second)
 	defer tick.Stop()
 	for {
@@ -76,12 +73,12 @@ func (e *okex) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *okex) readWs() ([]byte, error) {
+func (e *Okex) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
 // subWsChannel sends channel subscription requests to the websocket server.
-func (e *okex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Okex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	switch channel {
 	case "ticker":
 		channel = "tickers"
@@ -106,7 +103,7 @@ func (e *okex) getWsSubscribeMessage(market string, channel string, _ int) (fram
 	return
 }
 
-func (e *okex) processWs(frame []byte) (err error) {
+func (e *Okex) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := respOkex{}
@@ -132,28 +129,19 @@ func (e *okex) processWs(frame []byte) (err error) {
 	switch wr.Event {
 	case "error":
 		log.Error().
-			Str("exchange", "okex").
+			Str("exchange", e.wrapper.name).
 			Str("func", "processWs").
 			Str("code", wr.Code).
 			Str("msg", wr.Msg).
 			Msg("")
 		return errors.New("okex websocket error")
 	case "subscribe":
-		if wr.Arg.Channel == "tickers" {
-			log.Debug().
-				Str("exchange", "okex").
-				Str("func", "processWs").
-				Str("market", market).
-				Str("channel", channel).
-				Msg("channel subscribed")
-		} else {
-			log.Debug().
-				Str("exchange", "okex").
-				Str("func", "processWs").
-				Str("market", market).
-				Str("channel", channel).
-				Msg("channel subscribed")
-		}
+		log.Debug().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Str("market", market).
+			Str("channel", channel).
+			Msg("channel subscribed")
 		return
 	}
 
@@ -174,7 +162,7 @@ func (e *okex) processWs(frame []byte) (err error) {
 			return err
 		}
 
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -193,7 +181,7 @@ func (e *okex) processWs(frame []byte) (err error) {
 		}
 		ticker.Timestamp = time.Unix(0, t*int64(time.Millisecond)).UTC()
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var data []respDataOkex
 
@@ -203,7 +191,7 @@ func (e *okex) processWs(frame []byte) (err error) {
 
 		var err error
 		for _, t := range data {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -230,9 +218,7 @@ func (e *okex) processWs(frame []byte) (err error) {
 			}
 			trade.Timestamp = time.Unix(0, t*int64(time.Millisecond)).UTC()
 
-			if err = e.wrapper.appendTrade(trade, cfg); err != nil {
-				logErrStack(err)
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	case "candle":
 		var candles [][]string
@@ -241,7 +227,7 @@ func (e *okex) processWs(frame []byte) (err error) {
 			return err
 		}
 
-		candle := storage.Candle{
+		candle := &storage.Candle{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -285,15 +271,15 @@ func (e *okex) processWs(frame []byte) (err error) {
 		}
 		candle.Timestamp = time.Unix(0, t*int64(time.Millisecond)).UTC()
 
-		err = e.wrapper.appendCandle(candle, cfg)
+		e.wrapper.appendCandle(candle, cfg)
 	}
 
 	return
 }
 
-func (e *okex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Okex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -324,7 +310,7 @@ func (e *okex) buildRestRequest(ctx context.Context, mktID string, channel strin
 	return
 }
 
-func (e *okex) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Okex) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := respOkex{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -345,7 +331,7 @@ func (e *okex) processRestTicker(body io.ReadCloser) (price float64, err error) 
 	return
 }
 
-func (e *okex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Okex) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := respOkex{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -362,7 +348,7 @@ func (e *okex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 		var err error
 		r := data[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID: r.TradeID,
 			Side:    r.Side,
 		}
@@ -389,5 +375,5 @@ func (e *okex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

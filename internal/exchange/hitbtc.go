@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type hitBTC struct {
+type HitBTC struct {
 	wrapper *Wrapper
 }
 
@@ -59,19 +59,19 @@ type restRespHitBTC struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
-func NewHitBTC(wrapper *Wrapper) *hitBTC {
-	return &hitBTC{wrapper: wrapper}
+func NewHitBTC(wrapper *Wrapper) *HitBTC {
+	return &HitBTC{wrapper: wrapper}
 }
 
-func (e *hitBTC) postConnectWs() error { return nil }
+func (e *HitBTC) postConnectWs() error { return nil }
 
-func (e *hitBTC) pingWs(_ context.Context) error { return nil }
+func (e *HitBTC) pingWs(_ context.Context) error { return nil }
 
-func (e *hitBTC) readWs() ([]byte, error) {
+func (e *HitBTC) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *hitBTC) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
+func (e *HitBTC) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
 	switch channel {
 	case "ticker":
 		channel = "ticker/price/1s"
@@ -92,7 +92,7 @@ func (e *hitBTC) getWsSubscribeMessage(market string, channel string, id int) (f
 	return
 }
 
-func (e *hitBTC) processWs(frame []byte) (err error) {
+func (e *HitBTC) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := wsRespHitBTC{}
@@ -142,7 +142,7 @@ func (e *hitBTC) processWs(frame []byte) (err error) {
 
 	switch wr.Channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -159,12 +159,12 @@ func (e *hitBTC) processWs(frame []byte) (err error) {
 			break
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var err error
 		for _, data := range wr.Update {
 			for _, value := range data {
-				trade := storage.Trade{
+				trade := &storage.Trade{
 					Exchange:      e.wrapper.name,
 					MktID:         market,
 					MktCommitName: cfg.mktCommitName,
@@ -185,19 +185,17 @@ func (e *hitBTC) processWs(frame []byte) (err error) {
 					continue
 				}
 
-				if err = e.wrapper.appendTrade(trade, cfg); err != nil {
-					logErrStack(err)
-				}
+				e.wrapper.appendTrade(trade, cfg)
 			}
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *hitBTC) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *HitBTC) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -228,7 +226,7 @@ func (e *hitBTC) buildRestRequest(ctx context.Context, mktID string, channel str
 	return
 }
 
-func (e *hitBTC) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *HitBTC) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := make(map[string]restRespHitBTC)
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -246,7 +244,7 @@ func (e *hitBTC) processRestTicker(body io.ReadCloser) (price float64, err error
 	return
 }
 
-func (e *hitBTC) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *HitBTC) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := make(map[string][]restRespHitBTC)
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -264,7 +262,7 @@ func (e *hitBTC) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		var err error
 		r := data[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatUint(r.TradeID, 10),
 			Side:      r.Side,
 			Timestamp: r.Timestamp,
@@ -285,5 +283,5 @@ func (e *hitBTC) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

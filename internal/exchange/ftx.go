@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type ftx struct {
+type Ftx struct {
 	wrapper *Wrapper
 }
 
@@ -60,13 +60,13 @@ type restRespResultFtx struct {
 	Time  string  `json:"time"`
 }
 
-func NewFtx(wrapper *Wrapper) *ftx {
-	return &ftx{wrapper: wrapper}
+func NewFtx(wrapper *Wrapper) *Ftx {
+	return &Ftx{wrapper: wrapper}
 }
 
-func (e *ftx) postConnectWs() error { return nil }
+func (e *Ftx) postConnectWs() error { return nil }
 
-func (e *ftx) pingWs(ctx context.Context) error {
+func (e *Ftx) pingWs(ctx context.Context) error {
 	tick := time.NewTicker(13 * time.Second)
 	defer tick.Stop()
 	for {
@@ -87,11 +87,11 @@ func (e *ftx) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *ftx) readWs() ([]byte, error) {
+func (e *Ftx) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *ftx) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Ftx) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "trade" {
 		channel = "trades"
 	}
@@ -107,7 +107,7 @@ func (e *ftx) getWsSubscribeMessage(market string, channel string, _ int) (frame
 	return
 }
 
-func (e *ftx) processWs(frame []byte) (err error) {
+func (e *Ftx) processWs(frame []byte) (err error) {
 	var market, channel string
 	wr := wsRespFtx{}
 	err = jsoniter.Unmarshal(frame, &wr)
@@ -162,7 +162,7 @@ func (e *ftx) processWs(frame []byte) (err error) {
 			return
 		}
 
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -172,7 +172,7 @@ func (e *ftx) processWs(frame []byte) (err error) {
 		intPart, fracPart := math.Modf(data.Time)
 		ticker.Timestamp = time.Unix(int64(intPart), int64(fracPart*1e9)).UTC()
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var dataResp []wsTradeRespDataFtx
 
@@ -183,7 +183,7 @@ func (e *ftx) processWs(frame []byte) (err error) {
 
 		var err error
 		for _, data := range dataResp {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -198,19 +198,16 @@ func (e *ftx) processWs(frame []byte) (err error) {
 				continue
 			}
 
-			if err = e.wrapper.appendTrade(trade, cfg); err != nil {
-				logErrStack(err)
-				continue
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *ftx) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Ftx) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -239,10 +236,10 @@ func (e *ftx) buildRestRequest(ctx context.Context, mktID string, channel string
 
 	req.URL.RawQuery = q.Encode()
 
-	return
+	return req, err
 }
 
-func (e *ftx) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Ftx) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restTickerRespFtx{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -254,7 +251,7 @@ func (e *ftx) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	return
 }
 
-func (e *ftx) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Ftx) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := restTradeRespFtx{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -265,7 +262,7 @@ func (e *ftx) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err 
 		var err error
 		r := rr.Result[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Side:  r.Side,
 			Size:  r.Size,
 			Price: r.Price,

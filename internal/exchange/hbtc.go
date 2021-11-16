@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type hbtc struct {
+type HBTC struct {
 	wrapper *Wrapper
 }
 
@@ -54,14 +54,14 @@ type restRespHbtc struct {
 	Time  int64  `json:"time"`
 }
 
-func NewHbtc(wrapper *Wrapper) *hbtc {
-	return &hbtc{wrapper: wrapper}
+func NewHbtc(wrapper *Wrapper) *HBTC {
+	return &HBTC{wrapper: wrapper}
 }
 
-func (e *hbtc) postConnectWs() error { return nil }
+func (e *HBTC) postConnectWs() error { return nil }
 
 // pingWs sends ping request to websocket server for every 4 minutes (~10% earlier to required 5 minutes on a safer side).
-func (e *hbtc) pingWs(ctx context.Context) error {
+func (e *HBTC) pingWs(ctx context.Context) error {
 	tick := time.NewTicker(4 * time.Minute)
 	defer tick.Stop()
 	for {
@@ -87,11 +87,11 @@ func (e *hbtc) pingWs(ctx context.Context) error {
 	}
 }
 
-func (e *hbtc) readWs() ([]byte, error) {
+func (e *HBTC) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *hbtc) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *HBTC) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "ticker" {
 		channel = "realtimes"
 	}
@@ -111,7 +111,7 @@ func (e *hbtc) getWsSubscribeMessage(market string, channel string, _ int) (fram
 	return
 }
 
-func (e *hbtc) processWs(frame []byte) (err error) {
+func (e *HBTC) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := wsRespHbtc{}
@@ -147,7 +147,7 @@ func (e *hbtc) processWs(frame []byte) (err error) {
 
 	switch channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -160,9 +160,9 @@ func (e *hbtc) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -193,15 +193,15 @@ func (e *hbtc) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTrade(trade, cfg)
+		e.wrapper.appendTrade(trade, cfg)
 	}
 
-	return
+	return err
 }
 
-func (e *hbtc) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *HBTC) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -229,10 +229,10 @@ func (e *hbtc) buildRestRequest(ctx context.Context, mktID string, channel strin
 
 	req.URL.RawQuery = q.Encode()
 
-	return
+	return req, err
 }
 
-func (e *hbtc) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *HBTC) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespHbtc{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -247,7 +247,7 @@ func (e *hbtc) processRestTicker(body io.ReadCloser) (price float64, err error) 
 	return
 }
 
-func (e *hbtc) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *HBTC) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []restRespHbtc
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -259,7 +259,7 @@ func (e *hbtc) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Timestamp: time.Unix(0, r.Time*int64(time.Millisecond)).UTC(),
 		}
 
@@ -284,5 +284,5 @@ func (e *hbtc) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

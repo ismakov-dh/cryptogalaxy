@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type kraken struct {
+type Kraken struct {
 	wrapper *Wrapper
 }
 
@@ -48,19 +48,19 @@ type restRespKraken struct {
 	Result map[string]interface{} `json:"result"`
 }
 
-func NewKraken(wrapper *Wrapper) *kraken {
-	return &kraken{wrapper: wrapper}
+func NewKraken(wrapper *Wrapper) *Kraken {
+	return &Kraken{wrapper: wrapper}
 }
 
-func (e *kraken) postConnectWs() error { return nil }
+func (e *Kraken) postConnectWs() error { return nil }
 
-func (e *kraken) pingWs(_ context.Context) error { return nil }
+func (e *Kraken) pingWs(_ context.Context) error { return nil }
 
-func (e *kraken) readWs() ([]byte, error) {
+func (e *Kraken) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *kraken) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Kraken) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	sub := wsSubKraken{
 		Event: "subscribe",
 		Pair:  [1]string{market},
@@ -78,7 +78,7 @@ func (e *kraken) getWsSubscribeMessage(market string, channel string, _ int) (fr
 }
 
 // readWs reads ticker / trade data from websocket channels.
-func (e *kraken) processWs(frame []byte) (err error) {
+func (e *Kraken) processWs(frame []byte) (err error) {
 	var market, channel string
 	var ok bool
 
@@ -166,7 +166,7 @@ func (e *kraken) processWs(frame []byte) (err error) {
 
 	switch channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -181,24 +181,25 @@ func (e *kraken) processWs(frame []byte) (err error) {
 					return
 				}
 
-				return e.wrapper.appendTicker(ticker, cfg)
-			} else {
-				log.Error().Str("exchange", e.wrapper.name).
-					Str("func", "processWs").
-					Interface("price", data[0]).
-					Msg("")
-				return errors.New("cannot convert ticker price to string")
+				e.wrapper.appendTicker(ticker, cfg)
+				return
 			}
-		} else {
-			log.Error().
-				Str("exchange", e.wrapper.name).
+
+			log.Error().Str("exchange", e.wrapper.name).
 				Str("func", "processWs").
-				Interface("price", tickerResp["c"]).
+				Interface("price", data[0]).
 				Msg("")
-			return errors.New("cannot convert ticker data to []interface")
+			return errors.New("cannot convert ticker price to string")
 		}
+
+		log.Error().
+			Str("exchange", e.wrapper.name).
+			Str("func", "processWs").
+			Interface("price", tickerResp["c"]).
+			Msg("")
+		return errors.New("cannot convert ticker data to []interface")
 	case "trade":
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -280,12 +281,12 @@ func (e *kraken) processWs(frame []byte) (err error) {
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *kraken) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Kraken) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
@@ -315,7 +316,7 @@ func (e *kraken) buildRestRequest(ctx context.Context, mktID string, channel str
 	return
 }
 
-func (e *kraken) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Kraken) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespKraken{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -356,10 +357,10 @@ func (e *kraken) processRestTicker(body io.ReadCloser) (price float64, err error
 		}
 	}
 
-	return
+	return price, err
 }
 
-func (e *kraken) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Kraken) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := restRespKraken{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -371,10 +372,10 @@ func (e *kraken) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 			continue
 		}
 		if v, ok := result.([]interface{}); ok {
-			for _, trades := range v {
+			for _, t := range v {
 				var err error
-				if data, ok := trades.([]interface{}); ok {
-					trade := storage.Trade{}
+				if data, ok := t.([]interface{}); ok {
+					trade := &storage.Trade{}
 
 					if str, ok := data[3].(string); ok {
 						if str == "b" {
@@ -432,6 +433,8 @@ func (e *kraken) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 							Msg("cannot convert trade data field timestamp to float")
 						continue
 					}
+
+					trades = append(trades, trade)
 				} else {
 					log.Error().
 						Str("exchange", e.wrapper.name).
@@ -449,5 +452,5 @@ func (e *kraken) processRestTrade(body io.ReadCloser) (trades []storage.Trade, e
 		}
 	}
 
-	return
+	return trades, err
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type aax struct {
+type AAX struct {
 	wrapper *Wrapper
 }
 
@@ -34,19 +34,19 @@ type restTradeRespAAX struct {
 	Trades []respAAX `json:"trades"`
 }
 
-func NewAAX(wrapper *Wrapper) *aax {
-	return &aax{wrapper: wrapper}
+func NewAAX(wrapper *Wrapper) *AAX {
+	return &AAX{wrapper: wrapper}
 }
 
-func (e *aax) postConnectWs() error { return nil }
+func (e *AAX) postConnectWs() error { return nil }
 
-func (e *aax) pingWs(_ context.Context) error { return nil }
+func (e *AAX) pingWs(_ context.Context) error { return nil }
 
-func (e *aax) readWs() ([]byte, error) {
+func (e *AAX) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *aax) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *AAX) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "ticker" {
 		channel = "1m_candles"
 	}
@@ -61,7 +61,7 @@ func (e *aax) getWsSubscribeMessage(market string, channel string, _ int) (frame
 	return
 }
 
-func (e *aax) processWs(frame []byte) (err error) {
+func (e *AAX) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := respAAX{}
@@ -92,7 +92,7 @@ func (e *aax) processWs(frame []byte) (err error) {
 	switch channel {
 	case "ticker":
 
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -105,9 +105,9 @@ func (e *aax) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -134,18 +134,18 @@ func (e *aax) processWs(frame []byte) (err error) {
 		}
 		trade.Price = math.Abs(trade.Price)
 
-		err = e.wrapper.appendTrade(trade, cfg)
+		e.wrapper.appendTrade(trade, cfg)
 	}
 
-	return
+	return err
 }
 
-func (e *aax) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *AAX) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/candles")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"market/candles")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -156,7 +156,7 @@ func (e *aax) buildRestRequest(ctx context.Context, mktID string, channel string
 		q.Add("symbol", mktID)
 		q.Add("timeFrame", "1m")
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"market/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -170,10 +170,10 @@ func (e *aax) buildRestRequest(ctx context.Context, mktID string, channel string
 
 	req.URL.RawQuery = q.Encode()
 
-	return
+	return req, err
 }
 
-func (e *aax) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *AAX) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := respAAX{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -189,10 +189,10 @@ func (e *aax) processRestTicker(body io.ReadCloser) (price float64, err error) {
 		logErrStack(err)
 	}
 
-	return
+	return price, err
 }
 
-func (e *aax) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *AAX) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := restTradeRespAAX{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -207,7 +207,7 @@ func (e *aax) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err 
 		var err error
 		r := rr.Trades[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   r.TradeID,
 			Timestamp: time.Unix(0, r.Timestamp*int64(time.Millisecond)).UTC(),
 		}
@@ -236,5 +236,5 @@ func (e *aax) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err 
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

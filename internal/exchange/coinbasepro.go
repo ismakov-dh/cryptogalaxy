@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type coinbasePro struct {
+type CoinbasePro struct {
 	wrapper *Wrapper
 }
 
@@ -40,19 +40,19 @@ type respCoinPro struct {
 	Channels  []wsSubChanCoinPro `json:"channels"`
 }
 
-func NewCoinbasePro(wrapper *Wrapper) *coinbasePro {
-	return &coinbasePro{wrapper: wrapper}
+func NewCoinbasePro(wrapper *Wrapper) *CoinbasePro {
+	return &CoinbasePro{wrapper: wrapper}
 }
 
-func (e *coinbasePro) postConnectWs() error { return nil }
+func (e *CoinbasePro) postConnectWs() error { return nil }
 
-func (e *coinbasePro) pingWs(_ context.Context) error { return nil }
+func (e *CoinbasePro) pingWs(_ context.Context) error { return nil }
 
-func (e *coinbasePro) readWs() ([]byte, error) {
+func (e *CoinbasePro) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *coinbasePro) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *CoinbasePro) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	if channel == "trade" {
 		channel = "matches"
 	}
@@ -73,7 +73,7 @@ func (e *coinbasePro) getWsSubscribeMessage(market string, channel string, _ int
 	return
 }
 
-func (e *coinbasePro) processWs(frame []byte) (err error) {
+func (e *CoinbasePro) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := respCoinPro{}
@@ -127,7 +127,7 @@ func (e *coinbasePro) processWs(frame []byte) (err error) {
 
 	switch wr.Type {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -146,9 +146,9 @@ func (e *coinbasePro) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -174,18 +174,18 @@ func (e *coinbasePro) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTrade(trade, cfg)
+		e.wrapper.appendTrade(trade, cfg)
 	}
 
-	return
+	return err
 }
 
-func (e *coinbasePro) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *CoinbasePro) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"products/"+mktID+"/ticker")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"products/"+mktID+"/ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -193,7 +193,7 @@ func (e *coinbasePro) buildRestRequest(ctx context.Context, mktID string, channe
 			return
 		}
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"products/"+mktID+"/trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"products/"+mktID+"/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -209,7 +209,7 @@ func (e *coinbasePro) buildRestRequest(ctx context.Context, mktID string, channe
 	return
 }
 
-func (e *coinbasePro) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *CoinbasePro) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := respCoinPro{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -225,7 +225,7 @@ func (e *coinbasePro) processRestTicker(body io.ReadCloser) (price float64, err 
 	return
 }
 
-func (e *coinbasePro) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *CoinbasePro) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []respCoinPro
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -237,7 +237,7 @@ func (e *coinbasePro) processRestTrade(body io.ReadCloser) (trades []storage.Tra
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID: strconv.FormatUint(r.TradeID, 10),
 			Side:    r.Side,
 		}
@@ -263,5 +263,5 @@ func (e *coinbasePro) processRestTrade(body io.ReadCloser) (trades []storage.Tra
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

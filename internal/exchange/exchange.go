@@ -36,13 +36,13 @@ type Exchange interface {
 
 	buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error)
 	processRestTicker(body io.ReadCloser) (price float64, err error)
-	processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error)
+	processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error)
 }
 
-func NewWrapper(name string, config *config.Config) *Wrapper {
+func NewWrapper(name string, cfg *config.Config) *Wrapper {
 	return &Wrapper{
 		name:   name,
-		config: config,
+		config: cfg,
 	}
 }
 
@@ -99,7 +99,7 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 	w.exchange = exchange
 	errGroup, ctx := errgroup.WithContext(appCtx)
 
-	err := w.cfgLookup(errGroup, ctx)
+	err := w.cfgLookup(ctx, errGroup)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 					return
 				}
 
-				err := w.connectWs(ctx, w.exchangeCfg().WebsocketUrl)
+				err := w.connectWs(ctx, w.exchangeCfg().WebsocketURL)
 				if err != nil {
 					logErrStack(err)
 					cancel()
@@ -199,6 +199,10 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 				continue
 			}
 
+			mkt := market.ID
+			channel := info.Channel
+			restPingIntSec := info.RESTPingIntSec
+
 			if w.rest == nil {
 				if err := w.connectRest(); err != nil {
 					return err
@@ -206,7 +210,7 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 			}
 
 			errGroup.Go(func() error {
-				return w.pollRest(ctx, market.ID, info.Channel, info.RESTPingIntSec)
+				return w.pollRest(ctx, mkt, channel, restPingIntSec)
 			})
 		}
 	}
@@ -214,7 +218,7 @@ func (w *Wrapper) start(appCtx context.Context, exchange Exchange) error {
 	return errGroup.Wait()
 }
 
-func (w *Wrapper) cfgLookup(errGroup *errgroup.Group, ctx context.Context) error {
+func (w *Wrapper) cfgLookup(ctx context.Context, errGroup *errgroup.Group) error {
 	var id int
 
 	w.cfgMap = make(map[cfgLookupKey]*cfgLookupVal)
@@ -394,7 +398,7 @@ func (w *Wrapper) pollRest(ctx context.Context, market string, channel string, i
 
 				resp.Body.Close()
 
-				ticker := storage.Ticker{
+				ticker := &storage.Ticker{
 					Exchange:      w.name,
 					MktID:         market,
 					MktCommitName: cfg.mktCommitName,
@@ -402,9 +406,7 @@ func (w *Wrapper) pollRest(ctx context.Context, market string, channel string, i
 					Timestamp:     time.Now().UTC(),
 				}
 
-				if err := w.appendTicker(ticker, cfg); err != nil {
-					return err
-				}
+				w.appendTicker(ticker, cfg)
 			case "trade":
 				trades, err := w.exchange.processRestTrade(resp.Body)
 				if err != nil {
@@ -420,9 +422,7 @@ func (w *Wrapper) pollRest(ctx context.Context, market string, channel string, i
 					trade.MktID = market
 					trade.MktCommitName = cfg.mktCommitName
 
-					if err := w.appendTrade(trade, cfg); err != nil {
-						return err
-					}
+					w.appendTrade(trade, cfg)
 				}
 			}
 
@@ -432,25 +432,22 @@ func (w *Wrapper) pollRest(ctx context.Context, market string, channel string, i
 	}
 }
 
-func (w *Wrapper) appendTicker(ticker storage.Ticker, cfg *cfgLookupVal) (err error) {
+func (w *Wrapper) appendTicker(ticker *storage.Ticker, cfg *cfgLookupVal) {
 	for _, storeName := range cfg.storages {
 		w.storages[storeName].AppendTicker(ticker)
 	}
-	return
 }
 
-func (w *Wrapper) appendTrade(trade storage.Trade, cfg *cfgLookupVal) (err error) {
+func (w *Wrapper) appendTrade(trade *storage.Trade, cfg *cfgLookupVal) {
 	for _, storeName := range cfg.storages {
 		w.storages[storeName].AppendTrade(trade)
 	}
-	return
 }
 
-func (w *Wrapper) appendCandle(candle storage.Candle, cfg *cfgLookupVal) (err error) {
+func (w *Wrapper) appendCandle(candle *storage.Candle, cfg *cfgLookupVal) {
 	for _, storeName := range cfg.storages {
 		w.storages[storeName].AppendCandle(candle)
 	}
-	return
 }
 
 func (w *Wrapper) exchangeCfg() config.Exchange {

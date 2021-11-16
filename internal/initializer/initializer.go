@@ -22,8 +22,8 @@ import (
 func Start(mainCtx context.Context, cfg *config.Config) error {
 	var (
 		logFilePath = cfg.Log.FilePath
-		logFile *os.File
-		err     error
+		logFile     *os.File
+		err         error
 	)
 
 	if !strings.HasSuffix(logFilePath, ".log") {

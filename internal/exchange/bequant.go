@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type bequant struct {
+type Bequant struct {
 	wrapper *Wrapper
 }
 
@@ -59,19 +59,19 @@ type restRespDataBequant struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
-func NewBequant(wrapper *Wrapper) *bequant {
-	return &bequant{wrapper: wrapper}
+func NewBequant(wrapper *Wrapper) *Bequant {
+	return &Bequant{wrapper: wrapper}
 }
 
-func (e *bequant) postConnectWs() error { return nil }
+func (e *Bequant) postConnectWs() error { return nil }
 
-func (e *bequant) pingWs(_ context.Context) error { return nil }
+func (e *Bequant) pingWs(_ context.Context) error { return nil }
 
-func (e *bequant) readWs() ([]byte, error) {
+func (e *Bequant) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *bequant) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
+func (e *Bequant) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
 	if channel == "ticker" {
 		channel = "ticker/price/1s"
 	} else {
@@ -93,7 +93,7 @@ func (e *bequant) getWsSubscribeMessage(market string, channel string, id int) (
 	return
 }
 
-func (e *bequant) processWs(frame []byte) (err error) {
+func (e *Bequant) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := wsRespBequant{}
@@ -147,7 +147,7 @@ func (e *bequant) processWs(frame []byte) (err error) {
 
 	switch wr.Channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -160,11 +160,11 @@ func (e *bequant) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var err error
 		for _, data := range wr.Trades[market] {
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -185,21 +185,19 @@ func (e *bequant) processWs(frame []byte) (err error) {
 				continue
 			}
 
-			if err := e.wrapper.appendTrade(trade, cfg); err != nil {
-				logErrStack(err)
-			}
+			e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
-	return
+	return err
 }
 
-func (e *bequant) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Bequant) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -209,7 +207,7 @@ func (e *bequant) buildRestRequest(ctx context.Context, mktID string, channel st
 		q = req.URL.Query()
 		q.Add("symbols", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -226,7 +224,7 @@ func (e *bequant) buildRestRequest(ctx context.Context, mktID string, channel st
 	return
 }
 
-func (e *bequant) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Bequant) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := make(map[string]restRespDataBequant, 1)
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -244,7 +242,7 @@ func (e *bequant) processRestTicker(body io.ReadCloser) (price float64, err erro
 	return
 }
 
-func (e *bequant) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Bequant) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	rr := make(map[string][]restRespDataBequant)
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -262,7 +260,7 @@ func (e *bequant) processRestTrade(body io.ReadCloser) (trades []storage.Trade, 
 		var err error
 		r := data[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatUint(r.TradeID, 10),
 			Side:      r.Side,
 			Timestamp: r.Timestamp,
@@ -283,5 +281,5 @@ func (e *bequant) processRestTrade(body io.ReadCloser) (trades []storage.Trade, 
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

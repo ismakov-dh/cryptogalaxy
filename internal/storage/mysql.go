@@ -53,7 +53,7 @@ func InitMySQL(cfg *config.MySQL) (Store, error) {
 }
 
 // CommitTickers batch inserts input ticker data to database.
-func (m *mySQL) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (m *mySQL) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO ticker(exchange, market, price, timestamp, created_at) VALUES ")
 	for i := range data {
@@ -80,7 +80,7 @@ func (m *mySQL) CommitTickers(appCtx context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to database.
-func (m *mySQL) CommitTrades(appCtx context.Context, data []Trade) error {
+func (m *mySQL) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO trade(exchange, market, trade_id, side, size, price, timestamp, created_at) VALUES ")
 	for i := range data {
@@ -106,4 +106,4 @@ func (m *mySQL) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (m *mySQL) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (m *mySQL) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

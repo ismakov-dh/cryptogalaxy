@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type bitfinex struct {
+type Bitfinex struct {
 	wrapper *Wrapper
 }
 
@@ -28,7 +28,7 @@ type wsEventRespBitfinex struct {
 	Event     string `json:"event"`
 	Channel   string `json:"channel"`
 	ChannelID int    `json:"chanId"`
-	SubId     string `json:"subId"`
+	SubID     string `json:"subId"`
 	Symbol    string `json:"symbol"`
 	Key       string `json:"key"`
 	Code      int    `json:"code"`
@@ -39,11 +39,11 @@ type wsEventRespBitfinex struct {
 	} `json:"platform"`
 }
 
-func NewBitfinex(wrapper *Wrapper) *bitfinex {
-	return &bitfinex{wrapper: wrapper}
+func NewBitfinex(wrapper *Wrapper) *Bitfinex {
+	return &Bitfinex{wrapper: wrapper}
 }
 
-func (e *bitfinex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
+func (e *Bitfinex) getWsSubscribeMessage(market string, channel string, _ int) (frame []byte, err error) {
 	ch := channel
 	switch channel {
 	case "trade":
@@ -71,15 +71,15 @@ func (e *bitfinex) getWsSubscribeMessage(market string, channel string, _ int) (
 	return
 }
 
-func (e *bitfinex) postConnectWs() error { return nil }
+func (e *Bitfinex) postConnectWs() error { return nil }
 
-func (e *bitfinex) pingWs(_ context.Context) error { return nil }
+func (e *Bitfinex) pingWs(_ context.Context) error { return nil }
 
-func (e *bitfinex) readWs() ([]byte, error) {
+func (e *Bitfinex) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *bitfinex) processWs(frame []byte) (err error) {
+func (e *Bitfinex) processWs(frame []byte) (err error) {
 	var market, channel string
 	var wri respBitfinex
 
@@ -96,7 +96,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 		switch wr.Event {
 		case "hb":
 		case "subscribed":
-			s := strings.Split(wr.SubId, ":")
+			s := strings.Split(wr.SubID, ":")
 			market, channel = s[1], s[0]
 
 			e.wrapper.channelIds[wr.ChannelID] = [2]string{market, channel}
@@ -196,7 +196,7 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 
 		switch channel {
 		case "ticker":
-			ticker := storage.Ticker{
+			ticker := &storage.Ticker{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -214,9 +214,9 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			err = e.wrapper.appendTicker(ticker, cfg)
+			e.wrapper.appendTicker(ticker, cfg)
 		case "trade":
-			trade := storage.Trade{
+			trade := &storage.Trade{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -277,9 +277,9 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 
 			trade.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
 
-			err = e.wrapper.appendTrade(trade, cfg)
+			e.wrapper.appendTrade(trade, cfg)
 		case "candle":
-			candle := storage.Candle{
+			candle := &storage.Candle{
 				Exchange:      e.wrapper.name,
 				MktID:         market,
 				MktCommitName: cfg.mktCommitName,
@@ -353,18 +353,18 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			err = e.wrapper.appendCandle(candle, cfg)
+			e.wrapper.appendCandle(candle, cfg)
 		}
 	}
-	return
+	return err
 }
 
-func (e *bitfinex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Bitfinex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker/t"+mktID)
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"ticker/t"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -372,7 +372,7 @@ func (e *bitfinex) buildRestRequest(ctx context.Context, mktID string, channel s
 			return
 		}
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades/t"+mktID+"/hist")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"trades/t"+mktID+"/hist")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -388,7 +388,7 @@ func (e *bitfinex) buildRestRequest(ctx context.Context, mktID string, channel s
 	return
 }
 
-func (e *bitfinex) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Bitfinex) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := respBitfinex{}
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
 		logErrStack(err)
@@ -409,7 +409,7 @@ func (e *bitfinex) processRestTicker(body io.ReadCloser) (price float64, err err
 	return
 }
 
-func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Bitfinex) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []respBitfinex
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -467,7 +467,7 @@ func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 			continue
 		}
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatFloat(tradeID, 'f', 0, 64),
 			Side:      side,
 			Size:      size,
@@ -478,5 +478,5 @@ func (e *bitfinex) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

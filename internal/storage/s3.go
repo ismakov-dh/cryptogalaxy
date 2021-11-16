@@ -48,7 +48,7 @@ func InitS3(cfg *config.S3) (Store, error) {
 }
 
 // CommitTickers batch inserts input ticker data to s3.
-func (s *s3) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (s *s3) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var fileName strings.Builder
 	if s.Cfg.UsePrefixForObjName {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(10))
@@ -80,7 +80,7 @@ func (s *s3) CommitTickers(appCtx context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to s3.
-func (s *s3) CommitTrades(appCtx context.Context, data []Trade) error {
+func (s *s3) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var fileName strings.Builder
 	if s.Cfg.UsePrefixForObjName {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(10))
@@ -111,4 +111,4 @@ func (s *s3) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (s *s3) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (s *s3) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

@@ -6,9 +6,9 @@ import (
 )
 
 type Store interface {
-	CommitTrades(context.Context, []Trade) error
-	CommitTickers(context.Context, []Ticker) error
-	CommitCandles(context.Context, []Candle) error
+	CommitTrades(context.Context, []*Trade) error
+	CommitTickers(context.Context, []*Ticker) error
+	CommitCandles(context.Context, []*Candle) error
 }
 
 const (

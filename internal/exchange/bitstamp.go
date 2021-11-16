@@ -15,16 +15,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type bitstamp struct {
+type Bitstamp struct {
 	wrapper *Wrapper
 }
 
 type wsRespBitstamp struct {
-	Event         string             `json:"event"`
-	Channel       string             `json:"channel"`
-	Data          wsRespDataBitstamp `json:"data"`
-	mktID         string
-	mktCommitName string
+	Event   string             `json:"event"`
+	Channel string             `json:"channel"`
+	Data    wsRespDataBitstamp `json:"data"`
 }
 
 type wsRespDataBitstamp struct {
@@ -45,19 +43,19 @@ type restRespBitstamp struct {
 	Timestamp   string `json:"date"`
 }
 
-func NewBitstamp(wrapper *Wrapper) *bitstamp {
-	return &bitstamp{wrapper: wrapper}
+func NewBitstamp(wrapper *Wrapper) *Bitstamp {
+	return &Bitstamp{wrapper: wrapper}
 }
 
-func (e *bitstamp) postConnectWs() error { return nil }
+func (e *Bitstamp) postConnectWs() error { return nil }
 
-func (e *bitstamp) pingWs(_ context.Context) error { return nil }
+func (e *Bitstamp) pingWs(_ context.Context) error { return nil }
 
-func (e *bitstamp) readWs() ([]byte, error) {
+func (e *Bitstamp) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *bitstamp) getWsSubscribeMessage(market string, _ string, _ int) (frame []byte, err error) {
+func (e *Bitstamp) getWsSubscribeMessage(market string, _ string, _ int) (frame []byte, err error) {
 	sub := wsRespBitstamp{
 		Event: "bts:subscribe",
 	}
@@ -70,7 +68,7 @@ func (e *bitstamp) getWsSubscribeMessage(market string, _ string, _ int) (frame 
 	return
 }
 
-func (e *bitstamp) processWs(frame []byte) (err error) {
+func (e *Bitstamp) processWs(frame []byte) (err error) {
 	var market string
 
 	wr := wsRespBitstamp{}
@@ -109,7 +107,7 @@ func (e *bitstamp) processWs(frame []byte) (err error) {
 			return
 		}
 
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -117,10 +115,7 @@ func (e *bitstamp) processWs(frame []byte) (err error) {
 			Timestamp:     ts,
 		}
 
-		if err = e.wrapper.appendTicker(ticker, cfg); err != nil {
-			logErrStack(err)
-		}
-
+		e.wrapper.appendTicker(ticker, cfg)
 	}
 
 	cfg, ok, updateRequired = e.wrapper.getCfgMap(market, "trade")
@@ -140,7 +135,7 @@ func (e *bitstamp) processWs(frame []byte) (err error) {
 			return
 		}
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -156,20 +151,18 @@ func (e *bitstamp) processWs(frame []byte) (err error) {
 			trade.Side = "sell"
 		}
 
-		if err = e.wrapper.appendTrade(trade, cfg); err != nil {
-			logErrStack(err)
-		}
+		e.wrapper.appendTrade(trade, cfg)
 	}
 
-	return
+	return err
 }
 
-func (e *bitstamp) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Bitstamp) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker/"+mktID)
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"ticker/"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -177,7 +170,7 @@ func (e *bitstamp) buildRestRequest(ctx context.Context, mktID string, channel s
 			return
 		}
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"transactions/"+mktID)
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"transactions/"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -193,7 +186,7 @@ func (e *bitstamp) buildRestRequest(ctx context.Context, mktID string, channel s
 	return
 }
 
-func (e *bitstamp) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Bitstamp) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespBitstamp{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -209,7 +202,7 @@ func (e *bitstamp) processRestTicker(body io.ReadCloser) (price float64, err err
 	return
 }
 
-func (e *bitstamp) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Bitstamp) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []restRespBitstamp
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -221,7 +214,7 @@ func (e *bitstamp) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID: r.TradeID,
 		}
 
@@ -255,5 +248,5 @@ func (e *bitstamp) processRestTrade(body io.ReadCloser) (trades []storage.Trade,
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

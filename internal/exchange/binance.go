@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type binance struct {
+type Binance struct {
 	wrapper *Wrapper
 }
 
@@ -55,7 +55,7 @@ type candleRespBinance struct {
 	Volume    string `json:"v"`
 
 	TakerBuyBaseAssetVolume string `json:"V"`
-	LastTradeId             int64  `json:"L"`
+	LastTradeID             int64  `json:"L"`
 }
 
 type restRespBinance struct {
@@ -66,19 +66,19 @@ type restRespBinance struct {
 	Time    int64  `json:"time"`
 }
 
-func NewBinance(wrapper *Wrapper) *binance {
-	return &binance{wrapper: wrapper}
+func NewBinance(wrapper *Wrapper) *Binance {
+	return &Binance{wrapper: wrapper}
 }
 
-func (e *binance) postConnectWs() error { return nil }
+func (e *Binance) postConnectWs() error { return nil }
 
-func (e *binance) pingWs(_ context.Context) error { return nil }
+func (e *Binance) pingWs(_ context.Context) error { return nil }
 
-func (e *binance) readWs() ([]byte, error) {
+func (e *Binance) readWs() ([]byte, error) {
 	return e.wrapper.ws.Read()
 }
 
-func (e *binance) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
+func (e *Binance) getWsSubscribeMessage(market string, channel string, id int) (frame []byte, err error) {
 	switch channel {
 	case "ticker":
 		channel = "miniTicker"
@@ -102,7 +102,7 @@ func (e *binance) getWsSubscribeMessage(market string, channel string, id int) (
 	return
 }
 
-func (e *binance) processWs(frame []byte) (err error) {
+func (e *Binance) processWs(frame []byte) (err error) {
 	var market, channel string
 
 	wr := wsRespBinance{}
@@ -149,7 +149,7 @@ func (e *binance) processWs(frame []byte) (err error) {
 
 	switch channel {
 	case "ticker":
-		ticker := storage.Ticker{
+		ticker := &storage.Ticker{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -162,9 +162,9 @@ func (e *binance) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTicker(ticker, cfg)
+		e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -190,9 +190,9 @@ func (e *binance) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendTrade(trade, cfg)
+		e.wrapper.appendTrade(trade, cfg)
 	case "candle":
-		candle := storage.Candle{
+		candle := &storage.Candle{
 			Exchange:      e.wrapper.name,
 			MktID:         market,
 			MktCommitName: cfg.mktCommitName,
@@ -229,18 +229,18 @@ func (e *binance) processWs(frame []byte) (err error) {
 			return
 		}
 
-		err = e.wrapper.appendCandle(candle, cfg)
+		e.wrapper.appendCandle(candle, cfg)
 	}
 
-	return
+	return err
 }
 
-func (e *binance) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
+func (e *Binance) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker/price")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"ticker/price")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -250,7 +250,7 @@ func (e *binance) buildRestRequest(ctx context.Context, mktID string, channel st
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestURL+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -267,7 +267,7 @@ func (e *binance) buildRestRequest(ctx context.Context, mktID string, channel st
 	return
 }
 
-func (e *binance) processRestTicker(body io.ReadCloser) (price float64, err error) {
+func (e *Binance) processRestTicker(body io.ReadCloser) (price float64, err error) {
 	rr := restRespBinance{}
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -284,7 +284,7 @@ func (e *binance) processRestTicker(body io.ReadCloser) (price float64, err erro
 	return
 }
 
-func (e *binance) processRestTrade(body io.ReadCloser) (trades []storage.Trade, err error) {
+func (e *Binance) processRestTrade(body io.ReadCloser) (trades []*storage.Trade, err error) {
 	var rr []restRespBinance
 
 	if err = jsoniter.NewDecoder(body).Decode(&rr); err != nil {
@@ -296,7 +296,7 @@ func (e *binance) processRestTrade(body io.ReadCloser) (trades []storage.Trade, 
 		var err error
 		r := rr[i]
 
-		trade := storage.Trade{
+		trade := &storage.Trade{
 			TradeID:   strconv.FormatUint(r.TradeID, 10),
 			Timestamp: time.Unix(0, r.Time*int64(time.Millisecond)).UTC(),
 		}
@@ -322,5 +322,5 @@ func (e *binance) processRestTrade(body io.ReadCloser) (trades []storage.Trade, 
 		trades = append(trades, trade)
 	}
 
-	return
+	return trades, err
 }

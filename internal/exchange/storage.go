@@ -13,12 +13,12 @@ import (
 type Storage struct {
 	ctx                       context.Context
 	store                     storage.Store
-	tickers                   []storage.Ticker
-	trades                    []storage.Trade
+	tickers                   []*storage.Ticker
+	trades                    []*storage.Trade
 	candles                   map[string]*candlesBuffer
-	tickersStream             chan []storage.Ticker
-	tradesStream              chan []storage.Trade
-	candlesStream             chan []storage.Candle
+	tickersStream             chan []*storage.Ticker
+	tradesStream              chan []*storage.Trade
+	candlesStream             chan []*storage.Candle
 	tickersCount              int
 	tickersBuffer             int
 	tradesCount               int
@@ -28,9 +28,9 @@ type Storage struct {
 }
 
 type candlesBuffer struct {
-	buffer           []storage.Candle
+	buffer           []*storage.Candle
 	count            int
-	preBuffered      []storage.Candle
+	preBuffered      []*storage.Candle
 	preBufferedIdxs  map[time.Time]int
 	preBufferedCount int
 }
@@ -47,7 +47,7 @@ func (s *Storage) getCandleBuffer(market string) *candlesBuffer {
 
 func (s *Storage) newCandleBuffer() *candlesBuffer {
 	return &candlesBuffer{
-		buffer:          make([]storage.Candle, 0, s.candlesBuffer),
+		buffer:          make([]*storage.Candle, 0, s.candlesBuffer),
 		preBufferedIdxs: make(map[time.Time]int),
 	}
 }
@@ -56,12 +56,12 @@ func NewStorage(ctx context.Context, store storage.Store, buffers config.CommitB
 	return &Storage{
 		ctx:                       ctx,
 		store:                     store,
-		tickers:                   make([]storage.Ticker, 0, buffers.Ticker),
-		trades:                    make([]storage.Trade, 0, buffers.Trade),
+		tickers:                   make([]*storage.Ticker, 0, buffers.Ticker),
+		trades:                    make([]*storage.Trade, 0, buffers.Trade),
 		candles:                   make(map[string]*candlesBuffer),
-		tickersStream:             make(chan []storage.Ticker, 1),
-		tradesStream:              make(chan []storage.Trade, 1),
-		candlesStream:             make(chan []storage.Candle, 1),
+		tickersStream:             make(chan []*storage.Ticker, 1),
+		tradesStream:              make(chan []*storage.Trade, 1),
+		candlesStream:             make(chan []*storage.Candle, 1),
 		tickersBuffer:             buffers.Ticker,
 		tradesBuffer:              buffers.Trade,
 		candlesBuffer:             buffers.Candle,
@@ -75,7 +75,7 @@ func (s *Storage) Start(errGroup *errgroup.Group) {
 	errGroup.Go(s.candlesToStore)
 }
 
-func (s *Storage) AppendTicker(ticker storage.Ticker) {
+func (s *Storage) AppendTicker(ticker *storage.Ticker) {
 	s.tickers[s.tickersCount] = ticker
 	s.tickersCount++
 	if s.tickersCount == s.tickersBuffer {
@@ -83,13 +83,11 @@ func (s *Storage) AppendTicker(ticker storage.Ticker) {
 		s.tickersStream <- tickers
 
 		s.tickersCount = 0
-		s.tickers = make([]storage.Ticker, 0, s.tickersBuffer)
+		s.tickers = make([]*storage.Ticker, 0, s.tickersBuffer)
 	}
-
-	return
 }
 
-func (s *Storage) AppendTrade(trade storage.Trade) {
+func (s *Storage) AppendTrade(trade *storage.Trade) {
 	s.trades[s.tradesCount] = trade
 	s.tradesCount++
 	if s.tradesCount == s.tradesBuffer {
@@ -97,13 +95,11 @@ func (s *Storage) AppendTrade(trade storage.Trade) {
 		s.tradesStream <- trades
 
 		s.tradesCount = 0
-		s.trades = make([]storage.Trade, 0, s.tradesBuffer)
+		s.trades = make([]*storage.Trade, 0, s.tradesBuffer)
 	}
-
-	return
 }
 
-func (s *Storage) AppendCandle(candle storage.Candle) {
+func (s *Storage) AppendCandle(candle *storage.Candle) {
 	candle.Timestamp = candle.Timestamp.Truncate(time.Minute)
 	market, timestamp := candle.MktID, candle.Timestamp
 
@@ -120,7 +116,7 @@ func (s *Storage) AppendCandle(candle storage.Candle) {
 
 				buf.preBuffered = append(
 					buf.preBuffered,
-					storage.Candle{
+					&storage.Candle{
 						Exchange:      lastCandle.Exchange,
 						MktID:         lastCandle.MktID,
 						MktCommitName: lastCandle.MktCommitName,
@@ -167,7 +163,7 @@ func (s *Storage) AppendCandle(candle storage.Candle) {
 		s.candlesStream <- candles
 
 		buf.count = 0
-		buf.buffer = make([]storage.Candle, 0, s.candlesBuffer)
+		buf.buffer = make([]*storage.Candle, 0, s.candlesBuffer)
 	}
 }
 
