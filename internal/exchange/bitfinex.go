@@ -214,10 +214,6 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if cfg.influxStr {
-				ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-			}
-
 			err = e.wrapper.appendTicker(ticker, cfg)
 		case "trade":
 			trade := storage.Trade{
@@ -281,11 +277,6 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 
 			trade.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
 
-
-			if cfg.influxStr {
-				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-			}
-
 			err = e.wrapper.appendTrade(trade, cfg)
 		case "candle":
 			candle := storage.Candle{
@@ -306,7 +297,6 @@ func (e *bitfinex) processWs(frame []byte) (err error) {
 			}
 
 			candle.Timestamp = time.Unix(0, int64(timestamp)*int64(time.Millisecond)).UTC()
-
 
 			candle.Open, ok = wri[1].(float64)
 			if !ok {
@@ -374,7 +364,7 @@ func (e *bitfinex) buildRestRequest(ctx context.Context, mktID string, channel s
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"ticker/t"+mktID)
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker/t"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -382,7 +372,7 @@ func (e *bitfinex) buildRestRequest(ctx context.Context, mktID string, channel s
 			return
 		}
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"trades/t"+mktID+"/hist")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades/t"+mktID+"/hist")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

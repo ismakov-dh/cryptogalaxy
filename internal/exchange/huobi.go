@@ -162,10 +162,6 @@ func (e *huobi) processWs(frame []byte) (err error) {
 			Timestamp:     time.Unix(0, wr.Time*int64(time.Millisecond)).UTC(),
 		}
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var err error
@@ -179,10 +175,6 @@ func (e *huobi) processWs(frame []byte) (err error) {
 				Size:          data.Amount,
 				Price:         data.Price,
 				Timestamp:     time.Unix(0, data.Time*int64(time.Millisecond)).UTC(),
-			}
-
-			if cfg.influxStr {
-				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
 			}
 
 			err = e.wrapper.appendTrade(trade, cfg)
@@ -204,10 +196,6 @@ func (e *huobi) processWs(frame []byte) (err error) {
 			Timestamp:     time.Unix(0, wr.Time*int64(time.Millisecond)).UTC(),
 		}
 
-		if cfg.influxStr {
-			candle.InfluxVal = e.wrapper.getCandleInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendCandle(candle, cfg)
 	}
 
@@ -219,7 +207,7 @@ func (e *huobi) buildRestRequest(ctx context.Context, mktID string, channel stri
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"market/detail/merged")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/detail/merged")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -230,7 +218,7 @@ func (e *huobi) buildRestRequest(ctx context.Context, mktID string, channel stri
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"market/history/trade")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/history/trade")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

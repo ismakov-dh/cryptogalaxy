@@ -128,10 +128,6 @@ func (e *probit) processWs(frame []byte) (err error) {
 			return err
 		}
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var err error
@@ -167,7 +163,7 @@ func (e *probit) processWs(frame []byte) (err error) {
 
 func (e *probit) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.config.RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestUrl
 
 	switch channel {
 	case "ticker":

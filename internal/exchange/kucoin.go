@@ -62,7 +62,9 @@ type wsConnectRespKucoin struct {
 }
 
 func NewKucoin(ctx context.Context, wrapper *Wrapper) (e *kucoin, error error) {
-	resp, err := http.Post(wrapper.config.RestUrl+"bullet-public", "", nil)
+	cfg := wrapper.exchangeCfg()
+
+	resp, err := http.Post(cfg.RestUrl+"bullet-public", "", nil)
 	if err != nil {
 		if !errors.Is(err, ctx.Err()) {
 			logErrStack(err)
@@ -89,7 +91,7 @@ func NewKucoin(ctx context.Context, wrapper *Wrapper) (e *kucoin, error error) {
 	e = &kucoin{wrapper: wrapper}
 	e.wsPingIntSec = uint64(r.Data.Instanceservers[0].PingintervalMilli) / 1000
 
-	wrapper.config.WebsocketUrl = r.Data.Instanceservers[0].Endpoint + "?token=" + r.Data.Token
+	cfg.WebsocketUrl = r.Data.Instanceservers[0].Endpoint + "?token=" + r.Data.Token
 
 	return e, err
 }
@@ -244,10 +246,6 @@ func (e *kucoin) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if cfg.influxStr {
-				ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-			}
-
 			err = e.wrapper.appendTicker(ticker, cfg)
 		case "trade":
 			trade := storage.Trade{
@@ -288,10 +286,6 @@ func (e *kucoin) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if cfg.influxStr {
-				e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-			}
-
 			err = e.wrapper.appendTrade(trade, cfg)
 		}
 	}
@@ -304,7 +298,7 @@ func (e *kucoin) buildRestRequest(ctx context.Context, mktID string, channel str
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"market/orderbook/level1")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/orderbook/level1")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -314,7 +308,7 @@ func (e *kucoin) buildRestRequest(ctx context.Context, mktID string, channel str
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"market/histories")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"market/histories")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

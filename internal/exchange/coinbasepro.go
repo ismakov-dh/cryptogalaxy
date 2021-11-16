@@ -146,10 +146,6 @@ func (e *coinbasePro) processWs(frame []byte) (err error) {
 			return
 		}
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		trade := storage.Trade{
@@ -178,10 +174,6 @@ func (e *coinbasePro) processWs(frame []byte) (err error) {
 			return
 		}
 
-		if cfg.influxStr {
-			trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTrade(trade, cfg)
 	}
 
@@ -193,7 +185,7 @@ func (e *coinbasePro) buildRestRequest(ctx context.Context, mktID string, channe
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"products/"+mktID+"/ticker")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"products/"+mktID+"/ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -201,7 +193,7 @@ func (e *coinbasePro) buildRestRequest(ctx context.Context, mktID string, channe
 			return
 		}
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"products/"+mktID+"/trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"products/"+mktID+"/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 	"github.com/milkywaybrain/cryptogalaxy/internal/storage"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -51,19 +52,19 @@ func (s *Storage) newCandleBuffer() *candlesBuffer {
 	}
 }
 
-func NewStorage(ctx context.Context, store storage.Store, tickersBuf int, tradesBuf int, candlesBuf int) *Storage {
+func NewStorage(ctx context.Context, store storage.Store, buffers config.CommitBuffers) *Storage {
 	return &Storage{
 		ctx:                       ctx,
 		store:                     store,
-		tickers:                   make([]storage.Ticker, 0, tickersBuf),
-		trades:                    make([]storage.Trade, 0, tradesBuf),
+		tickers:                   make([]storage.Ticker, 0, buffers.Ticker),
+		trades:                    make([]storage.Trade, 0, buffers.Trade),
 		candles:                   make(map[string]*candlesBuffer),
 		tickersStream:             make(chan []storage.Ticker, 1),
 		tradesStream:              make(chan []storage.Trade, 1),
 		candlesStream:             make(chan []storage.Candle, 1),
-		tickersBuffer:             tickersBuf,
-		tradesBuffer:              tradesBuf,
-		candlesBuffer:             candlesBuf,
+		tickersBuffer:             buffers.Ticker,
+		tradesBuffer:              buffers.Trade,
+		candlesBuffer:             buffers.Candle,
 		candlesPreBufferThreshold: 2,
 	}
 }

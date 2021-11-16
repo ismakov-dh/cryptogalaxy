@@ -181,10 +181,6 @@ func (e *kraken) processWs(frame []byte) (err error) {
 					return
 				}
 
-				if cfg.influxStr {
-					ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-				}
-
 				return e.wrapper.appendTicker(ticker, cfg)
 			} else {
 				log.Error().Str("exchange", e.wrapper.name).
@@ -289,7 +285,7 @@ func (e *kraken) processWs(frame []byte) (err error) {
 
 func (e *kraken) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.config.RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestUrl
 
 	switch channel {
 	case "ticker":

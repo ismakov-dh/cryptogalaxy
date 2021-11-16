@@ -18,17 +18,15 @@ import (
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )
 
-// S3 is for connecting and inserting data to S3.
-type S3 struct {
+// s3 is for connecting and inserting data to s3.
+type s3 struct {
 	Client *awss3.Client
 	Cfg    *config.S3
 }
 
-var s3 S3
-
-// InitS3 initializes S3 connection with configured values.
-func InitS3(cfg *config.S3) (*S3, error) {
-	if s3.Client == nil {
+// InitS3 initializes s3 connection with configured values.
+func InitS3(cfg *config.S3) (Store, error) {
+	if _, ok := stores[S3]; !ok {
 		httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
 			tr.MaxIdleConns = cfg.MaxIdleConns
 			tr.MaxIdleConnsPerHost = cfg.MaxIdleConnsPerHost
@@ -41,21 +39,16 @@ func InitS3(cfg *config.S3) (*S3, error) {
 			return nil, err
 		}
 		awsClient := awss3.NewFromConfig(awsConfig)
-		s3 = S3{
+		stores[S3] = &s3{
 			Client: awsClient,
 			Cfg:    cfg,
 		}
 	}
-	return &s3, nil
-}
-
-// GetS3 returns already prepared s3 instance.
-func GetS3() *S3 {
-	return &s3
+	return stores[S3], nil
 }
 
 // CommitTickers batch inserts input ticker data to s3.
-func (s *S3) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (s *s3) CommitTickers(appCtx context.Context, data []Ticker) error {
 	var fileName strings.Builder
 	if s.Cfg.UsePrefixForObjName {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(10))
@@ -87,7 +80,7 @@ func (s *S3) CommitTickers(appCtx context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to s3.
-func (s *S3) CommitTrades(appCtx context.Context, data []Trade) error {
+func (s *s3) CommitTrades(appCtx context.Context, data []Trade) error {
 	var fileName strings.Builder
 	if s.Cfg.UsePrefixForObjName {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(10))
@@ -118,4 +111,4 @@ func (s *S3) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (s *S3) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (s *s3) CommitCandles(_ context.Context, _ []Candle) error { return nil }

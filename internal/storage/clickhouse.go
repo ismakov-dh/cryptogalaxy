@@ -8,20 +8,18 @@ import (
 	"strings"
 )
 
-// ClickHouse is for connecting and inserting data to ClickHouse.
-type ClickHouse struct {
+// clickhouse is for connecting and inserting data to clickhouse.
+type clickhouse struct {
 	DB  *sql.DB
 	Cfg *config.ClickHouse
 }
 
-var clickHouse ClickHouse
-
-// ClickHouse timestamp format.
+// clickhouse timestamp format.
 const clickHouseTimestamp = "2006-01-02 15:04:05.999"
 
-// InitClickHouse initializes ClickHouse connection with configured values.
-func InitClickHouse(cfg *config.ClickHouse) (*ClickHouse, error) {
-	if clickHouse.DB == nil {
+// InitClickHouse initializes clickhouse connection with configured values.
+func InitClickHouse(cfg *config.ClickHouse) (Store, error) {
+	if _, ok := stores[CLICKHOUSE]; !ok {
 		var dataSourceName strings.Builder
 		dataSourceName.WriteString(cfg.URL + "?")
 		dataSourceName.WriteString("database=" + cfg.Schema)
@@ -46,6 +44,7 @@ func InitClickHouse(cfg *config.ClickHouse) (*ClickHouse, error) {
 				}
 			}
 		}
+
 		db, err := sql.Open("clickhouse", dataSourceName.String())
 		if err != nil {
 			return nil, err
@@ -55,21 +54,17 @@ func InitClickHouse(cfg *config.ClickHouse) (*ClickHouse, error) {
 		if err != nil {
 			return nil, err
 		}
-		clickHouse = ClickHouse{
+
+		stores[CLICKHOUSE] = &clickhouse{
 			DB:  db,
 			Cfg: cfg,
 		}
 	}
-	return &clickHouse, nil
-}
-
-// GetClickHouse returns already prepared clickHouse instance.
-func GetClickHouse() *ClickHouse {
-	return &clickHouse
+	return stores[CLICKHOUSE], nil
 }
 
 // CommitTickers batch inserts input ticker data to clickHouse.
-func (c *ClickHouse) CommitTickers(_ context.Context, data []Ticker) error {
+func (c *clickhouse) CommitTickers(_ context.Context, data []Ticker) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -99,7 +94,7 @@ func (c *ClickHouse) CommitTickers(_ context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to clickHouse.
-func (c *ClickHouse) CommitTrades(_ context.Context, data []Trade) error {
+func (c *clickhouse) CommitTrades(_ context.Context, data []Trade) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -133,7 +128,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 	return nil
 }
 
-func (c *ClickHouse) CommitCandles(_ context.Context, data []Candle) error {
+func (c *clickhouse) CommitCandles(_ context.Context, data []Candle) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err

@@ -157,10 +157,6 @@ func (e *bitrue) processWs(frame []byte) (err error) {
 			Timestamp:     time.Now().UTC(),
 		}
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		for _, data := range wr.Tick.Trade {
@@ -180,9 +176,7 @@ func (e *bitrue) processWs(frame []byte) (err error) {
 				trade.Side = "sell"
 			}
 
-			if cfg.influxStr {
-				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-			}
+			err = e.wrapper.appendTrade(trade, cfg)
 		}
 	}
 
@@ -194,7 +188,7 @@ func (e *bitrue) buildRestRequest(ctx context.Context, mktID string, channel str
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"ticker/price")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"ticker/price")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -204,7 +198,7 @@ func (e *bitrue) buildRestRequest(ctx context.Context, mktID string, channel str
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.config.RestUrl+"trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", e.wrapper.exchangeCfg().RestUrl+"trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

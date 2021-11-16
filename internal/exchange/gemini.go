@@ -118,10 +118,6 @@ func (e *gemini) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if cfg.influxStr {
-				ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-			}
-
 			err = e.wrapper.appendTicker(ticker, cfg)
 		}
 
@@ -151,10 +147,6 @@ func (e *gemini) processWs(frame []byte) (err error) {
 				return
 			}
 
-			if cfg.influxStr {
-				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-			}
-
 			err = e.wrapper.appendTrade(trade, cfg)
 		}
 	}
@@ -164,7 +156,7 @@ func (e *gemini) processWs(frame []byte) (err error) {
 
 func (e *gemini) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.config.RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestUrl
 
 	switch channel {
 	case "ticker":

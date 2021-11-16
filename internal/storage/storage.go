@@ -11,6 +11,23 @@ type Store interface {
 	CommitCandles(context.Context, []Candle) error
 }
 
+const (
+	CLICKHOUSE    = "clickhouse"
+	ELASTICSEARCH = "elastic_search"
+	INFLUXDB      = "influxdb"
+	MYSQL         = "mysql"
+	NATS          = "nats"
+	S3            = "s3"
+	TERMINAL      = "terminal"
+)
+
+var stores = make(map[string]Store)
+
+func GetStore(_type string) (store Store, ok bool) {
+	store, ok = stores[_type]
+	return
+}
+
 // Ticker represents final form of market ticker info received from exchange
 // ready to store.
 type Ticker struct {

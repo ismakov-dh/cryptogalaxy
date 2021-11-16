@@ -150,10 +150,6 @@ func (e *gateio) processWs(frame []byte) (err error) {
 			return
 		}
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		trade := storage.Trade{
@@ -196,10 +192,6 @@ func (e *gateio) processWs(frame []byte) (err error) {
 		intPart, _ := math.Modf(timeFloat)
 		trade.Timestamp = time.Unix(0, int64(intPart)*int64(time.Millisecond)).UTC()
 
-		if cfg.influxStr {
-			trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTrade(trade, cfg)
 	}
 
@@ -208,7 +200,7 @@ func (e *gateio) processWs(frame []byte) (err error) {
 
 func (e *gateio) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.config.RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestUrl
 
 	switch channel {
 	case "ticker":

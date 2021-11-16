@@ -172,10 +172,6 @@ func (e *ftx) processWs(frame []byte) (err error) {
 		intPart, fracPart := math.Modf(data.Time)
 		ticker.Timestamp = time.Unix(int64(intPart), int64(fracPart*1e9)).UTC()
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var dataResp []wsTradeRespDataFtx
@@ -202,10 +198,6 @@ func (e *ftx) processWs(frame []byte) (err error) {
 				continue
 			}
 
-			if cfg.influxStr {
-				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-			}
-
 			if err = e.wrapper.appendTrade(trade, cfg); err != nil {
 				logErrStack(err)
 				continue
@@ -218,7 +210,7 @@ func (e *ftx) processWs(frame []byte) (err error) {
 
 func (e *ftx) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.config.RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestUrl
 
 	switch channel {
 	case "ticker":

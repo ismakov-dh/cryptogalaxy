@@ -189,10 +189,6 @@ func (e *bybit) processWs(frame []byte) (err error) {
 		}
 		ticker.Price = price / 10000
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var dataResp []wsRespDataBybit
@@ -232,10 +228,6 @@ func (e *bybit) processWs(frame []byte) (err error) {
 			}
 			trade.Timestamp = time.Unix(0, timestamp*int64(time.Millisecond)).UTC()
 
-			if cfg.influxStr {
-				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-			}
-
 			if err = e.wrapper.appendTrade(trade, cfg); err != nil {
 				logErrStack(err)
 			}
@@ -247,7 +239,7 @@ func (e *bybit) processWs(frame []byte) (err error) {
 
 func (e *bybit) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.config.RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestUrl
 
 	switch channel {
 	case "ticker":

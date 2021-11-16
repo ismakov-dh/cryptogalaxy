@@ -12,8 +12,8 @@ import (
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )
 
-// InfluxDB is for connecting and inserting data to InfluxDB.
-type InfluxDB struct {
+// influxDB is for connecting and inserting data to influxDB.
+type influxDB struct {
 	WriteAPI  api.WriteAPIBlocking
 	DeleteAPI api.DeleteAPI
 	QueryAPI  api.QueryAPI
@@ -23,9 +23,9 @@ type InfluxDB struct {
 type InfluxTimeVal struct {
 
 	// Sometime, ticker and trade data that we receive from the exchanges will have multiple records for the same timestamp.
-	// This data is deleted automatically by the InfluxDB as the system identifies unique data points by
+	// This data is deleted automatically by the influxDB as the system identifies unique data points by
 	// their measurement, tag set, and timestamp. Also we cannot add a unique id or timestamp as a new tag to the data set
-	// as it may significantly affect the performance of the InfluxDB read / writes. So to solve this problem,
+	// as it may significantly affect the performance of the influxDB read / writes. So to solve this problem,
 	// here we are adding 1 nanosecond to each timestamp entry of exchange and market combo till it reaches
 	// 1 millisecond to have a unique timestamp entry for each data point. This will not change anything
 	// as we are maintaining only millisecond precision ticker and trade records.
@@ -36,11 +36,35 @@ type InfluxTimeVal struct {
 	CandleMap map[string]int64
 }
 
-var influxdb InfluxDB
+var times = make(map[string]map[string]map[string]int64)
+
+func getTimeVal(exchange string, channel string, mktCommitName string) int64 {
+	exch, ok := times[exchange]
+	if !ok {
+		exch = make(map[string]map[string]int64)
+		times[exchange] = exch
+	}
+
+	values, ok := exch[channel]
+	if !ok {
+		values = make(map[string]int64)
+		times[exchange][channel] = values
+	}
+
+	value := values[mktCommitName]
+	if value == 0 || value == 999999 {
+		value = 1
+	} else {
+		value++
+	}
+	values[mktCommitName] = value
+
+	return value
+}
 
 // InitInfluxDB initializes influxdb connection with configured values.
-func InitInfluxDB(cfg *config.InfluxDB) (*InfluxDB, error) {
-	if influxdb.WriteAPI == nil {
+func InitInfluxDB(cfg *config.InfluxDB) (Store, error) {
+	if _, ok := stores[INFLUXDB]; !ok {
 		t := http.DefaultTransport.(*http.Transport).Clone()
 		t.MaxIdleConns = cfg.MaxIdleConns
 		httpClient := &http.Client{
@@ -71,23 +95,18 @@ func InitInfluxDB(cfg *config.InfluxDB) (*InfluxDB, error) {
 		if err != nil {
 			return nil, err
 		}
-		influxdb = InfluxDB{
+		stores[INFLUXDB] = &influxDB{
 			WriteAPI:  writeAPI,
 			DeleteAPI: deleteAPI,
 			QueryAPI:  queryAPI,
 			Cfg:       cfg,
 		}
 	}
-	return &influxdb, nil
-}
-
-// GetInfluxDB returns already prepared influxdb instance.
-func GetInfluxDB() *InfluxDB {
-	return &influxdb
+	return stores[INFLUXDB], nil
 }
 
 // CommitTickers batch inserts input ticker data to influxdb.
-func (i *InfluxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (i *influxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 	var sb strings.Builder
 	for i := range data {
 		ticker := data[i]
@@ -100,7 +119,7 @@ func (i *InfluxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 				ticker.Exchange,
 				ticker.MktCommitName,
 				ticker.Price,
-				((ticker.Timestamp.UnixNano()/1e6)*1e6)+ticker.InfluxVal,
+				((ticker.Timestamp.UnixNano()/1e6)*1e6)+getTimeVal(ticker.Exchange, "ticker", ticker.MktCommitName),
 			),
 		)
 	}
@@ -120,7 +139,7 @@ func (i *InfluxDB) CommitTickers(appCtx context.Context, data []Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to influxdb.
-func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
+func (i *influxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 	var sb strings.Builder
 	for i := range data {
 		trade := data[i]
@@ -136,7 +155,7 @@ func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 				trade.TradeID,
 				trade.Size,
 				trade.Price,
-				((trade.Timestamp.UnixNano()/1e6)*1e6)+trade.InfluxVal,
+				((trade.Timestamp.UnixNano()/1e6)*1e6)+getTimeVal(trade.Exchange, "trade", trade.MktCommitName),
 			),
 		)
 	}
@@ -155,4 +174,4 @@ func (i *InfluxDB) CommitTrades(appCtx context.Context, data []Trade) error {
 	return nil
 }
 
-func (i *InfluxDB) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (i *influxDB) CommitCandles(_ context.Context, _ []Candle) error { return nil }

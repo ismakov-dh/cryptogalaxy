@@ -230,6 +230,44 @@
       }
     }
   },
+  "commit_buffers": {
+    "clickhouse": {
+      "ticker": 100,
+      "trade": 100,
+      "candle": 100
+    },
+    "elastic_search": {
+      "ticker": 3,
+      "trade": 3,
+      "candle": 3
+    },
+    "influxdb": {
+      "ticker": 3,
+      "trade": 3,
+      "candle": 3
+    },
+    "mysql": {
+      "ticker": 2,
+      "trade": 2,
+      "candle": 2
+    },
+    "nats": {
+      "ticker": 2,
+      "trade": 2,
+      "candle": 2
+    },
+    "s3": {
+      "ticker": 3,
+      "trade": 3,
+      "candle": 3
+    },
+    "terminal": {
+      "ticker": 1,
+      "trade": 1,
+      "candle": 1
+    }
+
+  },
   "connection": {
     "websocket": {
       "conn_timeout_sec": 0,
@@ -240,10 +278,6 @@
       "max_idle_conns": 100,
       "max_idle_conns_per_host": 10
     },
-    "terminal": {
-      "ticker_commit_buffer": 1,
-      "trade_commit_buffer": 1
-    },
     "mysql": {
       "user": "root",
       "password": "admin",
@@ -252,9 +286,7 @@
       "request_timeout_sec": 0,
       "conn_max_lifetime_sec": 180,
       "max_open_conns": 10,
-      "max_idle_conns": 10,
-      "ticker_commit_buffer": 2,
-      "trade_commit_buffer": 2
+      "max_idle_conns": 10
     },
     "elastic_search": {
       "addresses": [
@@ -265,9 +297,7 @@
       "index_name": "test_cryptogalaxy",
       "request_timeout_sec": 0,
       "max_idle_conns": 10,
-      "max_idle_conns_per_host": 10,
-      "ticker_commit_buffer": 3,
-      "trade_commit_buffer": 3
+      "max_idle_conns_per_host": 10
     },
     "influxdb": {
       "organization": "crypto",
@@ -275,9 +305,7 @@
       "token": "4CmybSodDyxYj5aGovO1DNIbsJ6fJH0ZppWxLmlqywdbLLc0O_Jkr79L1qITV2SRnR1wgusGKR7dQt7C9s9VcQ==",
       "URL": "http://localhost:8086/",
       "request_timeout_sec": 0,
-      "max_idle_conns": 10,
-      "ticker_commit_buffer": 2,
-      "trade_commit_buffer": 3
+      "max_idle_conns": 10
     },
     "nats": {
       "addresses": [
@@ -286,9 +314,7 @@
       "username": "",
       "password": "",
       "subject_base_name": "test_cryptogalaxy",
-      "request_timeout_sec": 0,
-      "ticker_commit_buffer": 2,
-      "trade_commit_buffer": 2
+      "request_timeout_sec": 0
     },
     "clickhouse": {
       "user": "",
@@ -299,9 +325,7 @@
       "alt_hosts": [
         ""
       ],
-      "compression": false,
-      "ticker_commit_buffer": 3,
-      "trade_commit_buffer": 3
+      "compression": false
     },
     "s3": {
       "aws_region": "us-west-2",
@@ -311,9 +335,7 @@
       "use_prefix_for_object_name": false,
       "request_timeout_sec": 0,
       "max_idle_conns": 10,
-      "max_idle_conns_per_host": 10,
-      "ticker_commit_buffer": 3,
-      "trade_commit_buffer": 3
+      "max_idle_conns_per_host": 10
     }
   },
   "log": {

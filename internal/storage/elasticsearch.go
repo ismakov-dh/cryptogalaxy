@@ -13,18 +13,29 @@ import (
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )
 
-// ElasticSearch is for connecting and indexing data to elastic search.
-type ElasticSearch struct {
+// elasticSearch is for connecting and indexing data to elastic search.
+type elasticSearch struct {
 	ES        *elasticsearch.Client
 	IndexName string
 	Cfg       *config.ES
 }
 
-var elasticSearch ElasticSearch
+// esData holds either ticker or trade data which will be sent to elastic search.
+type esData struct {
+	Channel   string    `json:"channel"`
+	Exchange  string    `json:"exchange"`
+	Market    string    `json:"market"`
+	TradeID   string    `json:"trade_id"`
+	Side      string    `json:"side"`
+	Size      float64   `json:"size"`
+	Price     float64   `json:"price"`
+	Timestamp time.Time `json:"timestamp"`
+	CreatedAt time.Time `json:"created_at"`
+}
 
 // InitElasticSearch initializes elastic search connection with configured values.
-func InitElasticSearch(cfg *config.ES) (*ElasticSearch, error) {
-	if elasticSearch.ES == nil {
+func InitElasticSearch(cfg *config.ES) (Store, error) {
+	if _, ok := stores[ELASTICSEARCH]; !ok {
 		t := http.DefaultTransport.(*http.Transport).Clone()
 		t.MaxIdleConns = cfg.MaxIdleConns
 		t.MaxIdleConnsPerHost = cfg.MaxIdleConnsPerHost
@@ -51,35 +62,17 @@ func InitElasticSearch(cfg *config.ES) (*ElasticSearch, error) {
 		if err != nil {
 			return nil, err
 		}
-		elasticSearch = ElasticSearch{
+		stores[ELASTICSEARCH] = &elasticSearch{
 			ES:        es,
 			IndexName: cfg.IndexName,
 			Cfg:       cfg,
 		}
 	}
-	return &elasticSearch, nil
-}
-
-// GetElasticSearch returns already prepared elastic search instance.
-func GetElasticSearch() *ElasticSearch {
-	return &elasticSearch
-}
-
-// esData holds either ticker or trade data which will be sent to elastic search.
-type esData struct {
-	Channel   string    `json:"channel"`
-	Exchange  string    `json:"exchange"`
-	Market    string    `json:"market"`
-	TradeID   string    `json:"trade_id"`
-	Side      string    `json:"side"`
-	Size      float64   `json:"size"`
-	Price     float64   `json:"price"`
-	Timestamp time.Time `json:"timestamp"`
-	CreatedAt time.Time `json:"created_at"`
+	return stores[ELASTICSEARCH], nil
 }
 
 // CommitTickers batch inserts input ticker data to elastic search.
-func (e *ElasticSearch) CommitTickers(appCtx context.Context, data []Ticker) error {
+func (e *elasticSearch) CommitTickers(appCtx context.Context, data []Ticker) error {
 	var buf bytes.Buffer
 	for i := range data {
 		ticker := data[i]
@@ -125,7 +118,7 @@ func (e *ElasticSearch) CommitTickers(appCtx context.Context, data []Ticker) err
 }
 
 // CommitTrades batch inserts input trade data to elastic search.
-func (e *ElasticSearch) CommitTrades(appCtx context.Context, data []Trade) error {
+func (e *elasticSearch) CommitTrades(appCtx context.Context, data []Trade) error {
 	var buf bytes.Buffer
 	for i := range data {
 		trade := data[i]
@@ -173,4 +166,4 @@ func (e *ElasticSearch) CommitTrades(appCtx context.Context, data []Trade) error
 	return nil
 }
 
-func (e *ElasticSearch) CommitCandles(_ context.Context, _ []Candle) error { return nil }
+func (e *elasticSearch) CommitCandles(_ context.Context, _ []Candle) error { return nil }

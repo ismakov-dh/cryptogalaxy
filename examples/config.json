@@ -1,349 +1,370 @@
 {
-    "exchanges": {
-        "aax": {
-            "rest_url": "https://api.aax.com/v2/",
-            "websocket_url": "wss://realtime.aax.com/marketdata/v2/",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "ascendex": {
-            "rest_url": "https://ascendex.com/api/pro/v1/",
-            "websocket_url": "wss://ascendex.com/0/api/pro/v1/stream",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "bequant": {
-            "rest_url": "https://api.bequant.io/api/3/public/",
-            "websocket_url": "wss://api.bequant.io/api/3/ws/public",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "bhex": {
-            "rest_url": "https://api.bhex.com/",
-            "websocket_url": "wss://wsapi.bhex.com/openapi/quote/ws/v2",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "binance": {
-            "rest_url": "https://api.binance.com/api/v3/",
-            "websocket_url": "wss://stream.binance.com:9443/ws",
-            "websocket_threshold": 3,
-            "websocket_timeout": 2,
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "binance-us": {
-            "rest_url": "https://api.binance.us/api/v3/",
-            "websocket_url": "wss://stream.binance.us:9443/ws",
-            "websocket_threshold": 3,
-            "websocket_timeout": 2,
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "bitfinex": {
-            "rest_url": "https://api-pub.bitfinex.com/v2/",
-            "websocket_url": "wss://api-pub.bitfinex.com/ws/2",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "bitmart": {
-            "rest_url": "https://api-cloud.bitmart.com/spot/v1/",
-            "websocket_url": "wss://ws-manager-compress.bitmart.com?protocol=1.1",
-            "websocket_threshold": 59,
-            "websocket_timeout": 720,
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "bitrue": {
-            "rest_url": "https://api-cloud.bitmart.com/spot/v1/",
-            "websocket_url": "wss://ws-manager-compress.bitmart.com?protocol=1.1",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "btse": {
-            "rest_url": "https://api.btse.com/spot/api/v3.2/",
-            "websocket_url": "wss://ws.btse.com/ws/spot",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "bybit": {
-            "rest_url": "https://api.bybit.com/",
-            "websocket_url": "wss://stream.bybit.com/realtime_public",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "coinbase-pro": {
-            "rest_url": "https://api.pro.coinbase.com/",
-            "websocket_url": "https://api.pro.coinbase.com/",
-            "websocket_threshold": 90,
-            "websocket_timeout": 2,
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "digifinex": {
-            "rest_url": "https://openapi.digifinex.com/v3/",
-            "websocket_url": "wss://openapi.digifinex.com/ws/v1/",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "ftx": {
-            "rest_url": "https://ftx.com/api/",
-            "webocket_url": "wss://ftx.com/ws/",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "ftx-us": {
-            "rest_url": "https://ftx.us/api/",
-            "webocket_url": "wss://ftx.us/ws/",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "gateio": {
-            "rest_url": "https://api.gateio.ws/api/v4/",
-            "websocket_url": "wss://api.gateio.ws/ws/v4/",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "gemini": {
-            "rest_url": "https://api.gemini.com/v1/",
-            "websocket_url": "wss://api.gemini.com/v2/marketdata",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "hitbtc": {
-            "rest_url": "https://api.hitbtc.com/api/3/public/",
-            "websocket_url": "wss://api.hitbtc.com/api/3/ws/public",
-            "websocket_threshold": 18,
-            "websocket_timeout": 2,
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "huobi": {
-            "rest_url": "https://api.huobi.pro/",
-            "websocket_url": "wss://api.huobi.pro/ws",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "kraken": {
-            "rest_url": "https://api.kraken.com/0/public/",
-            "websocket_url": "wss://ws.kraken.com",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "kucoin": {
-            "rest_url": "https://api.kucoin.com/api/v1/",
-            "websocket_threshold": 216,
-            "websocket_timeout": 3720,
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "mexo": {
-            "rest_url": "https://api.mexo.io/openapi/",
-            "websocket_url": "wss://wsapi.mexo.io/openapi/quote/ws/v1",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "okex": {
-            "rest_url": "https://www.okex.com/api/v5/",
-            "websocket_url": "wss://ws.okex.com:8443/ws/v5/public",
-            "websocket_threshold": 216,
-            "websocket_timeout": 3720,
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        },
-        "probit": {
-            "rest_url": "https://api.probit.com/api/exchange/v1/",
-            "websocket_url": "wss://api.probit.com/api/exchange/v1/ws",
-            "retry": {
-                "number": 0,
-                "gap_sec": 0,
-                "reset_sec": 0
-            }
-        }
+  "exchanges": {
+    "aax": {
+      "rest_url": "https://api.aax.com/v2/",
+      "websocket_url": "wss://realtime.aax.com/marketdata/v2/",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
     },
-    "connection": {
-        "websocket": {
-            "conn_timeout_sec": 0,
-            "read_timeout_sec": 0
-        },
-        "rest": {
-            "request_timeout_sec": 0,
-            "max_idle_conns": 100,
-            "max_idle_conns_per_host": 10
-        },
-        "terminal": {
-            "ticker_commit_buffer": 1,
-            "trade_commit_buffer": 1
-        },
-        "mysql": {
-            "user": "root",
-            "password": "admin",
-            "URL": "@tcp(127.0.0.1:3306)",
-            "schema": "test_cryptogalaxy",
-            "request_timeout_sec": 0,
-            "conn_max_lifetime_sec": 180,
-            "max_open_conns": 10,
-            "max_idle_conns": 10,
-            "ticker_commit_buffer": 2,
-            "trade_commit_buffer": 2
-        },
-        "elastic_search": {
-            "addresses": [
-                "http://localhost:9200/"
-            ],
-            "username": "",
-            "password": "",
-            "index_name": "test_cryptogalaxy",
-            "request_timeout_sec": 0,
-            "max_idle_conns": 10,
-            "max_idle_conns_per_host": 10,
-            "ticker_commit_buffer": 3,
-            "trade_commit_buffer": 3
-        },
-        "influxdb": {
-            "organization": "crypto",
-            "bucket": "test_cryptogalaxy",
-            "token": "4CmybSodDyxYj5aGovO1DNIbsJ6fJH0ZppWxLmlqywdbLLc0O_Jkr79L1qITV2SRnR1wgusGKR7dQt7C9s9VcQ==",
-            "URL": "http://localhost:8086/",
-            "request_timeout_sec": 0,
-            "max_idle_conns": 10,
-            "ticker_commit_buffer": 2,
-            "trade_commit_buffer": 3
-        },
-        "nats": {
-            "addresses": [
-                "http://localhost:4222/"
-            ],
-            "username": "",
-            "password": "",
-            "subject_base_name": "test_cryptogalaxy",
-            "request_timeout_sec": 0,
-            "ticker_commit_buffer": 2,
-            "trade_commit_buffer": 2
-        },
-        "clickhouse": {
-            "user": "",
-            "password": "",
-            "URL": "tcp://127.0.0.1:9000",
-            "schema": "test_cryptogalaxy",
-            "request_timeout_sec": 0,
-            "alt_hosts": [
-                ""
-            ],
-            "compression": false,
-            "ticker_commit_buffer": 3,
-            "trade_commit_buffer": 3
-        },
-        "s3": {
-            "aws_region": "us-west-2",
-            "access_key_id": "AKIAIOSFODNN7EXAMPLE",
-            "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-            "bucket": "test-cryptogalaxy",
-            "use_prefix_for_object_name": false,
-            "request_timeout_sec": 0,
-            "max_idle_conns": 10,
-            "max_idle_conns_per_host": 10,
-            "ticker_commit_buffer": 3,
-            "trade_commit_buffer": 3
-        }
+    "ascendex": {
+      "rest_url": "https://ascendex.com/api/pro/v1/",
+      "websocket_url": "wss://ascendex.com/0/api/pro/v1/stream",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
     },
-    "log": {
-        "level": "debug",
-        "file_path": "/var/log/cryptogalaxy/cryptogalaxy.log"
+    "bequant": {
+      "rest_url": "https://api.bequant.io/api/3/public/",
+      "websocket_url": "wss://api.bequant.io/api/3/ws/public",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
     },
-    "markets": {
-        "binance": [
-            {
-                "id": "BTCUSDT",
-                "commit_name": "BTC/USD",
-                "info": [
-                    {
-                        "channel": "ticker",
-                        "connector": "websocket",
-                        "websocket_consider_interval_sec": 0,
-                        "storages": [
-                            "terminal"
-                        ]
-                    },
-                    {
-                        "channel": "trade",
-                        "connector": "websocket",
-                        "websocket_consider_interval_sec": 0,
-                        "storages": [
-                            "terminal"
-                        ]
-                    }
-                ]
-            }
-        ]
+    "bhex": {
+      "rest_url": "https://api.bhex.com/",
+      "websocket_url": "wss://wsapi.bhex.com/openapi/quote/ws/v2",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "binance": {
+      "rest_url": "https://api.binance.com/api/v3/",
+      "websocket_url": "wss://stream.binance.com:9443/ws",
+      "websocket_threshold": 3,
+      "websocket_timeout": 2,
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "binance-us": {
+      "rest_url": "https://api.binance.us/api/v3/",
+      "websocket_url": "wss://stream.binance.us:9443/ws",
+      "websocket_threshold": 3,
+      "websocket_timeout": 2,
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "bitfinex": {
+      "rest_url": "https://api-pub.bitfinex.com/v2/",
+      "websocket_url": "wss://api-pub.bitfinex.com/ws/2",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "bitmart": {
+      "rest_url": "https://api-cloud.bitmart.com/spot/v1/",
+      "websocket_url": "wss://ws-manager-compress.bitmart.com?protocol=1.1",
+      "websocket_threshold": 59,
+      "websocket_timeout": 720,
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "bitrue": {
+      "rest_url": "https://api-cloud.bitmart.com/spot/v1/",
+      "websocket_url": "wss://ws-manager-compress.bitmart.com?protocol=1.1",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "btse": {
+      "rest_url": "https://api.btse.com/spot/api/v3.2/",
+      "websocket_url": "wss://ws.btse.com/ws/spot",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "bybit": {
+      "rest_url": "https://api.bybit.com/",
+      "websocket_url": "wss://stream.bybit.com/realtime_public",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "coinbase-pro": {
+      "rest_url": "https://api.pro.coinbase.com/",
+      "websocket_url": "https://api.pro.coinbase.com/",
+      "websocket_threshold": 90,
+      "websocket_timeout": 2,
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "digifinex": {
+      "rest_url": "https://openapi.digifinex.com/v3/",
+      "websocket_url": "wss://openapi.digifinex.com/ws/v1/",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "ftx": {
+      "rest_url": "https://ftx.com/api/",
+      "webocket_url": "wss://ftx.com/ws/",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "ftx-us": {
+      "rest_url": "https://ftx.us/api/",
+      "webocket_url": "wss://ftx.us/ws/",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "gateio": {
+      "rest_url": "https://api.gateio.ws/api/v4/",
+      "websocket_url": "wss://api.gateio.ws/ws/v4/",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "gemini": {
+      "rest_url": "https://api.gemini.com/v1/",
+      "websocket_url": "wss://api.gemini.com/v2/marketdata",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "hitbtc": {
+      "rest_url": "https://api.hitbtc.com/api/3/public/",
+      "websocket_url": "wss://api.hitbtc.com/api/3/ws/public",
+      "websocket_threshold": 18,
+      "websocket_timeout": 2,
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "huobi": {
+      "rest_url": "https://api.huobi.pro/",
+      "websocket_url": "wss://api.huobi.pro/ws",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "kraken": {
+      "rest_url": "https://api.kraken.com/0/public/",
+      "websocket_url": "wss://ws.kraken.com",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "kucoin": {
+      "rest_url": "https://api.kucoin.com/api/v1/",
+      "websocket_threshold": 216,
+      "websocket_timeout": 3720,
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "mexo": {
+      "rest_url": "https://api.mexo.io/openapi/",
+      "websocket_url": "wss://wsapi.mexo.io/openapi/quote/ws/v1",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "okex": {
+      "rest_url": "https://www.okex.com/api/v5/",
+      "websocket_url": "wss://ws.okex.com:8443/ws/v5/public",
+      "websocket_threshold": 216,
+      "websocket_timeout": 3720,
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
+    },
+    "probit": {
+      "rest_url": "https://api.probit.com/api/exchange/v1/",
+      "websocket_url": "wss://api.probit.com/api/exchange/v1/ws",
+      "retry": {
+        "number": 0,
+        "gap_sec": 0,
+        "reset_sec": 0
+      }
     }
+  },
+  "commit_buffers": {
+    "clickhouse": {
+      "ticker": 100,
+      "trade": 100,
+      "candle": 100
+    },
+    "elastic_search": {
+      "ticker": 3,
+      "trade": 3,
+      "candle": 3
+    },
+    "influxdb": {
+      "ticker": 3,
+      "trade": 3,
+      "candle": 3
+    },
+    "mysql": {
+      "ticker": 2,
+      "trade": 2,
+      "candle": 2
+    },
+    "nats": {
+      "ticker": 2,
+      "trade": 2,
+      "candle": 2
+    },
+    "s3": {
+      "ticker": 3,
+      "trade": 3,
+      "candle": 3
+    },
+    "terminal": {
+      "ticker": 1,
+      "trade": 1,
+      "candle": 1
+    }
+  },
+  "connection": {
+    "websocket": {
+      "conn_timeout_sec": 0,
+      "read_timeout_sec": 0
+    },
+    "rest": {
+      "request_timeout_sec": 0,
+      "max_idle_conns": 100,
+      "max_idle_conns_per_host": 10
+    },
+    "clickhouse": {
+      "user": "",
+      "password": "",
+      "URL": "tcp://127.0.0.1:9000",
+      "schema": "test_cryptogalaxy",
+      "request_timeout_sec": 0,
+      "alt_hosts": [
+        ""
+      ],
+      "compression": false
+    },
+    "elastic_search": {
+      "addresses": [
+        "http://localhost:9200/"
+      ],
+      "username": "",
+      "password": "",
+      "index_name": "test_cryptogalaxy",
+      "request_timeout_sec": 0,
+      "max_idle_conns": 10,
+      "max_idle_conns_per_host": 10
+    },
+    "influxdb": {
+      "organization": "crypto",
+      "bucket": "test_cryptogalaxy",
+      "token": "4CmybSodDyxYj5aGovO1DNIbsJ6fJH0ZppWxLmlqywdbLLc0O_Jkr79L1qITV2SRnR1wgusGKR7dQt7C9s9VcQ==",
+      "URL": "http://localhost:8086/",
+      "request_timeout_sec": 0,
+      "max_idle_conns": 10
+    },
+    "mysql": {
+      "user": "root",
+      "password": "admin",
+      "URL": "@tcp(127.0.0.1:3306)",
+      "schema": "test_cryptogalaxy",
+      "request_timeout_sec": 0,
+      "conn_max_lifetime_sec": 180,
+      "max_open_conns": 10,
+      "max_idle_conns": 10
+    },
+    "nats": {
+      "addresses": [
+        "http://localhost:4222/"
+      ],
+      "username": "",
+      "password": "",
+      "subject_base_name": "test_cryptogalaxy",
+      "request_timeout_sec": 0
+    },
+    "s3": {
+      "aws_region": "us-west-2",
+      "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+      "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+      "bucket": "test-cryptogalaxy",
+      "use_prefix_for_object_name": false,
+      "request_timeout_sec": 0,
+      "max_idle_conns": 10,
+      "max_idle_conns_per_host": 10
+    }
+  },
+  "log": {
+    "level": "debug",
+    "file_path": "/var/log/cryptogalaxy/cryptogalaxy.log"
+  },
+  "markets": {
+    "binance": [
+      {
+        "id": "BTCUSDT",
+        "commit_name": "BTC/USD",
+        "info": [
+          {
+            "channel": "ticker",
+            "connector": "websocket",
+            "websocket_consider_interval_sec": 0,
+            "storages": [
+              "terminal"
+            ]
+          },
+          {
+            "channel": "trade",
+            "connector": "websocket",
+            "websocket_consider_interval_sec": 0,
+            "storages": [
+              "terminal"
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }

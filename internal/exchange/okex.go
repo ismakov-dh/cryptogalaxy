@@ -193,10 +193,6 @@ func (e *okex) processWs(frame []byte) (err error) {
 		}
 		ticker.Timestamp = time.Unix(0, t*int64(time.Millisecond)).UTC()
 
-		if cfg.influxStr {
-			ticker.InfluxVal = e.wrapper.getTickerInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendTicker(ticker, cfg)
 	case "trade":
 		var data []respDataOkex
@@ -233,10 +229,6 @@ func (e *okex) processWs(frame []byte) (err error) {
 				continue
 			}
 			trade.Timestamp = time.Unix(0, t*int64(time.Millisecond)).UTC()
-
-			if cfg.influxStr {
-				trade.InfluxVal = e.wrapper.getTradeInfluxTime(cfg.mktCommitName)
-			}
 
 			if err = e.wrapper.appendTrade(trade, cfg); err != nil {
 				logErrStack(err)
@@ -293,10 +285,6 @@ func (e *okex) processWs(frame []byte) (err error) {
 		}
 		candle.Timestamp = time.Unix(0, t*int64(time.Millisecond)).UTC()
 
-		if cfg.influxStr {
-			candle.InfluxVal = e.wrapper.getCandleInfluxTime(cfg.mktCommitName)
-		}
-
 		err = e.wrapper.appendCandle(candle, cfg)
 	}
 
@@ -305,7 +293,7 @@ func (e *okex) processWs(frame []byte) (err error) {
 
 func (e *okex) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.config.RestUrl
+	var restUrl = e.wrapper.exchangeCfg().RestUrl
 
 	switch channel {
 	case "ticker":
