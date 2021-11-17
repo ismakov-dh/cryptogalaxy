@@ -286,11 +286,11 @@ func (e *Kraken) processWs(frame []byte) (err error) {
 
 func (e *Kraken) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestURL
+	var restURL = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"Ticker")
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"Ticker")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -300,7 +300,7 @@ func (e *Kraken) buildRestRequest(ctx context.Context, mktID string, channel str
 		q = req.URL.Query()
 		q.Add("pair", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"Trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"Trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

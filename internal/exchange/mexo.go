@@ -220,11 +220,11 @@ func (e *Mexo) processWs(frame []byte) (err error) {
 
 func (e *Mexo) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestURL
+	var restURL = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"quote/v1/ticker/price")
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"quote/v1/ticker/price")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -234,7 +234,7 @@ func (e *Mexo) buildRestRequest(ctx context.Context, mktID string, channel strin
 		q = req.URL.Query()
 		q.Add("symbol", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"quote/v1/trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"quote/v1/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

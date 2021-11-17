@@ -200,11 +200,11 @@ func (e *GateIO) processWs(frame []byte) (err error) {
 
 func (e *GateIO) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestURL
+	var restURL = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"spot/tickers")
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"spot/tickers")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -214,7 +214,7 @@ func (e *GateIO) buildRestRequest(ctx context.Context, mktID string, channel str
 		q = req.URL.Query()
 		q.Add("currency_pair", mktID)
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"spot/trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"spot/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

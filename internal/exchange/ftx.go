@@ -207,11 +207,11 @@ func (e *Ftx) processWs(frame []byte) (err error) {
 
 func (e *Ftx) buildRestRequest(ctx context.Context, mktID string, channel string) (req *http.Request, err error) {
 	var q url.Values
-	var restUrl = e.wrapper.exchangeCfg().RestURL
+	var restURL = e.wrapper.exchangeCfg().RestURL
 
 	switch channel {
 	case "ticker":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"markets/"+mktID)
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"markets/"+mktID)
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)
@@ -219,7 +219,7 @@ func (e *Ftx) buildRestRequest(ctx context.Context, mktID string, channel string
 			return
 		}
 	case "trade":
-		req, err = e.wrapper.rest.Request(ctx, "GET", restUrl+"markets/"+mktID+"/trades")
+		req, err = e.wrapper.rest.Request(ctx, "GET", restURL+"markets/"+mktID+"/trades")
 		if err != nil {
 			if !errors.Is(err, ctx.Err()) {
 				logErrStack(err)

@@ -22,7 +22,7 @@ type InfluxDB struct {
 
 var (
 	_influxDB *InfluxDB
-	times = make(map[string]map[string]map[string]int64)
+	times     = make(map[string]map[string]map[string]int64)
 )
 
 func getTimeVal(exchange string, channel string, mktCommitName string) int64 {

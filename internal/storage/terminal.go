@@ -16,7 +16,6 @@ var _terminal *Terminal
 // TerminalTimestamp is used as a format to display only the time.
 const TerminalTimestamp = "15:04:05.999"
 
-
 // InitTerminal initializes Terminal display.
 // Output writer is always os.Stdout except in case of testing where file will be set as output Terminal.
 func InitTerminal(out io.Writer) *Terminal {

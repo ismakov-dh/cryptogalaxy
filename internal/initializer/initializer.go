@@ -100,7 +100,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 	appErrGroup, appCtx := errgroup.WithContext(mainCtx)
 
 LOOP:
-	for exch, _ := range cfg.Markets {
+	for exch := range cfg.Markets {
 		wrapper := exchange.NewWrapper(exch, cfg)
 
 		var e exchange.Exchange

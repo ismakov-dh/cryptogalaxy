@@ -65,7 +65,7 @@ func InitElasticSearch(cfg *config.ES) (*ElasticSearch, error) {
 			return nil, err
 		}
 
-		_elasticSearch= &ElasticSearch{
+		_elasticSearch = &ElasticSearch{
 			ES:        es,
 			IndexName: cfg.IndexName,
 			Cfg:       cfg,
