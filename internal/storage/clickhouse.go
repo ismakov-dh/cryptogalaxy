@@ -8,18 +8,20 @@ import (
 	"strings"
 )
 
-// clickhouse is for connecting and inserting data to clickhouse.
-type clickhouse struct {
+// Clickhouse is for connecting and inserting data to Clickhouse.
+type Clickhouse struct {
 	DB  *sql.DB
 	Cfg *config.ClickHouse
 }
 
-// clickhouse timestamp format.
+var _clickhouse *Clickhouse
+
+// Clickhouse timestamp format.
 const clickHouseTimestamp = "2006-01-02 15:04:05.999"
 
-// InitClickHouse initializes clickhouse connection with configured values.
-func InitClickHouse(cfg *config.ClickHouse) (Store, error) {
-	if _, ok := stores[CLICKHOUSE]; !ok {
+// InitClickHouse initializes Clickhouse connection with configured values.
+func InitClickHouse(cfg *config.ClickHouse) (*Clickhouse, error) {
+	if _clickhouse == nil {
 		var dataSourceName strings.Builder
 		dataSourceName.WriteString(cfg.URL + "?")
 		dataSourceName.WriteString("database=" + cfg.Schema)
@@ -55,16 +57,17 @@ func InitClickHouse(cfg *config.ClickHouse) (Store, error) {
 			return nil, err
 		}
 
-		stores[CLICKHOUSE] = &clickhouse{
+		_clickhouse = &Clickhouse{
 			DB:  db,
 			Cfg: cfg,
 		}
+		stores[CLICKHOUSE] = _clickhouse
 	}
-	return stores[CLICKHOUSE], nil
+	return _clickhouse, nil
 }
 
 // CommitTickers batch inserts input ticker data to clickHouse.
-func (c *clickhouse) CommitTickers(_ context.Context, data []*Ticker) error {
+func (c *Clickhouse) CommitTickers(_ context.Context, data []*Ticker) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -94,7 +97,7 @@ func (c *clickhouse) CommitTickers(_ context.Context, data []*Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to clickHouse.
-func (c *clickhouse) CommitTrades(_ context.Context, data []*Trade) error {
+func (c *Clickhouse) CommitTrades(_ context.Context, data []*Trade) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err
@@ -128,7 +131,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 	return nil
 }
 
-func (c *clickhouse) CommitCandles(_ context.Context, data []*Candle) error {
+func (c *Clickhouse) CommitCandles(_ context.Context, data []*Candle) error {
 	tx, err := c.DB.Begin()
 	if err != nil {
 		return err

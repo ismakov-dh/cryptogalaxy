@@ -12,31 +12,18 @@ import (
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )
 
-// influxDB is for connecting and inserting data to influxDB.
-type influxDB struct {
+// InfluxDB is for connecting and inserting data to InfluxDB.
+type InfluxDB struct {
 	WriteAPI  api.WriteAPIBlocking
 	DeleteAPI api.DeleteAPI
 	QueryAPI  api.QueryAPI
 	Cfg       *config.InfluxDB
 }
 
-type InfluxTimeVal struct {
-
-	// Sometime, ticker and trade data that we receive from the exchanges will have multiple records for the same timestamp.
-	// This data is deleted automatically by the influxDB as the system identifies unique data points by
-	// their measurement, tag set, and timestamp. Also we cannot add a unique id or timestamp as a new tag to the data set
-	// as it may significantly affect the performance of the influxDB read / writes. So to solve this problem,
-	// here we are adding 1 nanosecond to each timestamp entry of exchange and market combo till it reaches
-	// 1 millisecond to have a unique timestamp entry for each data point. This will not change anything
-	// as we are maintaining only millisecond precision ticker and trade records.
-	// Of course this will break if we have more than a million trades per millisecond per market in an exchange. But we
-	// are excluding that scenario.
-	TickerMap map[string]int64
-	TradeMap  map[string]int64
-	CandleMap map[string]int64
-}
-
-var times = make(map[string]map[string]map[string]int64)
+var (
+	_influxDB *InfluxDB
+	times = make(map[string]map[string]map[string]int64)
+)
 
 func getTimeVal(exchange string, channel string, mktCommitName string) int64 {
 	exch, ok := times[exchange]
@@ -63,8 +50,8 @@ func getTimeVal(exchange string, channel string, mktCommitName string) int64 {
 }
 
 // InitInfluxDB initializes influxdb connection with configured values.
-func InitInfluxDB(cfg *config.InfluxDB) (Store, error) {
-	if _, ok := stores[INFLUXDB]; !ok {
+func InitInfluxDB(cfg *config.InfluxDB) (*InfluxDB, error) {
+	if _influxDB == nil {
 		t := http.DefaultTransport.(*http.Transport).Clone()
 		t.MaxIdleConns = cfg.MaxIdleConns
 		httpClient := &http.Client{
@@ -95,18 +82,20 @@ func InitInfluxDB(cfg *config.InfluxDB) (Store, error) {
 		if err != nil {
 			return nil, err
 		}
-		stores[INFLUXDB] = &influxDB{
+
+		_influxDB = &InfluxDB{
 			WriteAPI:  writeAPI,
 			DeleteAPI: deleteAPI,
 			QueryAPI:  queryAPI,
 			Cfg:       cfg,
 		}
+		stores[INFLUXDB] = _influxDB
 	}
-	return stores[INFLUXDB], nil
+	return _influxDB, nil
 }
 
 // CommitTickers batch inserts input ticker data to influxdb.
-func (i *influxDB) CommitTickers(appCtx context.Context, data []*Ticker) error {
+func (i *InfluxDB) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var sb strings.Builder
 	for i := range data {
 		ticker := data[i]
@@ -139,7 +128,7 @@ func (i *influxDB) CommitTickers(appCtx context.Context, data []*Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to influxdb.
-func (i *influxDB) CommitTrades(appCtx context.Context, data []*Trade) error {
+func (i *InfluxDB) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var sb strings.Builder
 	for i := range data {
 		trade := data[i]
@@ -174,4 +163,4 @@ func (i *influxDB) CommitTrades(appCtx context.Context, data []*Trade) error {
 	return nil
 }
 
-func (i *influxDB) CommitCandles(_ context.Context, _ []*Candle) error { return nil }
+func (i *InfluxDB) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

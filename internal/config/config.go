@@ -1,5 +1,10 @@
 package config
 
+import (
+	jsoniter "github.com/json-iterator/go"
+	"os"
+)
+
 // Config contains config values for the app.
 // Struct values are loaded from user defined JSON config file.
 type Config struct {
@@ -142,4 +147,20 @@ type S3 struct {
 type Log struct {
 	Level    string `json:"level"`
 	FilePath string `json:"file_path"`
+}
+
+func Load(path string) (*Config, error) {
+	cfgFile, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg *Config
+
+	if err = jsoniter.NewDecoder(cfgFile).Decode(cfg); err != nil {
+		return nil, err
+	}
+	cfgFile.Close()
+
+	return cfg, nil
 }

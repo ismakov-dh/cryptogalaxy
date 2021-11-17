@@ -10,18 +10,20 @@ import (
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )
 
-// mySQL is for connecting and inserting data to mysql.
-type mySQL struct {
+// MySQL is for connecting and inserting data to mysql.
+type MySQL struct {
 	DB  *sql.DB
 	Cfg *config.MySQL
 }
+
+var _mysql *MySQL
 
 // Go time gives Z00:00, mysql timestamp needs +00:00 for UTC.
 const mysqlTimestamp = "2006-01-02T15:04:05.999+00:00"
 
 // InitMySQL initializes mysql connection with configured values.
-func InitMySQL(cfg *config.MySQL) (Store, error) {
-	if _, ok := stores[MYSQL]; !ok {
+func InitMySQL(cfg *config.MySQL) (*MySQL, error) {
+	if _mysql == nil {
 		dataSourceName := cfg.User + ":" + cfg.Password + cfg.URL + "/" + cfg.Schema
 		db, err := sql.Open("mysql",
 			dataSourceName)
@@ -44,16 +46,18 @@ func InitMySQL(cfg *config.MySQL) (Store, error) {
 		if err != nil {
 			return nil, err
 		}
-		stores[MYSQL] = &mySQL{
+
+		_mysql = &MySQL{
 			DB:  db,
 			Cfg: cfg,
 		}
+		stores[MYSQL] = _mysql
 	}
-	return stores[MYSQL], nil
+	return _mysql, nil
 }
 
 // CommitTickers batch inserts input ticker data to database.
-func (m *mySQL) CommitTickers(appCtx context.Context, data []*Ticker) error {
+func (m *MySQL) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO ticker(exchange, market, price, timestamp, created_at) VALUES ")
 	for i := range data {
@@ -80,7 +84,7 @@ func (m *mySQL) CommitTickers(appCtx context.Context, data []*Ticker) error {
 }
 
 // CommitTrades batch inserts input trade data to database.
-func (m *mySQL) CommitTrades(appCtx context.Context, data []*Trade) error {
+func (m *MySQL) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var sb strings.Builder
 	sb.WriteString("INSERT INTO trade(exchange, market, trade_id, side, size, price, timestamp, created_at) VALUES ")
 	for i := range data {
@@ -106,4 +110,4 @@ func (m *mySQL) CommitTrades(appCtx context.Context, data []*Trade) error {
 	return nil
 }
 
-func (m *mySQL) CommitCandles(_ context.Context, _ []*Candle) error { return nil }
+func (m *MySQL) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

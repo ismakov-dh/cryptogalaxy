@@ -9,16 +9,18 @@ import (
 	nc "github.com/nats-io/nats.go"
 )
 
-// nats is for connecting and inserting data to nats.
-type nats struct {
+// Nats is for connecting and inserting data to Nats.
+type Nats struct {
 	Basic  *nc.Conn
 	Client *nc.EncodedConn
 	Cfg    *config.NATS
 }
 
-// InitNATS initializes nats connection with configured values.
-func InitNATS(cfg *config.NATS) (Store, error) {
-	if _, ok := stores[NATS]; !ok {
+var _nats *Nats
+
+// InitNATS initializes Nats connection with configured values.
+func InitNATS(cfg *config.NATS) (*Nats, error) {
+	if _nats == nil {
 		basic, err := nc.Connect(
 			strings.Join(cfg.Addresses, ","),
 			nc.Name("Cryptogalaxy Publisher"),
@@ -37,18 +39,19 @@ func InitNATS(cfg *config.NATS) (Store, error) {
 			return nil, err
 		}
 
-		stores[NATS] = &nats{
+		_nats = &Nats{
 			Basic:  basic,
 			Client: client,
 			Cfg:    cfg,
 		}
+		stores[NATS] = _nats
 	}
 
-	return stores[NATS], nil
+	return _nats, nil
 }
 
-// CommitTickers batch inserts input ticker data to nats.
-func (n *nats) CommitTickers(_ context.Context, data []*Ticker) error {
+// CommitTickers batch inserts input ticker data to Nats.
+func (n *Nats) CommitTickers(_ context.Context, data []*Ticker) error {
 	for i := range data {
 		ticker := data[i]
 
@@ -58,8 +61,8 @@ func (n *nats) CommitTickers(_ context.Context, data []*Ticker) error {
 		}
 	}
 
-	// Maybe data is pushed to nats server before the flush also.
-	// Because client library of nats automatically buffers and pushes the data to server.
+	// Maybe data is pushed to Nats server before the flush also.
+	// Because client library of Nats automatically buffers and pushes the data to server.
 	// This is just to confirm.
 	err := n.Client.Flush()
 	if err != nil {
@@ -68,8 +71,8 @@ func (n *nats) CommitTickers(_ context.Context, data []*Ticker) error {
 	return nil
 }
 
-// CommitTrades batch inserts input trade data to nats.
-func (n *nats) CommitTrades(_ context.Context, data []*Trade) error {
+// CommitTrades batch inserts input trade data to Nats.
+func (n *Nats) CommitTrades(_ context.Context, data []*Trade) error {
 	for i := range data {
 		trade := data[i]
 
@@ -79,8 +82,8 @@ func (n *nats) CommitTrades(_ context.Context, data []*Trade) error {
 		}
 	}
 
-	// Maybe data is pushed to nats server before the flush also.
-	// Because client library of nats automatically buffers and pushes the data to server.
+	// Maybe data is pushed to Nats server before the flush also.
+	// Because client library of Nats automatically buffers and pushes the data to server.
 	// This is just to confirm.
 	err := n.Client.Flush()
 	if err != nil {
@@ -89,4 +92,4 @@ func (n *nats) CommitTrades(_ context.Context, data []*Trade) error {
 	return nil
 }
 
-func (n *nats) CommitCandles(_ context.Context, _ []*Candle) error { return nil }
+func (n *Nats) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

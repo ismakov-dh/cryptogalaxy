@@ -8,17 +8,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v7"
+	elasticsearch "github.com/elastic/go-elasticsearch/v7"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )
 
-// elasticSearch is for connecting and indexing data to elastic search.
-type elasticSearch struct {
+// ElasticSearch is for connecting and indexing data to elastic search.
+type ElasticSearch struct {
 	ES        *elasticsearch.Client
 	IndexName string
 	Cfg       *config.ES
 }
+
+var _elasticSearch *ElasticSearch
 
 // esData holds either ticker or trade data which will be sent to elastic search.
 type esData struct {
@@ -34,8 +36,8 @@ type esData struct {
 }
 
 // InitElasticSearch initializes elastic search connection with configured values.
-func InitElasticSearch(cfg *config.ES) (Store, error) {
-	if _, ok := stores[ELASTICSEARCH]; !ok {
+func InitElasticSearch(cfg *config.ES) (*ElasticSearch, error) {
+	if _elasticSearch == nil {
 		t := http.DefaultTransport.(*http.Transport).Clone()
 		t.MaxIdleConns = cfg.MaxIdleConns
 		t.MaxIdleConnsPerHost = cfg.MaxIdleConnsPerHost
@@ -62,17 +64,19 @@ func InitElasticSearch(cfg *config.ES) (Store, error) {
 		if err != nil {
 			return nil, err
 		}
-		stores[ELASTICSEARCH] = &elasticSearch{
+
+		_elasticSearch= &ElasticSearch{
 			ES:        es,
 			IndexName: cfg.IndexName,
 			Cfg:       cfg,
 		}
+		stores[ELASTICSEARCH] = _elasticSearch
 	}
-	return stores[ELASTICSEARCH], nil
+	return _elasticSearch, nil
 }
 
 // CommitTickers batch inserts input ticker data to elastic search.
-func (e *elasticSearch) CommitTickers(appCtx context.Context, data []*Ticker) error {
+func (e *ElasticSearch) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var buf bytes.Buffer
 	for i := range data {
 		ticker := data[i]
@@ -118,7 +122,7 @@ func (e *elasticSearch) CommitTickers(appCtx context.Context, data []*Ticker) er
 }
 
 // CommitTrades batch inserts input trade data to elastic search.
-func (e *elasticSearch) CommitTrades(appCtx context.Context, data []*Trade) error {
+func (e *ElasticSearch) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var buf bytes.Buffer
 	for i := range data {
 		trade := data[i]
@@ -166,4 +170,4 @@ func (e *elasticSearch) CommitTrades(appCtx context.Context, data []*Trade) erro
 	return nil
 }
 
-func (e *elasticSearch) CommitCandles(_ context.Context, _ []*Candle) error { return nil }
+func (e *ElasticSearch) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

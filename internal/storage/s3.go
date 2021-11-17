@@ -18,15 +18,17 @@ import (
 	"github.com/milkywaybrain/cryptogalaxy/internal/config"
 )
 
-// s3 is for connecting and inserting data to s3.
-type s3 struct {
+// S3 is for connecting and inserting data to S3.
+type S3 struct {
 	Client *awss3.Client
 	Cfg    *config.S3
 }
 
-// InitS3 initializes s3 connection with configured values.
-func InitS3(cfg *config.S3) (Store, error) {
-	if _, ok := stores[S3]; !ok {
+var _s3 *S3
+
+// InitS3 initializes S3 connection with configured values.
+func InitS3(cfg *config.S3) (*S3, error) {
+	if _s3 == nil {
 		httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
 			tr.MaxIdleConns = cfg.MaxIdleConns
 			tr.MaxIdleConnsPerHost = cfg.MaxIdleConnsPerHost
@@ -39,16 +41,18 @@ func InitS3(cfg *config.S3) (Store, error) {
 			return nil, err
 		}
 		awsClient := awss3.NewFromConfig(awsConfig)
-		stores[S3] = &s3{
+
+		_s3 = &S3{
 			Client: awsClient,
 			Cfg:    cfg,
 		}
+		stores[SS3] = _s3
 	}
-	return stores[S3], nil
+	return _s3, nil
 }
 
-// CommitTickers batch inserts input ticker data to s3.
-func (s *s3) CommitTickers(appCtx context.Context, data []*Ticker) error {
+// CommitTickers batch inserts input ticker data to S3.
+func (s *S3) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	var fileName strings.Builder
 	if s.Cfg.UsePrefixForObjName {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(10))
@@ -79,8 +83,8 @@ func (s *s3) CommitTickers(appCtx context.Context, data []*Ticker) error {
 	return nil
 }
 
-// CommitTrades batch inserts input trade data to s3.
-func (s *s3) CommitTrades(appCtx context.Context, data []*Trade) error {
+// CommitTrades batch inserts input trade data to S3.
+func (s *S3) CommitTrades(appCtx context.Context, data []*Trade) error {
 	var fileName strings.Builder
 	if s.Cfg.UsePrefixForObjName {
 		nBig, err := rand.Int(rand.Reader, big.NewInt(10))
@@ -111,4 +115,4 @@ func (s *s3) CommitTrades(appCtx context.Context, data []*Trade) error {
 	return nil
 }
 
-func (s *s3) CommitCandles(_ context.Context, _ []*Candle) error { return nil }
+func (s *S3) CommitCandles(_ context.Context, _ []*Candle) error { return nil }

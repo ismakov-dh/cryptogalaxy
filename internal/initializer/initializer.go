@@ -81,7 +81,7 @@ func Start(mainCtx context.Context, cfg *config.Config) error {
 						_, err = storage.InitNATS(&cfg.Connection.NATS)
 					case storage.CLICKHOUSE:
 						_, err = storage.InitClickHouse(&cfg.Connection.ClickHouse)
-					case storage.S3:
+					case storage.SS3:
 						_, err = storage.InitS3(&cfg.Connection.S3)
 					}
 

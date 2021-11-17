@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/clickhouse/clickhouse-go"
+	_ "github.com/ClickHouse/clickhouse-go"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	_ "github.com/go-sql-driver/mysql"
@@ -55,11 +54,11 @@ func TestCryptogalaxy(t *testing.T) {
 		s3Str         bool
 
 		fOutFile   *os.File
-		mysql      *storage.mySQL
-		es         *storage.elasticSearch
-		influx     *storage.influxDB
-		clickhouse *storage.clickhouse
-		s3         *storage.s3
+		mysql      *storage.MySQL
+		es         *storage.ElasticSearch
+		influx     *storage.InfluxDB
+		clickhouse *storage.Clickhouse
+		s3         *storage.S3
 		nOutFile   *os.File
 	)
 	enabledExchanges := make(map[string]bool)
@@ -2601,7 +2600,7 @@ func readTerminal(exchName string, terTickers map[string]storage.Ticker, terTrad
 }
 
 // readMySQL reads ticker and trade data for an exchange from mysql into passed in maps.
-func readMySQL(exchName string, mysqlTickers map[string]storage.Ticker, mysqlTrades map[string]storage.Trade, mysql *storage.mySQL) error {
+func readMySQL(exchName string, mysqlTickers map[string]storage.Ticker, mysqlTrades map[string]storage.Trade, mysql *storage.MySQL) error {
 	var ctx context.Context
 	if mysql.Cfg.ReqTimeoutSec > 0 {
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(mysql.Cfg.ReqTimeoutSec)*time.Second)
@@ -2666,7 +2665,7 @@ func readMySQL(exchName string, mysqlTickers map[string]storage.Ticker, mysqlTra
 }
 
 // readElasticSearch reads ticker and trade data for an exchange from elastic search into passed in maps.
-func readElasticSearch(exchName string, esTickers map[string]storage.Ticker, esTrades map[string]storage.Trade, es *storage.elasticSearch) error {
+func readElasticSearch(exchName string, esTickers map[string]storage.Ticker, esTrades map[string]storage.Trade, es *storage.ElasticSearch) error {
 	var buf bytes.Buffer
 	query := map[string]interface{}{
 		"size": 0,
@@ -2730,7 +2729,7 @@ func readElasticSearch(exchName string, esTickers map[string]storage.Ticker, esT
 	}
 
 	var esResp esResp
-	if err := json.NewDecoder(res.Body).Decode(&esResp); err != nil {
+	if err := jsoniter.NewDecoder(res.Body).Decode(&esResp); err != nil {
 		return err
 	}
 	for _, channel := range esResp.Aggregations.ByChannel.Buckets {
@@ -2756,7 +2755,7 @@ func readElasticSearch(exchName string, esTickers map[string]storage.Ticker, esT
 }
 
 // readInfluxDB reads ticker and trade data for an exchange from influxdb into passed in maps.
-func readInfluxDB(exchName string, influxTickers map[string]storage.Ticker, influxTrades map[string]storage.Trade, influx *storage.influxDB) error {
+func readInfluxDB(exchName string, influxTickers map[string]storage.Ticker, influxTrades map[string]storage.Trade, influx *storage.InfluxDB) error {
 	var ctx context.Context
 	if influx.Cfg.ReqTimeoutSec > 0 {
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(influx.Cfg.ReqTimeoutSec)*time.Second)
@@ -2917,7 +2916,7 @@ func readNATS(exchName string, natsTickers map[string]storage.Ticker, natsTrades
 }
 
 // readClickHouse reads ticker and trade data for an exchange from clickhouse into passed in maps.
-func readClickHouse(exchName string, clickHouseTickers map[string]storage.Ticker, clickHouseTrades map[string]storage.Trade, clickHouse *storage.clickhouse) error {
+func readClickHouse(exchName string, clickHouseTickers map[string]storage.Ticker, clickHouseTrades map[string]storage.Trade, clickHouse *storage.Clickhouse) error {
 	tickerRows, err := clickHouse.DB.Query("select market, avg(price) as price from ticker where exchange = ? group by market", exchName)
 	if err != nil {
 		return err
@@ -2967,7 +2966,7 @@ func readClickHouse(exchName string, clickHouseTickers map[string]storage.Ticker
 }
 
 // readS3 reads ticker and trade data for all the exchanges from s3 into passed in maps.
-func readS3(s3AllTickers map[string]map[string]storage.Ticker, s3AllTrades map[string]map[string]storage.Trade, s3 *storage.s3) error {
+func readS3(s3AllTickers map[string]map[string]storage.Ticker, s3AllTrades map[string]map[string]storage.Trade, s3 *storage.S3) error {
 	var lastObjKey string
 	var objInput *awss3.ListObjectsV2Input
 	for {
@@ -3144,7 +3143,7 @@ func verifyData(exchName string, terTickers map[string]storage.Ticker, terTrades
 }
 
 // Subscribe to nats subject. Write received data to a file.
-func natsSub(subject string, out io.Writer, nats *storage.nats, t *testing.T) {
+func natsSub(subject string, out io.Writer, nats *storage.Nats, t *testing.T) {
 	if _, err := nats.Basic.Subscribe(subject, func(m *nc.Msg) {
 		if strings.HasSuffix(m.Subject, "ticker") {
 			ticker := storage.Ticker{}

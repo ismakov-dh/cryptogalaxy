@@ -17,7 +17,7 @@ const (
 	INFLUXDB      = "influxdb"
 	MYSQL         = "mysql"
 	NATS          = "nats"
-	S3            = "s3"
+	SS3           = "s3"
 	TERMINAL      = "terminal"
 )
 

@@ -6,27 +6,31 @@ import (
 	"io"
 )
 
-// terminal is for displaying data on terminal.
-type terminal struct {
+// Terminal is for displaying data on Terminal.
+type Terminal struct {
 	out io.Writer
 }
+
+var _terminal *Terminal
 
 // TerminalTimestamp is used as a format to display only the time.
 const TerminalTimestamp = "15:04:05.999"
 
-// InitTerminal initializes terminal display.
-// Output writer is always os.Stdout except in case of testing where file will be set as output terminal.
-func InitTerminal(out io.Writer) Store {
-	if _, ok := stores[TERMINAL]; !ok {
-		stores[TERMINAL] = &terminal{
+
+// InitTerminal initializes Terminal display.
+// Output writer is always os.Stdout except in case of testing where file will be set as output Terminal.
+func InitTerminal(out io.Writer) *Terminal {
+	if _terminal == nil {
+		_terminal = &Terminal{
 			out: out,
 		}
+		stores[TERMINAL] = _terminal
 	}
-	return stores[TERMINAL]
+	return _terminal
 }
 
-// CommitTickers batch outputs input ticker data to terminal.
-func (t *terminal) CommitTickers(_ context.Context, data []*Ticker) (err error) {
+// CommitTickers batch outputs input ticker data to Terminal.
+func (t *Terminal) CommitTickers(_ context.Context, data []*Ticker) (err error) {
 	for i := range data {
 		ticker := data[i]
 		_, err = fmt.Fprintf(
@@ -42,8 +46,8 @@ func (t *terminal) CommitTickers(_ context.Context, data []*Ticker) (err error) 
 	return
 }
 
-// CommitTrades batch outputs input trade data to terminal.
-func (t *terminal) CommitTrades(_ context.Context, data []*Trade) (err error) {
+// CommitTrades batch outputs input trade data to Terminal.
+func (t *Terminal) CommitTrades(_ context.Context, data []*Trade) (err error) {
 	for i := range data {
 		trade := data[i]
 		_, err = fmt.Fprintf(
@@ -60,7 +64,7 @@ func (t *terminal) CommitTrades(_ context.Context, data []*Trade) (err error) {
 	return
 }
 
-func (t *terminal) CommitCandles(_ context.Context, data []*Candle) (err error) {
+func (t *Terminal) CommitCandles(_ context.Context, data []*Candle) (err error) {
 	for _, candle := range data {
 		_, err = fmt.Fprintf(
 			t.out,
