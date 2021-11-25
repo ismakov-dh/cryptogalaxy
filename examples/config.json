@@ -127,7 +127,7 @@
     },
     "ftx": {
       "rest_url": "https://ftx.com/api/",
-      "webocket_url": "wss://ftx.com/ws/",
+      "websocket_url": "wss://ftx.com/ws/",
       "retry": {
         "number": 0,
         "gap_sec": 0,
@@ -136,7 +136,7 @@
     },
     "ftx-us": {
       "rest_url": "https://ftx.us/api/",
-      "webocket_url": "wss://ftx.us/ws/",
+      "websocket_url": "wss://ftx.us/ws/",
       "retry": {
         "number": 0,
         "gap_sec": 0,
