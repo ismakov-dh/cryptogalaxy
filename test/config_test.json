@@ -232,8 +232,8 @@
   },
   "commit_buffers": {
     "clickhouse": {
-      "ticker": 100,
-      "trade": 100,
+      "ticker": 10000,
+      "trade": 10000,
       "candle": 100
     },
     "elastic_search": {
