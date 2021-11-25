@@ -47,7 +47,7 @@ func (s *Storage) getCandleBuffer(market string) *candlesBuffer {
 
 func (s *Storage) newCandleBuffer() *candlesBuffer {
 	return &candlesBuffer{
-		buffer:          make([]*storage.Candle, 0, s.candlesBuffer),
+		buffer:          make([]*storage.Candle, s.candlesBuffer),
 		preBufferedIdxs: make(map[time.Time]int),
 	}
 }
@@ -56,8 +56,8 @@ func NewStorage(ctx context.Context, store storage.Store, buffers config.CommitB
 	return &Storage{
 		ctx:                       ctx,
 		store:                     store,
-		tickers:                   make([]*storage.Ticker, 0, buffers.Ticker),
-		trades:                    make([]*storage.Trade, 0, buffers.Trade),
+		tickers:                   make([]*storage.Ticker, buffers.Ticker),
+		trades:                    make([]*storage.Trade, buffers.Trade),
 		candles:                   make(map[string]*candlesBuffer),
 		tickersStream:             make(chan []*storage.Ticker, 1),
 		tradesStream:              make(chan []*storage.Trade, 1),
@@ -83,7 +83,7 @@ func (s *Storage) AppendTicker(ticker *storage.Ticker) {
 		s.tickersStream <- tickers
 
 		s.tickersCount = 0
-		s.tickers = make([]*storage.Ticker, 0, s.tickersBuffer)
+		s.tickers = make([]*storage.Ticker, s.tickersBuffer)
 	}
 }
 
@@ -95,7 +95,7 @@ func (s *Storage) AppendTrade(trade *storage.Trade) {
 		s.tradesStream <- trades
 
 		s.tradesCount = 0
-		s.trades = make([]*storage.Trade, 0, s.tradesBuffer)
+		s.trades = make([]*storage.Trade, s.tradesBuffer)
 	}
 }
 
@@ -163,7 +163,7 @@ func (s *Storage) AppendCandle(candle *storage.Candle) {
 		s.candlesStream <- candles
 
 		buf.count = 0
-		buf.buffer = make([]*storage.Candle, 0, s.candlesBuffer)
+		buf.buffer = make([]*storage.Candle, s.candlesBuffer)
 	}
 }
 

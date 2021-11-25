@@ -155,7 +155,7 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
-	var cfg *Config
+	cfg := &Config{}
 
 	if err = jsoniter.NewDecoder(cfgFile).Decode(cfg); err != nil {
 		return nil, err

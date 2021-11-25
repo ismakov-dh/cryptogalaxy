@@ -43,6 +43,7 @@ func NewWrapper(name string, cfg *config.Config) *Wrapper {
 	return &Wrapper{
 		name:   name,
 		config: cfg,
+		storages: make(map[string]*Storage),
 	}
 }
 
@@ -255,6 +256,7 @@ func (w *Wrapper) cfgLookup(ctx context.Context, errGroup *errgroup.Group) error
 					buffers := w.config.CommitBuffers[name]
 					s := NewStorage(ctx, store, buffers)
 					s.Start(errGroup)
+					w.storages[name] = s
 				}
 			}
 		}
